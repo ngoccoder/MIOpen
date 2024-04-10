@@ -6582,6 +6582,35 @@ MIOPEN_EXPORT miopenStatus_t miopenBackendInitialize(miopenBackendDescriptor_t d
 // CLOSEOUT BackendAPI DOXYGEN GROUP
 #endif // MIOPEN_BETA_API
 
+#ifdef MIOPEN_BETA_API
+
+// GLU APIs
+/** @addtogroup activation
+ *
+ *  @{
+ */
+
+/*! @brief Execute a GLU forward contiguous layer
+ *
+ * @param handle                   MIOpen handle (input)
+ * @param xDesc                    Tensor descriptor for data input tensor x (input)
+ * @param x                        Data tensor x (input)
+ * @param dim                      Dimensions to sum. (input)
+ * @param yDesc                    Tensor descriptor for output data tensor y (input)
+ * @param y                        Data tensor y (output)
+ * @return                         miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenGLUForward(miopenHandle_t handle,
+                                              const miopenTensorDescriptor_t xDesc,
+                                              const void* x,
+                                              const int32_t dim,
+                                              const miopenTensorDescriptor_t yDesc,
+                                              void* y);
+
+/** @} */
+// CLOSEOUT BackendAPI DOXYGEN GROUP
+#endif // MIOPEN_BETA_API
+
 #ifdef __cplusplus
 }
 #endif

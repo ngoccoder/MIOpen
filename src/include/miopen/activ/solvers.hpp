@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include "miopen/conv_solution.hpp"
 #include <miopen/solver.hpp>
 #include <miopen/activ/problem_description.hpp>
 
@@ -52,6 +53,16 @@ struct ActivFwdSolver0 final : ActivSolver
 struct ActivFwdSolver1 final : ActivSolver
 {
     const std::string& SolverDbId() const override { return GetSolverDbId<ActivFwdSolver1>(); }
+
+    bool IsApplicable(const ExecutionContext& context,
+                      const miopen::activ::ProblemDescription& problem) const override;
+    ConvSolution GetSolution(const ExecutionContext& context,
+                             const miopen::activ::ProblemDescription& problem) const override;
+};
+
+struct GLUForward final : ActivSolver
+{
+    const std::string& SolverDbId() const override { return GetSolverDbId<GLUForward>(); }
 
     bool IsApplicable(const ExecutionContext& context,
                       const miopen::activ::ProblemDescription& problem) const override;
