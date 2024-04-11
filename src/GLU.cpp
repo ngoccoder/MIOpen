@@ -52,15 +52,12 @@ std::size_t GetSumWorkspaceSize(Handle& handle,
     return pair_size_vector.empty() ? static_cast<size_t>(-1) : pair_size_vector.front().second;
 }
 
-miopenStatus_t SumForward(Handle& handle,
-                          Data_t workspace,
-                          size_t workspaceSizeInBytes,
+miopenStatus_t GLUForward(Handle& handle,
                           const TensorDescriptor& xDesc,
                           ConstData_t x,
+                          int32_t dim,
                           const TensorDescriptor& yDesc,
-                          Data_t y,
-                          miopenSumNanPropagation_t nanPropagation,
-                          int32_t dim)
+                          Data_t y)
 {
     const auto problem = reduce::ProblemDescription{nanPropagation, xDesc, yDesc, dim};
 

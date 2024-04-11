@@ -97,27 +97,23 @@ extern "C" miopenStatus_t miopenGetGLUWorkspaceSize(miopenHandle_t handle,
     });
 };
 
-extern "C" miopenStatus_t miopenGLUForward(miopenHandle_t handle,
-                                           void* workspace,
-                                           size_t workspaceSizeInBytes,
-                                           const miopenTensorDescriptor_t xDesc,
-                                           const void* x,
-                                           const int32_t dim,
-                                           const miopenTensorDescriptor_t yDesc,
-                                           void* y)
+MIOPEN_EXPORT miopenStatus_t miopenGLUForward(miopenHandle_t handle,
+                                              const miopenTensorDescriptor_t xDesc,
+                                              const void* x,
+                                              const int32_t dim,
+                                              const miopenTensorDescriptor_t yDesc,
+                                              void* y)
 {
     MIOPEN_LOG_FUNCTION(
-        handle, workspace, workspaceSizeInBytes, xDesc, x, dim, yDesc, y);
+        handle, xDesc, x, dim, yDesc, y);
 
     LogCmdSum(xDesc, true);
     return miopen::try_([&] {
         miopen::GLUForward(miopen::deref(handle),
-                           DataCast(workspace),
-                           workspaceSizeInBytes,
                            miopen::deref(xDesc),
                            DataCast(x),
+                           dim,
                            miopen::deref(yDesc),
-                           DataCast(y),
-                           dim);
+                           DataCast(y));
     });
 }

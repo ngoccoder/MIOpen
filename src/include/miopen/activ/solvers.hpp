@@ -60,16 +60,6 @@ struct ActivFwdSolver1 final : ActivSolver
                              const miopen::activ::ProblemDescription& problem) const override;
 };
 
-struct GLUForward final : ActivSolver
-{
-    const std::string& SolverDbId() const override { return GetSolverDbId<GLUForward>(); }
-
-    bool IsApplicable(const ExecutionContext& context,
-                      const miopen::activ::ProblemDescription& problem) const override;
-    ConvSolution GetSolution(const ExecutionContext& context,
-                             const miopen::activ::ProblemDescription& problem) const override;
-};
-
 struct ActivBwdSolver0 final : ActivSolver
 {
     const std::string& SolverDbId() const override { return GetSolverDbId<ActivBwdSolver0>(); }

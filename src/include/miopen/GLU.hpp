@@ -39,13 +39,11 @@ std::size_t GetGLUWorkspaceSize(Handle& handle,
                                 int32_t dim);
 
 miopenStatus_t GLUForward(Handle& handle,
-                          Data_t workspace,
-                          size_t workspaceSizeInBytes,
                           const TensorDescriptor& xDesc,
                           ConstData_t x,
+                          int32_t dim,
                           const TensorDescriptor& yDesc,
-                          Data_t y,
-                          int32_t dim);
+                          Data_t y);
 
 } // namespace miopen
 #endif // _MIOPEN_SUM_HPP_
