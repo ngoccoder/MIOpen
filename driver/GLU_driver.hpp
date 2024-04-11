@@ -49,30 +49,25 @@ Tcheck sigmoid(Tcheck x) { return 1.0f / (1.0f + exp(-x)); }
 
 template <typename Tgpu, typename Tcheck>
 int32_t mloGLUForwardRunHost(miopenTensorDescriptor_t inputDesc,
+                            miopenTensorDescriptor_t inputSplitDesc,
                              miopenTensorDescriptor_t outputDesc,
-                             Tgpu* input,
+                             Tgpu* input_first_half,
+                             Tgpu* input_second_half,
                              Tcheck* outputHost,
                              int32_t dim)
 {
     auto input_dims = miopen::deref(inputDesc).GetLengths();
+    auto input_split_dims = miopen::deref(inputSplitDesc).GetLengths();
     auto output_dims = miopen::deref(outputDesc).GetLengths();
 
-    auto dim_size = input_dims[dim];
     auto output_numel = std::accumulate(output_dims.begin(), output_dims.end(), 1L, std::multiplies<int64_t>());
-
-    auto inner_size = 1ULL;
-    for (int32_t i = dim + 1; i < input_dims.size(); i++) {
-        inner_size *= input_dims[i];
-    }
 
     int32_t ret = 0;
 
     for (size_t o = 0; o < output_numel; o++) 
     {
-        size_t input_idx_a = (o / inner_size) * inner_size + o % inner_size;
-        size_t input_idx_b = (o / inner_size + dim_size / 2) * inner_size + o % inner_size;
-        Tcheck valA = static_cast<Tcheck>(input[input_idx_a]);
-        Tcheck valB = static_cast<Tcheck>(input[input_idx_b]);
+        Tcheck valA = static_cast<Tcheck>(input_first_half[o]);
+        Tcheck valB = static_cast<Tcheck>(input_second_half[o]);
         Tcheck val = valA * sigmoid(valB);
         outputHost[o] = val;
     }
@@ -100,6 +95,8 @@ public:
     int GetandSetData() override;
     std::vector<int> GetInputTensorLengthsFromCmdLine();
 
+    void splitInput();
+
     int AllocateBuffersAndCopy() override;
 
     int RunForwardGPU() override;
@@ -121,12 +118,17 @@ private:
     InputFlags inflags;
 
     miopenTensorDescriptor_t inputTensor;
+    miopenTensorDescriptor_t inputTensorSplit;
     miopenTensorDescriptor_t outputTensor;
 
     std::unique_ptr<GPUMem> in_dev;
+    std::unique_ptr<GPUMem> in_dev_first_half;
+    std::unique_ptr<GPUMem> in_dev_second_half;
     std::unique_ptr<GPUMem> out_dev;
 
     std::vector<Tgpu> in;
+    std::vector<Tgpu> in_first_half;
+    std::vector<Tgpu> in_second_half;
     std::vector<Tgpu> out;
     std::vector<Tref> outhost;
 
@@ -168,6 +170,7 @@ int GLUDriver<Tgpu, Tref>::GetandSetData()
     if (out_len.empty())
         out_len.push_back(1);
 
+    SetTensorNd(inputTensorSplit, out_len, data_type);
     SetTensorNd(outputTensor, out_len, data_type);
 
     return (0);
@@ -229,6 +232,35 @@ std::vector<int> GLUDriver<Tgpu, Tref>::GetInputTensorLengthsFromCmdLine()
     }
 }
 
+template<typename Tgpu, typename Tref>
+void GLUDriver<Tgpu, Tref>::splitInput() {
+    auto input_dims = miopen::deref(inputTensor).GetLengths();
+    auto output_dims = miopen::deref(outputTensor).GetLengths();
+
+    auto splitDim_size = input_dims[dim];
+    auto splitedDim_size = output_dims[dim];
+    auto output_numel = std::accumulate(output_dims.begin(), output_dims.end(), 1L, std::multiplies<int64_t>());
+
+    auto inner_size = 1ULL;
+    for (int32_t i = dim + 1; i < input_dims.size(); i++) {
+        inner_size *= input_dims[i];
+    }
+
+    // split in vector to 2 parts
+    for (size_t o = 0; o < output_numel; o++) 
+    {
+        //size_t outerIdx = (o / inner_size / splitedDim_size);
+        //size_t splitDimIdx = (o % (inner_size * splitedDim_size)) / inner_size;
+        size_t innerIdx = o % inner_size;
+        size_t splittedDimIdx = ((o - innerIdx) / inner_size) % splitedDim_size;
+        size_t outerIdx = (o - innerIdx - splittedDimIdx * inner_size) / (inner_size * splitedDim_size);
+        size_t inputIdx1 = outerIdx * splitDim_size * inner_size + splittedDimIdx * inner_size + innerIdx;
+        size_t inputIdx2 = outerIdx * splitDim_size * inner_size + (splittedDimIdx + splitedDim_size) * inner_size + innerIdx + splitedDim_size * inner_size;
+        in_first_half[o] = in[inputIdx1];
+        in_second_half[o] = in[inputIdx2];
+    }
+}
+
 template <typename Tgpu, typename Tref>
 int GLUDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 {
@@ -238,10 +270,13 @@ int GLUDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 
     uint32_t ctx = 0;
 
-    in_dev  = std::unique_ptr<GPUMem>(new GPUMem(ctx, in_sz, sizeof(Tgpu)));
+    in_dev_first_half  = std::unique_ptr<GPUMem>(new GPUMem(ctx, out_sz, sizeof(Tgpu)));
+    in_dev_second_half = std::unique_ptr<GPUMem>(new GPUMem(ctx, out_sz, sizeof(Tgpu)));
     out_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, out_sz, sizeof(Tgpu)));
 
     in      = std::vector<Tgpu>(in_sz, static_cast<Tgpu>(0));
+    in_first_half = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
+    in_second_half = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
     out     = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
     outhost = std::vector<Tref>(out_sz, static_cast<Tref>(0));
 
@@ -250,8 +285,13 @@ int GLUDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
         in[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
     }
 
-    if(in_dev->ToGPU(GetStream(), in.data()) != 0)
-        std::cerr << "Error copying (in) to GPU, size: " << in_dev->GetSize() << std::endl;
+    splitInput();
+
+    if(in_dev_first_half->ToGPU(GetStream(), in_first_half.data()) != 0)
+        std::cerr << "Error copying (first half in) to GPU, size: " << in_dev_first_half->GetSize() << std::endl;
+
+    if(in_dev_second_half->ToGPU(GetStream(), in_second_half.data()) != 0)
+        std::cerr << "Error copying (second half in) to GPU, size: " << in_dev_second_half->GetSize() << std::endl;
 
     if(out_dev->ToGPU(GetStream(), out.data()) != 0)
         std::cerr << "Error copying (out) to GPU, size: " << out_dev->GetSize() << std::endl;
@@ -271,11 +311,13 @@ int GLUDriver<Tgpu, Tref>::RunForwardGPU()
     for(int i = 0; i < inflags.GetValueInt("iter"); i++)
     {
         miopenGLUForward(GetHandle(),
-                         inputTensor,
-                         in_dev->GetMem(),
-                         dim,
-                         outputTensor,
-                         out_dev->GetMem());
+                        inputTensor,
+                        inputTensorSplit,
+                        in_dev_first_half->GetMem(),
+                        in_dev_second_half->GetMem(),
+                        dim,
+                        outputTensor,
+                        out_dev->GetMem());
 
         float time = 0.0;
         miopenGetKernelTime(GetHandle(), &time);
@@ -307,7 +349,7 @@ template <typename Tgpu, typename Tref>
 int GLUDriver<Tgpu, Tref>::RunForwardCPU()
 {
     mloGLUForwardRunHost<Tgpu, Tref>
-        (inputTensor, outputTensor, in.data(), outhost.data(), dim);
+        (inputTensor, inputTensorSplit, outputTensor, in_first_half.data(), in_second_half.data(), outhost.data(), dim);
 
     return miopenStatusSuccess;
 }

@@ -48,17 +48,18 @@ enum class Direction
 struct ProblemDescription : ProblemDescriptionBase
 {
     // Forward constructor
-    ProblemDescription(const TensorDescriptor& xDesc_,
-                       const TensorDescriptor& yDesc_,
+    ProblemDescription(const TensorDescriptor& inputDesc_,
+                       const TensorDescriptor& inputSplitDesc_,
+                       const TensorDescriptor& outputDesc_,
                        int32_t dim_)
-        : direction(Direction::Forward), xDesc(xDesc_), yDesc(yDesc_), dim(dim_)
+        : direction(Direction::Forward), inputDesc(inputDesc_), inputSplitDesc(inputSplitDesc_), outputDesc(outputDesc_), dim(dim_)
     {
-        if(xDesc.GetLengths().size() != yDesc.GetLengths().size())
+        if(inputDesc.GetLengths().size() != outputDesc.GetLengths().size())
         {
             MIOPEN_THROW(miopenStatusBadParm,
                          "GLU::ProblemDescription: Number of tensor dimension do not match.");
         }
-        if(xDesc.GetLengths()[dim] % 2 != 0)
+        if(inputDesc.GetLengths()[dim] % 2 != 0)
         {
             MIOPEN_THROW(miopenStatusBadParm,
                          "GLU::ProblemDescription: The split dimension size of input tensor should "
@@ -67,13 +68,14 @@ struct ProblemDescription : ProblemDescriptionBase
     }
 
     Direction GetDirection() const { return direction; }
-    const TensorDescriptor& GetXDesc() const { return xDesc; }
-    const TensorDescriptor& GetYDesc() const { return yDesc; }
+    const TensorDescriptor& GetInputDesc() const { return inputDesc; }
+    const TensorDescriptor& GetInputSplitDesc() const { return inputSplitDesc; }
+    const TensorDescriptor& GetOutputDesc() const { return outputDesc; }
     int32_t GetDim() const { return dim; }
 
     bool IsSameType() const
     {
-        if(xDesc.GetType() != yDesc.GetType())
+        if(inputDesc.GetType() != outputDesc.GetType())
         {
 #if MIOPEN_BUILD_DEV || !MIOPEN_NDEBUG
             MIOPEN_THROW(miopenStatusBadParm, "Reduce: Tensor types do not match.");
@@ -86,14 +88,14 @@ struct ProblemDescription : ProblemDescriptionBase
 
     bool IsRightLength() const
     {
-        for(int32_t i = 0; i < xDesc.GetLengths().size(); i++)
+        for(int32_t i = 0; i < inputDesc.GetLengths().size(); i++)
         {
             if (i == dim) {
-                if (xDesc.GetLengths()[i] / 2 != yDesc.GetLengths()[i]) {
+                if (inputDesc.GetLengths()[i] / 2 != outputDesc.GetLengths()[i]) {
                     return false;
                 }
             } else {
-                if (xDesc.GetLengths()[i] != yDesc.GetLengths()[i]) {
+                if (inputDesc.GetLengths()[i] != outputDesc.GetLengths()[i]) {
                     return false;
                 }
             }
@@ -103,7 +105,7 @@ struct ProblemDescription : ProblemDescriptionBase
 
     bool IsRightDim() const
     {
-        if((dim < 0) || (dim > xDesc.GetLengths().size()))
+        if((dim < 0) || (dim > outputDesc.GetLengths().size()))
         {
 #if MIOPEN_BUILD_DEV || !MIOPEN_NDEBUG
             MIOPEN_THROW(
@@ -118,7 +120,7 @@ struct ProblemDescription : ProblemDescriptionBase
 
     bool IsAllPacked() const
     {
-        if(!(xDesc.IsPacked() && yDesc.IsPacked()))
+        if(!(inputDesc.IsPacked() && outputDesc.IsPacked()))
         {
 #if MIOPEN_BUILD_DEV || !MIOPEN_NDEBUG
             MIOPEN_THROW(miopenStatusBadParm, "Reduce: Unpacked tensors not supported.");
@@ -129,19 +131,13 @@ struct ProblemDescription : ProblemDescriptionBase
         return true;
     }
 
-    bool IsNotLastDim() const
-    {
-        if(dim == xDesc.GetLengths().size() - 1)
-            return false;
-        return true;
-    }
-
     NetworkConfig MakeNetworkConfig() const override;
 
 private:
     Direction direction;
-    TensorDescriptor xDesc;
-    TensorDescriptor yDesc;
+    TensorDescriptor inputDesc;
+    TensorDescriptor inputSplitDesc;
+    TensorDescriptor outputDesc;
     
     int32_t dim;
 };

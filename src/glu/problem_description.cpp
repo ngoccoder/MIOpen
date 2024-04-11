@@ -23,29 +23,36 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#ifndef MIOPEN_GLU_HPP_
-#define MIOPEN_GLU_HPP_
 
-#include <miopen/common.hpp>
+#include <miopen/glu/problem_description.hpp>
+#include <miopen/names.hpp>
+
+#include <sstream>
 
 namespace miopen {
 
-struct Handle;
-struct TensorDescriptor;
+namespace glu {
 
-std::size_t GetGLUWorkspaceSize(Handle& handle,
-                                const TensorDescriptor& xDesc,
-                                const TensorDescriptor& yDesc,
-                                int32_t dim);
+NetworkConfig ProblemDescription::MakeNetworkConfig() const
+{
+    auto inputlength = inputDesc.GetLengths();
+    auto outputlength = outputDesc.GetLengths();
 
-miopenStatus_t GLUForward(Handle& handle,
-                          const TensorDescriptor& inputDesc,
-                          const TensorDescriptor& inputSplitDesc,
-                          ConstData_t a,
-                          ConstData_t b,
-                          int32_t dim,
-                          const TensorDescriptor& outputDesc,
-                          Data_t output);
+    auto splitdim_size  = inputlength[dim];
+    auto output_numel = std::accumulate(
+        outputlength.begin(), outputlength.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    auto dtype = inputDesc.GetType();
+
+    std::ostringstream ss;
+
+    ss << "dtype" << dtype;
+    ss << "dim" << dim;
+    ss << "splitDim_size" << splitdim_size;
+    ss << "output_numel" << output_numel;
+
+    return NetworkConfig{ss.str()};
+}
+
+} // namespace glu
 
 } // namespace miopen
-#endif // _MIOPEN_SUM_HPP_

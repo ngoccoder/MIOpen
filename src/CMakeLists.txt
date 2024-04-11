@@ -120,6 +120,9 @@ set( MIOpen_Source
     fused_api.cpp
     fusion.cpp
     fusion/problem_description.cpp
+    GLU_api.cpp
+    GLU.cpp
+    glu/problem_description.cpp
     generic_search.cpp
     graphapi/convolution.cpp
     graphapi/graphapi.cpp
@@ -257,6 +260,7 @@ set( MIOpen_Source
     solver/gemm.cpp
     solver/gemm_bwd.cpp
     solver/gemm_wrw.cpp
+    solver/glu/forward_glu.cpp
     solver/groupnorm/forward_groupnorm.cpp
     solver/layernorm/forward_layernorm.cpp
     solver/layernorm/forward_layernorm2d_ck.cpp
@@ -439,6 +443,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenArgmax.cpp
         kernels/MIOpenCat.cpp
         kernels/MIOpenCheckNumerics.cpp
+        kernels/MIOpenGLU.cpp
         kernels/MIOpenBatchNormActivBwdPerAct.cl
         kernels/MIOpenBatchNormActivBwdSpatial.cl
         kernels/MIOpenBatchNormActivFwdTrainPerAct.cl
@@ -602,6 +607,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         ocl/fusionopconvocl.cpp
         ocl/fusionopbiasbnactivocl.cpp
         sum.cpp
+        GLU.cpp
         ${PROJECT_BINARY_DIR}/db_path.cpp
         )
 

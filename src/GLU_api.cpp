@@ -30,7 +30,7 @@
 #include <miopen/logger.hpp>
 #include <miopen/tensor_ops.hpp>
 
-static void LogCmdSum(const miopenTensorDescriptor_t xDesc,
+static void LogCmdGLU(const miopenTensorDescriptor_t xDesc,
                       bool is_fwd)
 {
     if(miopen::IsLoggingCmd())
@@ -97,23 +97,27 @@ extern "C" miopenStatus_t miopenGetGLUWorkspaceSize(miopenHandle_t handle,
     });
 };
 
-MIOPEN_EXPORT miopenStatus_t miopenGLUForward(miopenHandle_t handle,
-                                              const miopenTensorDescriptor_t xDesc,
-                                              const void* x,
-                                              const int32_t dim,
-                                              const miopenTensorDescriptor_t yDesc,
-                                              void* y)
+extern "C" miopenStatus_t miopenGLUForward(miopenHandle_t handle,
+                                            const miopenTensorDescriptor_t inputDesc,
+                                            const miopenTensorDescriptor_t inputSplitDesc,
+                                            const void* a,
+                                            const void* b,
+                                            const int32_t dim,
+                                            const miopenTensorDescriptor_t outputDesc,
+                                            void* output)
 {
     MIOPEN_LOG_FUNCTION(
-        handle, xDesc, x, dim, yDesc, y);
+        handle, inputDesc, inputSplitDesc, a, b, dim, outputDesc, output);
 
-    LogCmdSum(xDesc, true);
+    LogCmdGLU(inputDesc, true);
     return miopen::try_([&] {
         miopen::GLUForward(miopen::deref(handle),
-                           miopen::deref(xDesc),
-                           DataCast(x),
+                           miopen::deref(inputDesc),
+                           miopen::deref(inputSplitDesc),
+                           DataCast(a),
+                           DataCast(b),
                            dim,
-                           miopen::deref(yDesc),
-                           DataCast(y));
+                           miopen::deref(outputDesc),
+                           DataCast(output));
     });
 }

@@ -28,55 +28,58 @@
 #include <miopen/find_solution.hpp>
 #include <miopen/float_equal.hpp>
 #include <miopen/kernel_cache.hpp>
-#include <miopen/reduce/invoke_params.hpp>
-#include <miopen/reduce/solvers.hpp>
-#include <miopen/sum.hpp>
+#include <miopen/glu/invoke_params.hpp>
+#include <miopen/glu/solvers.hpp>
+#include <miopen/GLU.hpp>
 #include <miopen/tensor.hpp>
 
 namespace miopen {
 
-std::size_t GetSumWorkspaceSize(Handle& handle,
+/*
+std::size_t GetGLUWorkspaceSize(Handle& handle,
                                 const TensorDescriptor& xDesc,
                                 const TensorDescriptor& yDesc,
                                 int32_t dim)
 {
     auto ctx = ExecutionContext{&handle};
     const auto problem =
-        reduce::ProblemDescription{MIOPEN_SUM_NOT_PROPAGATE_NAN, xDesc, yDesc, dim};
+        glu::ProblemDescription{xDesc, yDesc, dim};
 
-    const auto algo    = AlgorithmName{"SumForward"};
-    const auto solvers = solver::SolverContainer<solver::reduce::SumForward>{};
+    const auto algo    = AlgorithmName{"GLUForward"};
+    const auto solvers = solver::SolverContainer<solver::glu::GLUForward>{};
 
     auto pair_size_vector = solvers.GetWorkspaceSizes(ctx, problem);
 
     return pair_size_vector.empty() ? static_cast<size_t>(-1) : pair_size_vector.front().second;
 }
+*/
 
 miopenStatus_t GLUForward(Handle& handle,
-                          const TensorDescriptor& xDesc,
-                          ConstData_t x,
+                          const TensorDescriptor& inputDesc,
+                          const TensorDescriptor& inputSplitDesc,
+                          Data_t a,
+                          Data_t b,
                           int32_t dim,
-                          const TensorDescriptor& yDesc,
-                          Data_t y)
+                          const TensorDescriptor& outputDesc,
+                          Data_t output)
 {
-    const auto problem = reduce::ProblemDescription{nanPropagation, xDesc, yDesc, dim};
+    const auto problem = glu::ProblemDescription{inputDesc, inputSplitDesc, outputDesc, dim};
 
     const auto invoke_params = [&]() {
-        auto tmp           = reduce::InvokeParams{};
+        auto tmp           = glu::InvokeParams{};
         tmp.type           = InvokeType::Run;
-        tmp.xDesc          = &xDesc;
-        tmp.yDesc          = &yDesc;
-        tmp.x              = x;
-        tmp.y              = y;
-        tmp.workspace      = workspace;
-        tmp.workspace_size = workspaceSizeInBytes;
-        tmp.nanPropagation = nanPropagation;
+        tmp.inputDesc      = &inputDesc;
+        tmp.inputSplitDesc = &inputSplitDesc;
+        tmp.outputDesc     = &outputDesc;
+        tmp.xFirstHalf     = a;
+        tmp.xSecondHalf    = b;
+        tmp.y              = output;
         tmp.dim            = dim;
         return tmp;
     }();
 
-    const auto algo    = AlgorithmName{"SumForward"};
-    const auto solvers = solver::SolverContainer<solver::reduce::SumForward>{};
+    const auto algo    = AlgorithmName{"GLUForward"};
+    const auto solvers = solver::SolverContainer<solver::glu::GLUForward>{};
 
     solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
 

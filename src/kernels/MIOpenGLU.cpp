@@ -42,5 +42,21 @@ extern "C" __global__ void GLUFwdContiguous(const FLOAT* __restrict__ a,
 
     float val = CVT_FLOAT2ACCUM(a[gid]) * sigmoid(CVT_FLOAT2ACCUM(b[gid]));
 
-    b[gid] = CVT_FLOAT2ACCUM(val);
+    output[gid] = CVT_FLOAT2ACCUM(val);
 }
+
+/*
+extern "C" __global__ void GLUFwdContiguous(const FLOAT* __restrict__ input,
+                                            FLOAT* __restrict__ output,
+                                            long N)
+{
+    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t input_first = (gid / inner_size);
+    size_t input_second = ();
+    if (gid >= N) return;
+
+    float val = CVT_FLOAT2ACCUM(input[input_first]) * sigmoid(CVT_FLOAT2ACCUM(input[input_second]));
+
+    output[gid] = CVT_FLOAT2ACCUM(val);
+}
+*/
