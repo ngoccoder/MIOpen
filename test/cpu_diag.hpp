@@ -23,48 +23,40 @@
  * SOFTWARE.
  *
  *******************************************************************************/
+#ifndef GUARD_CPU_DIAG_HPP
+#define GUARD_CPU_DIAG_HPP
 
-#include "miopen/datatype.hpp"
-#include <miopen/diag/problem_description.hpp>
-#include <miopen/names.hpp>
+#include "ford.hpp"
+#include "miopen/tensor_view_utils.hpp"
+#include "tensor_holder.hpp"
+#include <cstddef>
+#include <cstdint>
 
-#include <sstream>
-
-namespace miopen {
-
-namespace diag {
-
-NetworkConfig ProblemDescription::MakeNetworkConfig() const
+template <class T>
+void cpu_diag_forward_1d(tensor<T> input, tensor<T>& ref_output, int64_t diagonal)
 {
-    switch(direction)
-    {
-    case Direction::Forward: return MakeForwardNetworkConfig();
-    default: MIOPEN_THROW(miopenStatusInternalError);
-    }
+    auto input_numel = input.desc.GetElementSize();
+    auto output_tv   = miopen::get_inner_expanded_tv<2>(ref_output.desc);
+    auto offset =
+        (diagonal >= 0) ? diagonal * output_tv.stride[1] : -diagonal * output_tv.stride[0];
+
+    par_ford(input_numel)([&](size_t o) {
+        long outputIdx        = o * (output_tv.stride[0] + output_tv.stride[1]) + offset;
+        ref_output[outputIdx] = input[o];
+    });
 }
 
-NetworkConfig ProblemDescription::MakeForwardNetworkConfig() const
+template <class T>
+void cpu_diag_forward_2d(tensor<T> input, tensor<T>& ref_output, int64_t diagonal)
 {
-    auto inputlength = inputDesc.GetLengths();
+    auto output_numel = ref_output.desc.GetElementSize();
+    auto input_tv     = miopen::get_inner_expanded_tv<2>(input.desc);
+    auto offset = (diagonal >= 0) ? diagonal * input_tv.stride[1] : -diagonal * input_tv.stride[0];
 
-    auto input_numel = std::accumulate(
-        inputlength.begin(), inputlength.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-
-    auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
-    auto output_dtype = miopen::GetDataType(outputDesc.GetType());
-
-    std::ostringstream ss;
-
-    ss << "input_dtype" << input_dtype;
-    ss << "output_dtype" << output_dtype;
-    ss << "diagonal" << diagonal;
-    ss << "numDim" << inputlength.size();
-    ss << "input_numel" << input_numel;
-    ss << IsAllPacked();
-
-    return NetworkConfig{ss.str()};
+    par_ford(output_numel)([&](size_t o) {
+        long inputIdx = o * (input_tv.stride[0] + input_tv.stride[1]) + offset;
+        ref_output[o] = input[inputIdx];
+    });
 }
 
-} // namespace diag
-
-} // namespace miopen
+#endif

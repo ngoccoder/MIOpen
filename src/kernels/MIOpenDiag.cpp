@@ -51,3 +51,24 @@ extern "C" __global__ void Diag1dForward(
 {
     Diag1dForwardKernel<INPUT_TYPE, OUTPUT_TYPE>(input, output, N, offset, output_tv);
 }
+
+template <typename TI, typename TO>
+__device__ void
+Diag2dForwardKernel(const TI* input, TO* output, long N, long offset, tensor_view_t<2> input_tv)
+{
+    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+    if(gid >= N)
+        return;
+
+    long input_stride_0 = input_tv.stride[0];
+    long input_stride_1 = input_tv.stride[1];
+
+    long input_idx = gid * (input_stride_0 + input_stride_1) + offset;
+    output[gid]    = input[input_idx];
+}
+
+extern "C" __global__ void Diag2dForward(
+    const INPUT_TYPE* input, OUTPUT_TYPE* output, long N, long offset, tensor_view_t<2> input_tv)
+{
+    Diag2dForwardKernel<INPUT_TYPE, OUTPUT_TYPE>(input, output, N, offset, input_tv);
+}

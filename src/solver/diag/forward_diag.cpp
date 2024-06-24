@@ -66,7 +66,6 @@ ConvSolution DiagForward::GetSolution(const ExecutionContext& context,
     auto dtype         = problem.GetInputDesc().GetType();
     auto input_dtype   = miopen::GetDataType(problem.GetInputDesc().GetType());
     auto output_dtype  = miopen::GetDataType(problem.GetOutputDesc().GetType());
-    auto input_numel   = problem.GetInputDesc().GetElementSize();
     auto kernel        = KernelInfo{};
     kernel.kernel_file = "MIOpenDiag.cpp";
 
@@ -82,6 +81,8 @@ ConvSolution DiagForward::GetSolution(const ExecutionContext& context,
 
     if(problem.GetInputDesc().GetLengths().size() == 1)
     {
+        auto input_numel = problem.GetInputDesc().GetElementSize();
+
         size_t xlocalsize = LOCAL_SIZE;
         size_t xgridsize  = AlignUp(input_numel, xlocalsize);
         size_t ylocalsize = 1;
@@ -108,7 +109,7 @@ ConvSolution DiagForward::GetSolution(const ExecutionContext& context,
                 auto input_numel      = params.inputDesc->GetElementSize();
                 auto output_tv        = get_inner_expanded_tv<2>(*params.outputDesc);
                 long offset = (params.diagonal >= 0 ? params.diagonal * output_tv.stride[1]
-                                                    : params.diagonal * output_tv.stride[0]);
+                                                    : -params.diagonal * output_tv.stride[0]);
 
                 kernel(params.input, params.output, input_numel, offset, output_tv);
             };
@@ -116,6 +117,39 @@ ConvSolution DiagForward::GetSolution(const ExecutionContext& context,
     }
     else if(problem.GetInputDesc().GetLengths().size() == 2)
     {
+        int64_t output_numel = problem.GetOutputDesc().GetElementSize();
+
+        size_t xlocalsize = LOCAL_SIZE;
+        size_t xgridsize  = AlignUp(output_numel, xlocalsize);
+        size_t ylocalsize = 1;
+        size_t ygridsize  = 1;
+        size_t zlocalsize = 1;
+        size_t zgridsize  = 1;
+
+        kernel.kernel_name = "Diag2dForward";
+
+        kernel.l_wk.push_back(xlocalsize);
+        kernel.l_wk.push_back(ylocalsize);
+        kernel.l_wk.push_back(zlocalsize);
+
+        kernel.g_wk.push_back(xgridsize);
+        kernel.g_wk.push_back(ygridsize);
+        kernel.g_wk.push_back(zgridsize);
+
+        result.construction_params.push_back(kernel);
+
+        result.invoker_factory = [](const std::vector<Kernel>& kernels) {
+            return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
+                decltype(auto) kernel = handle_.Run(kernels.front());
+                decltype(auto) params = raw_params.CastTo<miopen::diag::FwdInvokeParams>();
+                auto output_numel     = params.outputDesc->GetElementSize();
+                auto input_tv         = get_inner_expanded_tv<2>(*params.inputDesc);
+                long offset           = (params.diagonal >= 0 ? params.diagonal * input_tv.stride[1]
+                                                              : -params.diagonal * input_tv.stride[0]);
+
+                kernel(params.input, params.output, output_numel, offset, input_tv);
+            };
+        };
     }
 
     return result;
