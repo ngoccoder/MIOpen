@@ -68,6 +68,7 @@
  * @defgroup argmax
  * @defgroup groupnorm
  * @defgroup cat
+ * @defgroup diag
  *
  */
 
@@ -6577,6 +6578,35 @@ MIOPEN_EXPORT miopenStatus_t miopenBackendDestroyDescriptor(miopenBackendDescrip
 MIOPEN_EXPORT miopenStatus_t miopenBackendInitialize(miopenBackendDescriptor_t descriptor,
                                                      miopenBackendDescriptorType_t descriptorType,
                                                      size_t sizeInBytes);
+
+/** @} */
+// CLOSEOUT BackendAPI DOXYGEN GROUP
+#endif // MIOPEN_BETA_API
+
+#ifdef MIOPEN_BETA_API
+
+// Diag APIs
+/** @addtogroup diag
+ *
+ *  @{
+ */
+
+/*! @brief Execute Diag forward layer
+ *
+ * @param handle               MIOpen handle (input)
+ * @param inputDesc            Tensor descriptor for input tensor (input)
+ * @param input                Input tensor (input)
+ * @param outputDesc           Tensor descriptor for output tensor (input)
+ * @param output               Output tensor (output)
+ * @param diagonal             Which diagonal to consider (input)
+ * @return                     miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenDiagForward(miopenHandle_t handle,
+                                               const miopenTensorDescriptor_t inputDesc,
+                                               void* input,
+                                               const miopenTensorDescriptor_t outputDesc,
+                                               void* output,
+                                               int diagonal = 0);
 
 /** @} */
 // CLOSEOUT BackendAPI DOXYGEN GROUP

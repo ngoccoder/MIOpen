@@ -110,6 +110,9 @@ set( MIOpen_Source
     ctc_api.cpp
     db.cpp
     db_record.cpp
+    diag.cpp
+    diag_api.cpp
+    diag/problem_description.cpp
     driver_arguments.cpp
     dropout.cpp
     dropout_api.cpp
@@ -255,6 +258,7 @@ set( MIOpen_Source
     solver/conv_wino_fury_RxS.cpp
     solver/conv_winoRxS.cpp
     solver/conv_winoRxS_fused.cpp
+    solver/diag/forward_diag.cpp
     solver/fft.cpp
     solver/gemm.cpp
     solver/gemm_bwd.cpp
@@ -421,6 +425,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/neuron.inc
         kernels/rocm_version.inc
         kernels/stride_array.hpp
+        kernels/tensor_view.hpp
         kernels/utilities.inc
         kernels/workaround_issue_1431.hpp
         kernels/xform_bidirect_winograd_code.inc
@@ -467,6 +472,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenConv1x1S.cl
         kernels/MIOpenConv1x1J1.cl
         kernels/MIOpenConv1x1J1_stride.cl
+        kernels/MIOpenDiag.cpp
         kernels/MIOpenSoftmax.cl
         kernels/MIOpenSoftmaxAttn.cpp
         kernels/MIOpenSum.cpp
