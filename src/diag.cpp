@@ -25,6 +25,8 @@
  *******************************************************************************/
 
 #include "miopen/diag/problem_description.hpp"
+#include "miopen/handle.hpp"
+#include "miopen/miopen.h"
 #include <miopen/datatype.hpp>
 #include <miopen/find_solution.hpp>
 #include <miopen/float_equal.hpp>
@@ -41,9 +43,9 @@ miopenStatus_t DiagForward(Handle& handle,
                            Data_t input,
                            const TensorDescriptor& outputDesc,
                            Data_t output,
-                           int diagonal)
+                           int64_t diagonal)
 {
-    const auto problem = diag::ProblemDescription{inputDesc, outputDesc, diagonal};
+    const auto problem = diag::FwdProblemDescription{inputDesc, outputDesc, diagonal};
 
     const auto invoke_params = [&]() {
         auto tmp       = diag::FwdInvokeParams{};
@@ -58,6 +60,34 @@ miopenStatus_t DiagForward(Handle& handle,
 
     const auto algo    = AlgorithmName{"DiagForward"};
     const auto solvers = solver::SolverContainer<solver::diag::DiagForward>{};
+
+    solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
+
+    return miopenStatusSuccess;
+}
+
+miopenStatus_t DiagBackward(Handle& handle,
+                            const TensorDescriptor& outputGradDesc,
+                            Data_t outputGrad,
+                            const TensorDescriptor& inputGradDesc,
+                            Data_t inputGrad,
+                            int64_t diagonal)
+{
+    const auto problem = diag::BwdProblemDescription{outputGradDesc, inputGradDesc, diagonal};
+
+    const auto invoke_params = [&]() {
+        auto tmp           = diag::BwdInvokeParams{};
+        tmp.type           = InvokeType::Run;
+        tmp.outputGradDesc = &outputGradDesc;
+        tmp.outputGrad     = outputGrad;
+        tmp.inputGradDesc  = &inputGradDesc;
+        tmp.inputGrad      = inputGrad;
+        tmp.diagonal       = diagonal;
+        return tmp;
+    }();
+
+    const auto algo    = AlgorithmName{"DiagBackward"};
+    const auto solvers = solver::SolverContainer<solver::diag::DiagBackward>{};
 
     solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
 

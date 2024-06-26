@@ -25,6 +25,7 @@
  *******************************************************************************/
 #pragma once
 
+#include "miopen/execution_context.hpp"
 #include <miopen/diag/problem_description.hpp>
 #include <miopen/solver.hpp>
 #include <utility>
@@ -35,16 +36,28 @@ namespace solver {
 
 namespace diag {
 
-using DiagSolver = NonTunableSolverBase<ExecutionContext, miopen::diag::ProblemDescription>;
+using DiagFwdSolver = NonTunableSolverBase<ExecutionContext, miopen::diag::FwdProblemDescription>;
 
-struct DiagForward final : DiagSolver
+struct DiagForward final : DiagFwdSolver
 {
     const std::string& SolverDbId() const override { return GetSolverDbId<DiagForward>(); }
 
     bool IsApplicable(const ExecutionContext& context,
-                      const miopen::diag::ProblemDescription& problem) const override;
+                      const miopen::diag::FwdProblemDescription& problem) const override;
     ConvSolution GetSolution(const ExecutionContext& context,
-                             const miopen::diag::ProblemDescription& problem) const override;
+                             const miopen::diag::FwdProblemDescription& problem) const override;
+};
+
+using DiagBwdSolver = NonTunableSolverBase<ExecutionContext, miopen::diag::BwdProblemDescription>;
+
+struct DiagBackward final : DiagBwdSolver
+{
+    const std::string& SolverDbId() const override { return GetSolverDbId<DiagBackward>(); }
+
+    bool IsApplicable(const ExecutionContext& context,
+                      const miopen::diag::BwdProblemDescription& problem) const override;
+    ConvSolution GetSolution(const ExecutionContext& context,
+                             const miopen::diag::BwdProblemDescription& problem) const override;
 };
 
 } // namespace diag

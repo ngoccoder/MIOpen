@@ -26,6 +26,7 @@
 #ifndef MIOPEN_DIAG_HPP_
 #define MIOPEN_DIAG_HPP_
 
+#include "miopen/miopen.h"
 #include <miopen/common.hpp>
 
 namespace miopen {
@@ -38,7 +39,14 @@ miopenStatus_t DiagForward(Handle& handle,
                            Data_t input,
                            const TensorDescriptor& outputDesc,
                            Data_t output,
-                           int diagonal);
+                           int64_t diagonal);
+
+miopenStatus_t DiagBackward(Handle& handle,
+                            const TensorDescriptor& outputGradDesc,
+                            Data_t outputGrad,
+                            const TensorDescriptor& inputGradDesc,
+                            Data_t inputGrad,
+                            int64_t diagonal);
 
 } // namespace miopen
 #endif // _MIOPEN_DIAG_HPP_

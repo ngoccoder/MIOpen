@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include "miopen/tensor_view_utils.hpp"
 #include <cstdint>
 #include <miopen/problem_description_base.hpp>
 #include <miopen/tensor.hpp>
@@ -39,44 +40,35 @@ struct NetworkConfig;
 
 namespace diag {
 
-enum class Direction
-{
-    Forward,
-    Backward,
-};
+template <int N>
+tensor_view_t<N - 1>
+getDiagonal(const tensor_view_t<N>& tv, int64_t offset, int64_t dim1, int64_t dim2);
 
-struct ProblemDescription : ProblemDescriptionBase
+struct FwdProblemDescription : ProblemDescriptionBase
 {
     // Forward constructor
-    ProblemDescription(const TensorDescriptor& inputDesc_,
-                       const TensorDescriptor& outputDesc_,
-                       int32_t diagonal_)
-        : direction(Direction::Forward),
-          inputDesc(inputDesc_),
-          outputDesc(outputDesc_),
-          diagonal(diagonal_)
+    FwdProblemDescription(const TensorDescriptor& inputDesc_,
+                          const TensorDescriptor& outputDesc_,
+                          int32_t diagonal_)
+        : inputDesc(inputDesc_), outputDesc(outputDesc_), diagonal(diagonal_)
     {
         if(inputDesc.GetLengths().size() != 1 && inputDesc.GetLengths().size() != 2)
         {
 
             MIOPEN_THROW(miopenStatusBadParm,
-                         "Diag::ProblemDescription: Number of tensor dimension is not 1 or 2.");
+                         "Diag::FwdProblemDescription: Number of tensor dimension is not 1 or 2.");
         }
     }
 
-    Direction GetDirection() const { return direction; }
     const TensorDescriptor& GetInputDesc() const { return inputDesc; }
     const TensorDescriptor& GetOutputDesc() const { return outputDesc; }
-    int32_t GetDiagonal() const { return diagonal; }
+    int64_t GetDiagonal() const { return diagonal; }
 
     bool IsSameType() const
     {
-        if(direction == Direction::Forward)
+        if(inputDesc.GetType() != outputDesc.GetType())
         {
-            if(inputDesc.GetType() != outputDesc.GetType())
-            {
-                return false;
-            }
+            return false;
         }
 
         return true;
@@ -84,12 +76,9 @@ struct ProblemDescription : ProblemDescriptionBase
 
     bool IsAllPacked() const
     {
-        if(direction == Direction::Forward)
+        if(!(inputDesc.IsPacked() && outputDesc.IsPacked()))
         {
-            if(!(inputDesc.IsPacked() && outputDesc.IsPacked()))
-            {
-                return false;
-            }
+            return false;
         }
 
         return true;
@@ -98,13 +87,59 @@ struct ProblemDescription : ProblemDescriptionBase
     NetworkConfig MakeNetworkConfig() const override;
 
 private:
-    Direction direction;
     TensorDescriptor inputDesc;
     TensorDescriptor outputDesc;
 
-    int32_t diagonal;
+    int64_t diagonal;
+};
 
-    NetworkConfig MakeForwardNetworkConfig() const;
+struct BwdProblemDescription : ProblemDescriptionBase
+{
+    // Forward constructor
+    BwdProblemDescription(const TensorDescriptor& outputGradDesc_,
+                          const TensorDescriptor& inputGradDesc_,
+                          int64_t diagonal_)
+        : outputGradDesc(outputGradDesc_), inputGradDesc(inputGradDesc_), diagonal(diagonal_)
+    {
+        if(inputGradDesc.GetLengths().size() != 1 && inputGradDesc.GetLengths().size() != 2)
+        {
+
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "Diag::BwdProblemDescription: Number of tensor dimension is not 1 or 2.");
+        }
+    }
+
+    const TensorDescriptor& GetInputGradDesc() const { return inputGradDesc; }
+    const TensorDescriptor& GetOutputGradDesc() const { return outputGradDesc; }
+    int64_t GetDiagonal() const { return diagonal; }
+
+    bool IsSameType() const
+    {
+        if(inputGradDesc.GetType() != outputGradDesc.GetType())
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    bool IsAllPacked() const
+    {
+        if(!(inputGradDesc.IsPacked() && outputGradDesc.IsPacked()))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    NetworkConfig MakeNetworkConfig() const override;
+
+private:
+    TensorDescriptor outputGradDesc;
+    TensorDescriptor inputGradDesc;
+
+    int64_t diagonal;
 };
 
 } // namespace diag

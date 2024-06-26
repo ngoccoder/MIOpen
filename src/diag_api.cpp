@@ -37,7 +37,7 @@ extern "C" miopenStatus_t miopenDiagForward(miopenHandle_t handle,
                                             void* input,
                                             const miopenTensorDescriptor_t outputDesc,
                                             void* output,
-                                            int diagonal)
+                                            int64_t diagonal)
 {
     MIOPEN_LOG_FUNCTION(handle, inputDesc, input, outputDesc, output, diagonal);
 
@@ -48,5 +48,24 @@ extern "C" miopenStatus_t miopenDiagForward(miopenHandle_t handle,
                             miopen::deref(outputDesc),
                             DataCast(output),
                             diagonal);
+    });
+}
+
+extern "C" miopenStatus_t miopenDiagBackward(miopenHandle_t handle,
+                                             const miopenTensorDescriptor_t outputGradDesc,
+                                             void* outputGrad,
+                                             const miopenTensorDescriptor_t inputGradDesc,
+                                             void* inputGrad,
+                                             int64_t diagonal)
+{
+    MIOPEN_LOG_FUNCTION(handle, outputGradDesc, outputGrad, inputGradDesc, inputGrad, diagonal);
+
+    return miopen::try_([&] {
+        miopen::DiagBackward(miopen::deref(handle),
+                             miopen::deref(outputGradDesc),
+                             DataCast(outputGrad),
+                             miopen::deref(inputGradDesc),
+                             DataCast(inputGrad),
+                             diagonal);
     });
 }
