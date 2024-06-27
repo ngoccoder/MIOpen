@@ -97,26 +97,26 @@ int32_t mloDiagBackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
     auto outgrad_len = miopen::deref(outputGradDesc).GetLengths();
     if(outgrad_len.size() == 1)
     {
-        auto output_numel = miopen::deref(outputGradDesc).GetElementSize();
-        auto input_tv     = miopen::get_inner_expanded_tv<2>(miopen::deref(inputGradDesc));
-        auto offset =
-            (diagonal >= 0) ? diagonal * input_tv.stride[1] : -diagonal * input_tv.stride[0];
+        auto outgrad_numel = miopen::deref(outputGradDesc).GetElementSize();
+        auto input_tv      = miopen::get_inner_expanded_tv<2>(miopen::deref(inputGradDesc));
+        auto diagonal_tv   = miopen::diag::getDiagonal(input_tv, diagonal, 0, 1);
 
-        for(size_t i = 0; i < output_numel; i++)
+        for(size_t i = 0; i < outgrad_numel; i++)
         {
-            long inputIdx           = i * (input_tv.stride[0] + input_tv.stride[1]) + offset;
+            long inputIdx           = i * diagonal_tv.stride[0] + diagonal_tv.offset;
             inputGradHost[inputIdx] = outputGrad[i];
         }
     }
-    else if(outgrad_len.size() == 2)
+    else if(outgrad_len.size() == 2) // special case
     {
         auto outgrad_tv   = miopen::get_inner_expanded_tv<2>(miopen::deref(outputGradDesc));
-        auto diagonal_tv  = miopen::diag::getDiagonal(outgrad_tv, diagonal, 0, 1);
         auto ingrad_numel = miopen::deref(inputGradDesc).GetElementSize();
+        auto offset =
+            (diagonal >= 0) ? diagonal * outgrad_tv.stride[1] : -diagonal * outgrad_tv.stride[0];
 
         for(size_t i = 0; i < ingrad_numel; i++)
         {
-            long outGradIdx  = i * diagonal_tv.stride[0] + diagonal_tv.offset;
+            long outGradIdx  = i * (outgrad_tv.stride[0] + outgrad_tv.stride[1]) + offset;
             inputGradHost[i] = outputGrad[outGradIdx];
         }
     }
@@ -368,7 +368,7 @@ int DiagDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
         size_t in_sz      = GetTensorSpace(inputTensor);
         size_t out_sz     = GetTensorSpace(outputTensor);
         size_t ingrad_sz  = GetTensorSpace(inputGradTensor);
-        size_t outgrad_sz = isOutputRequired ? GetTensorSpace(outputGradTensor) : 0;
+        size_t outgrad_sz = GetTensorSpace(outputGradTensor);
 
         // GPU allocation
         in_dev      = std::unique_ptr<GPUMem>(new GPUMem(ctx, in_sz, sizeof(Tgpu)));
@@ -511,7 +511,7 @@ int DiagDriver<Tgpu, Tref>::RunBackwardGPU()
         }
 
         if(ingrad_dev->FromGPU(GetStream(), ingrad.data()) != 0)
-            std::cerr << "Error copying (out_dev) from GPU, size: " << ingrad_dev->GetSize()
+            std::cerr << "Error copying (ingrad_dev) from GPU, size: " << ingrad_dev->GetSize()
                       << std::endl;
     }
 
@@ -558,7 +558,7 @@ int DiagDriver<Tgpu, Tref>::RunBackwardCPU()
     if(isOutputRequired)
     {
         mloDiagBackwardRunHost(
-            outputGradTensor, outgrad.data(), inputGradTensor, ingrad.data(), diagonal);
+            outputGradTensor, outgrad.data(), inputGradTensor, ingradhost.data(), diagonal);
     }
 
     return miopenStatusSuccess;
@@ -570,6 +570,7 @@ int DiagDriver<Tgpu, Tref>::VerifyBackward()
     RunBackwardCPU();
     const Tref tolerance = GetTolerance();
     auto error           = isOutputRequired ? miopen::rms_range(ingradhost, ingrad) : 0;
+
     if(!std::isfinite(error) || error > tolerance)
     {
         std::cout << "Backward Diag FAILED: " << error << " > " << tolerance << std::endl;

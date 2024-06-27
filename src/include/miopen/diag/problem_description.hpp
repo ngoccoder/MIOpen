@@ -43,6 +43,8 @@ namespace diag {
 template <int N>
 tensor_view_t<N - 1>
 getDiagonal(const tensor_view_t<N>& tv, int64_t offset, int64_t dim1, int64_t dim2);
+extern template tensor_view_t<1>
+getDiagonal(const tensor_view_t<2>& tv, int64_t offset, int64_t dim1, int64_t dim2);
 
 struct FwdProblemDescription : ProblemDescriptionBase
 {

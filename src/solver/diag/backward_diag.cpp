@@ -180,12 +180,12 @@ ConvSolution DiagBackward::GetSolution(const ExecutionContext& context,
             return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
                 decltype(auto) kernel = handle_.Run(kernels.front());
                 decltype(auto) params = raw_params.CastTo<miopen::diag::BwdInvokeParams>();
-                auto ingrad_numel     = params.outputGradDesc->GetElementSize();
+                auto outgrad_numel    = params.outputGradDesc->GetElementSize();
+                auto outgrad_tv       = get_inner_expanded_tv<1>(*params.outputGradDesc);
                 auto inputgrad_tv     = get_inner_expanded_tv<2>(*params.inputGradDesc);
                 auto diagonal_tv = miopen::diag::getDiagonal(inputgrad_tv, params.diagonal, 0, 1);
 
-                kernel(
-                    params.outputGrad, params.inputGrad, ingrad_numel, diagonal_tv, inputgrad_tv);
+                kernel(params.outputGrad, params.inputGrad, outgrad_numel, outgrad_tv, diagonal_tv);
             };
         };
     }

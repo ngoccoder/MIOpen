@@ -45,7 +45,7 @@ struct tensor_view_t
         return idx;
     }
 
-    int64_t offset;
+    int64_t offset = 0;
     uint64_t stride[N];
     uint64_t size[N];
 };

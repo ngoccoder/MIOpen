@@ -70,22 +70,33 @@ getDiagonal(const tensor_view_t<N>& tv, int64_t offset, int64_t dim1, int64_t di
         new_offset -= offset * tv.stride[dim1];
     }
 
-    std::vector<int64_t> new_sizes(tv.size.begin(), tv.size.end());
-    std::vector<int64_t> new_strides(tv.stride.begin(), tv.stride.end());
-
-    new_sizes.erase(new_sizes.begin() + std::max(dim1, dim2));
-    new_strides.erase(new_strides.begin() + std::max(dim1, dim2));
-    new_sizes.erase(new_sizes.begin() + std::min(dim1, dim2));
-    new_strides.erase(new_strides.begin() + std::min(dim1, dim2));
-    new_sizes.push_back(diag_size);
-    new_strides.push_back(tv.stride[dim1] + tv.stride[dim2]);
-
     tensor_view_t<N - 1> res;
     res.offset = new_offset;
-    res.size   = new_sizes;
-    res.stride = new_strides;
+
+    int curIdx    = 0;
+    int curNewIdx = 0;
+    while(curNewIdx < N - 2)
+    {
+        if(curIdx == dim1 || curIdx == dim2)
+        {
+            curIdx++;
+        }
+        else
+        {
+            res.size[curNewIdx]   = tv.size[curIdx];
+            res.stride[curNewIdx] = tv.stride[curIdx];
+            curNewIdx++;
+            curIdx++;
+        }
+    }
+    res.size[N - 2]   = diag_size;
+    res.stride[N - 2] = tv.stride[dim1] + tv.stride[dim2];
+
     return res;
 }
+
+template tensor_view_t<1>
+getDiagonal(const tensor_view_t<2>& tv, int64_t offset, int64_t dim1, int64_t dim2);
 
 NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {

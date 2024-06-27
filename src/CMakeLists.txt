@@ -258,6 +258,7 @@ set( MIOpen_Source
     solver/conv_wino_fury_RxS.cpp
     solver/conv_winoRxS.cpp
     solver/conv_winoRxS_fused.cpp
+    solver/diag/backward_diag.cpp
     solver/diag/forward_diag.cpp
     solver/fft.cpp
     solver/gemm.cpp
