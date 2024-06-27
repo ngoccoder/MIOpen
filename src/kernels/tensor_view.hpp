@@ -42,7 +42,7 @@ struct tensor_view_t
         {
             idx += stride[i] * tensor_layout.layout[i];
         }
-        return idx;
+        return idx + offset;
     }
 
     int64_t offset = 0;

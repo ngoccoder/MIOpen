@@ -27,36 +27,60 @@
 #define GUARD_CPU_DIAG_HPP
 
 #include "ford.hpp"
+#include "miopen/diag/problem_description.hpp"
+#include "miopen/tensor_layout.hpp"
 #include "miopen/tensor_view_utils.hpp"
 #include "tensor_holder.hpp"
 #include <cstddef>
 #include <cstdint>
 
 template <class T>
-void cpu_diag_forward_1d(tensor<T> input, tensor<T>& ref_output, int64_t diagonal)
-{
-    auto input_numel = input.desc.GetElementSize();
-    auto output_tv   = miopen::get_inner_expanded_tv<2>(ref_output.desc);
-    auto offset =
-        (diagonal >= 0) ? diagonal * output_tv.stride[1] : -diagonal * output_tv.stride[0];
+void cpu_diag_forward(tensor<T> input, tensor<T>& ref_output, int64_t diagonal) {
+    if(input.desc.GetLengths().size() == 1) {
+        auto input_numel = input.desc.GetElementSize();
+        auto output_tv   = miopen::get_inner_expanded_tv<2>(ref_output.desc);
+        auto offset =
+            (diagonal >= 0) ? diagonal * output_tv.stride[1] : -diagonal * output_tv.stride[0];
 
-    par_ford(input_numel)([&](size_t o) {
-        long outputIdx        = o * (output_tv.stride[0] + output_tv.stride[1]) + offset;
-        ref_output[outputIdx] = input[o];
-    });
+        par_ford(input_numel)([&](size_t o) {
+            long outputIdx        = o * (output_tv.stride[0] + output_tv.stride[1]) + offset;
+            ref_output[outputIdx] = input[o];
+        });
+    } else if (input.desc.GetLengths().size() == 2) {
+        auto output_numel = ref_output.desc.GetElementSize();
+        auto input_tv     = miopen::get_inner_expanded_tv<2>(input.desc);
+        auto offset =
+            (diagonal >= 0) ? diagonal * input_tv.stride[1] : -diagonal * input_tv.stride[0];
+
+        par_ford(output_numel)([&](size_t o) {
+            long inputIdx = o * (input_tv.stride[0] + input_tv.stride[1]) + offset;
+            ref_output[o] = input[inputIdx];
+        });
+    }
 }
 
 template <class T>
-void cpu_diag_forward_2d(tensor<T> input, tensor<T>& ref_output, int64_t diagonal)
-{
-    auto output_numel = ref_output.desc.GetElementSize();
-    auto input_tv     = miopen::get_inner_expanded_tv<2>(input.desc);
-    auto offset = (diagonal >= 0) ? diagonal * input_tv.stride[1] : -diagonal * input_tv.stride[0];
+void cpu_diag_backward(tensor<T> outputGrad, tensor<T>& ref_inputGrad, int64_t diagonal) {
+    if(outputGrad.desc.GetLengths().size() == 1) {
+        auto outputGrad_numel = outputGrad.desc.GetElementSize();
+        auto inputGrad_tv     = miopen::get_inner_expanded_tv<2>(ref_inputGrad.desc);
+        auto diagonal_tv = miopen::diag::getDiagonal(inputGrad_tv, diagonal, 0, 1);
 
-    par_ford(output_numel)([&](size_t o) {
-        long inputIdx = o * (input_tv.stride[0] + input_tv.stride[1]) + offset;
-        ref_output[o] = input[inputIdx];
-    });
+        par_ford(outputGrad_numel)([&](size_t o) {
+            long inputIdx = o * diagonal_tv.stride[0] + diagonal_tv.offset;
+            ref_inputGrad[inputIdx] = outputGrad[o];
+        });
+    } else if (outputGrad.desc.GetLengths().size() == 2) {
+        auto outgrad_tv = miopen::get_inner_expanded_tv<2>(outputGrad.desc);
+        auto ingrad_numel = ref_inputGrad.desc.GetElementSize();
+        auto offset =
+            (diagonal >= 0) ? diagonal * outgrad_tv.stride[1] : -diagonal * outgrad_tv.stride[0];
+
+        par_ford(ingrad_numel)([&](size_t o) {
+            long outGradIdx = o * (outgrad_tv.stride[0] + outgrad_tv.stride[1]) + offset;
+            ref_inputGrad[o] = outputGrad[outGradIdx];
+        });
+    }
 }
 
 #endif

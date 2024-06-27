@@ -89,16 +89,18 @@ std::vector<DiagTestCase> DiagTestConfigs()
 { // n c d h w dim
     // clang-format off
     return {
-        //{ 2,    0,   0,  0,   4,    0},
-        //{ 2,    0,   0,  0,   4,    2},
-        { 2,    0,   0,  0,   4,    -2},
+        { 2,    0,   0,  0,   4,    0},
+        { 2,    0,   0,  0,   4,    8},
+        { 2,    0,   0,  0,   4,    -8},
+        { 16,    0,   0,  0,   16,    0},
+        { 16,    0,   0,  0,   16,    2},
+        { 16,    0,   0,  0,   16,    -2},
         { 32,    0,   0,  0,    0,     0},
         { 32,    0,   0,  0,    0,     2},
         { 32,    0,   0,  0,    0,     -2},
-        //{ 64,    0,  0,  0,    7,     0},
-        //{ 64,    0,  0,  0,    7,     2},
-        //{ 64,    0,  0,  0,    7,     -2},
-
+        { 64,    0,  0,  0,    7,     0},
+        { 64,    0,  0,  0,    7,     2},
+        { 64,    0,  0,  0,    7,     -2},
       };
     // clang-format on
 }
@@ -132,12 +134,13 @@ protected:
             int64_t sz = 0;
             if(diagonal >= 0)
             {
-                sz = std::min(in_dims[0], in_dims[1] - diagonal);
+                sz = std::min(static_cast<int64_t>(in_dims[0]), static_cast<int64_t>(in_dims[1]) - diagonal);
             }
             else
             {
-                sz = std::min(in_dims[0] + diagonal, in_dims[1]);
+                sz = std::min(static_cast<int64_t>(in_dims[0]) + diagonal, static_cast<int64_t>(in_dims[1]));
             }
+
             if(sz <= 0)
             {
                 isOutputRequired = false;
@@ -166,15 +169,7 @@ protected:
         if(isOutputRequired)
         {
             auto&& handle = get_handle();
-
-            if(input.desc.GetLengths().size() == 1)
-            {
-                cpu_diag_forward_1d<T>(input, ref_output, diagonal);
-            }
-            else if(input.desc.GetLengths().size() == 2)
-            {
-                cpu_diag_forward_2d<T>(input, ref_output, diagonal);
-            }
+            cpu_diag_forward(input, ref_output, diagonal);
             miopenStatus_t status;
 
             status = miopen::DiagForward(
@@ -200,11 +195,10 @@ protected:
 
     void Verify()
     {
-        double threshold = GetTolerance();
-        auto error       = isOutputRequired ? miopen::rms_range(ref_output, output) : 0;
+        if (isOutputRequired) {
+            double threshold = GetTolerance();
+            auto error       = miopen::rms_range(ref_output, output);
 
-        if(isOutputRequired)
-        {
             EXPECT_TRUE(miopen::range_distance(ref_output) == miopen::range_distance(output));
             EXPECT_TRUE(error < threshold * 10) << "Error output beyond tolerance Error:" << error
                                                 << ",  Thresholdx10: " << threshold * 10;
@@ -220,6 +214,118 @@ protected:
 
     miopen::Allocator::ManageDataPtr input_dev;
     miopen::Allocator::ManageDataPtr output_dev;
+
+    int64_t diagonal;
+    bool isOutputRequired = true;
+};
+
+template <typename T>
+struct DiagBwdTest : public ::testing::TestWithParam<DiagTestCase>
+{
+protected:
+    void SetUp() override
+    {
+
+        auto&& handle  = get_handle();
+        diag_config    = GetParam();
+        auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
+
+        diagonal = diag_config.diagonal;
+
+        auto in_dims = diag_config.GetInput();
+        std::vector<size_t> out_dims;
+
+        if(inputGrad.desc.GetLengths().size() == 1)
+        {
+            size_t sz = in_dims[0] + abs(diagonal);
+            out_dims  = {sz, sz};
+        }
+        else
+        {
+            int64_t sz = 0;
+            if(diagonal >= 0)
+            {
+                sz = std::min(static_cast<int64_t>(in_dims[0]), static_cast<int64_t>(in_dims[1]) - diagonal);
+            }
+            else
+            {
+                sz = std::min(static_cast<int64_t>(in_dims[0]) + diagonal, static_cast<int64_t>(in_dims[1]));
+            }
+
+            if(sz <= 0)
+            {
+                isOutputRequired = false;
+            }
+            else
+            {
+                out_dims = {sz};
+            }
+        }
+
+        if(isOutputRequired)
+        {
+            outputGrad = tensor<T>{out_dims}.generate(gen_value);
+        }
+        inputGrad = tensor<T>{in_dims};
+        std::fill(inputGrad.begin(), inputGrad.end(), static_cast<T>(0));
+
+        ref_inputGrad = tensor<T>{in_dims};
+        std::fill(ref_inputGrad.begin(), ref_inputGrad.end(), static_cast<T>(0));
+
+        inputGrad_dev  = handle.Write(inputGrad.data);
+        outputGrad_dev = isOutputRequired ? handle.Write(outputGrad.data) : nullptr;
+    }
+
+    void RunTest()
+    {
+        if(isOutputRequired)
+        {
+            auto&& handle = get_handle();
+            cpu_diag_backward(outputGrad, ref_inputGrad, diagonal);
+            miopenStatus_t status;
+
+            status = miopen::DiagBackward(
+                handle, outputGrad.desc, outputGrad_dev.get(), inputGrad.desc, inputGrad_dev.get(), diagonal);
+
+            EXPECT_EQ(status, miopenStatusSuccess);
+
+            inputGrad.data = handle.Read<T>(inputGrad_dev, inputGrad.data.size());
+        }
+    }
+
+    double GetTolerance()
+    {
+        // Computation error of fp16 is ~2^13 (=8192) bigger than
+        // the one of fp32 because mantissa is shorter by 13 bits.
+        double tolerance = std::is_same<T, float>::value ? 1.5e-6 : 8.2e-3;
+
+        // bf16 mantissa has 7 bits, by 3 bits shorter than fp16.
+        if(std::is_same<T, bfloat16>::value)
+            tolerance *= 8.0;
+        return tolerance;
+    }
+
+    void Verify()
+    {
+        if (isOutputRequired) {
+            double threshold = GetTolerance();
+            auto error       = miopen::rms_range(ref_inputGrad, inputGrad);
+
+            EXPECT_TRUE(miopen::range_distance(ref_inputGrad) == miopen::range_distance(inputGrad));
+            EXPECT_TRUE(error < threshold * 10) << "Error output beyond tolerance Error:" << error
+                                                    << ", Thresholdx10: " << threshold * 10;
+        }
+    }
+
+    DiagTestCase diag_config;
+
+    tensor<T> inputGrad;
+    tensor<T> outputGrad;
+
+    tensor<T> ref_inputGrad;
+
+    miopen::Allocator::ManageDataPtr inputGrad_dev;
+    miopen::Allocator::ManageDataPtr outputGrad_dev;
 
     int64_t diagonal;
     bool isOutputRequired = true;
