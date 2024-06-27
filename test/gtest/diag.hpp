@@ -134,11 +134,13 @@ protected:
             int64_t sz = 0;
             if(diagonal >= 0)
             {
-                sz = std::min(static_cast<int64_t>(in_dims[0]), static_cast<int64_t>(in_dims[1]) - diagonal);
+                sz = std::min(static_cast<int64_t>(in_dims[0]),
+                              static_cast<int64_t>(in_dims[1]) - diagonal);
             }
             else
             {
-                sz = std::min(static_cast<int64_t>(in_dims[0]) + diagonal, static_cast<int64_t>(in_dims[1]));
+                sz = std::min(static_cast<int64_t>(in_dims[0]) + diagonal,
+                              static_cast<int64_t>(in_dims[1]));
             }
 
             if(sz <= 0)
@@ -195,7 +197,8 @@ protected:
 
     void Verify()
     {
-        if (isOutputRequired) {
+        if(isOutputRequired)
+        {
             double threshold = GetTolerance();
             auto error       = miopen::rms_range(ref_output, output);
 
@@ -245,11 +248,13 @@ protected:
             int64_t sz = 0;
             if(diagonal >= 0)
             {
-                sz = std::min(static_cast<int64_t>(in_dims[0]), static_cast<int64_t>(in_dims[1]) - diagonal);
+                sz = std::min(static_cast<int64_t>(in_dims[0]),
+                              static_cast<int64_t>(in_dims[1]) - diagonal);
             }
             else
             {
-                sz = std::min(static_cast<int64_t>(in_dims[0]) + diagonal, static_cast<int64_t>(in_dims[1]));
+                sz = std::min(static_cast<int64_t>(in_dims[0]) + diagonal,
+                              static_cast<int64_t>(in_dims[1]));
             }
 
             if(sz <= 0)
@@ -284,8 +289,12 @@ protected:
             cpu_diag_backward(outputGrad, ref_inputGrad, diagonal);
             miopenStatus_t status;
 
-            status = miopen::DiagBackward(
-                handle, outputGrad.desc, outputGrad_dev.get(), inputGrad.desc, inputGrad_dev.get(), diagonal);
+            status = miopen::DiagBackward(handle,
+                                          outputGrad.desc,
+                                          outputGrad_dev.get(),
+                                          inputGrad.desc,
+                                          inputGrad_dev.get(),
+                                          diagonal);
 
             EXPECT_EQ(status, miopenStatusSuccess);
 
@@ -307,13 +316,14 @@ protected:
 
     void Verify()
     {
-        if (isOutputRequired) {
+        if(isOutputRequired)
+        {
             double threshold = GetTolerance();
             auto error       = miopen::rms_range(ref_inputGrad, inputGrad);
 
             EXPECT_TRUE(miopen::range_distance(ref_inputGrad) == miopen::range_distance(inputGrad));
             EXPECT_TRUE(error < threshold * 10) << "Error output beyond tolerance Error:" << error
-                                                    << ", Thresholdx10: " << threshold * 10;
+                                                << ", Thresholdx10: " << threshold * 10;
         }
     }
 
