@@ -24,11 +24,11 @@
  *
  *******************************************************************************/
 
-#include "miopen/diag/solvers.hpp"
 #include <miopen/solver.hpp>
 
 #include <miopen/activ/solvers.hpp>
 #include <miopen/batchnorm/solvers.hpp>
+#include "miopen/diagonal/solvers.hpp"
 #include <miopen/fusion/solvers.hpp>
 #include <miopen/groupnorm/solvers.hpp>
 #include <miopen/layernorm/solvers.hpp>
@@ -649,8 +649,10 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
     Register(registry, ++id, Primitive::Mha, mha::Mha{}.SolverDbId());
     Register(registry, ++id, Primitive::Softmax, softmax::Softmax{}.SolverDbId());
     Register(registry, ++id, Primitive::Softmax, softmax::AttnSoftmax{}.SolverDbId());
-    Register(registry, ++id, Primitive::Diag, diag::DiagBackward{}.SolverDbId());
-    Register(registry, ++id, Primitive::Diag, diag::DiagForward{}.SolverDbId());
+    Register(registry, ++id, Primitive::Diagonal, diagonal::diag::DiagBackward{}.SolverDbId());
+    Register(registry, ++id, Primitive::Diagonal, diagonal::diag::DiagForward{}.SolverDbId());
+    Register(
+        registry, ++id, Primitive::Diagonal, diagonal::diagflat::DiagFlatForward{}.SolverDbId());
 
     // IMPORTANT: New solvers should be added to the end of the function!
 }

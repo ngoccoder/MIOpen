@@ -38,33 +38,30 @@ namespace miopen {
 
 struct NetworkConfig;
 
-namespace diag {
+namespace diagonal {
 
-template <int N>
-tensor_view_t<N - 1>
-getDiagonal(const tensor_view_t<N>& tv, int64_t offset, int64_t dim1, int64_t dim2);
-extern template tensor_view_t<1>
-getDiagonal(const tensor_view_t<2>& tv, int64_t offset, int64_t dim1, int64_t dim2);
+namespace diagflat {
 
 struct FwdProblemDescription : ProblemDescriptionBase
 {
     // Forward constructor
     FwdProblemDescription(const TensorDescriptor& inputDesc_,
                           const TensorDescriptor& outputDesc_,
-                          int32_t diagonal_)
-        : inputDesc(inputDesc_), outputDesc(outputDesc_), diagonal(diagonal_)
+                          int32_t offset_)
+        : inputDesc(inputDesc_), outputDesc(outputDesc_), offset(offset_)
     {
-        if(inputDesc.GetLengths().size() != 1 && inputDesc.GetLengths().size() != 2)
+        if(outputDesc.GetLengths().size() != 2)
         {
 
             MIOPEN_THROW(miopenStatusBadParm,
-                         "Diag::FwdProblemDescription: Number of tensor dimension is not 1 or 2.");
+                         "DiagFlat::FwdProblemDescription: Number of output tensor's dimension "
+                         "must equal 2.");
         }
     }
 
     const TensorDescriptor& GetInputDesc() const { return inputDesc; }
     const TensorDescriptor& GetOutputDesc() const { return outputDesc; }
-    int64_t GetDiagonal() const { return diagonal; }
+    int64_t GetOffset() const { return offset; }
 
     bool IsSameType() const
     {
@@ -92,58 +89,11 @@ private:
     TensorDescriptor inputDesc;
     TensorDescriptor outputDesc;
 
-    int64_t diagonal;
+    int64_t offset;
 };
 
-struct BwdProblemDescription : ProblemDescriptionBase
-{
-    // Forward constructor
-    BwdProblemDescription(const TensorDescriptor& outputGradDesc_,
-                          const TensorDescriptor& inputGradDesc_,
-                          int64_t diagonal_)
-        : outputGradDesc(outputGradDesc_), inputGradDesc(inputGradDesc_), diagonal(diagonal_)
-    {
-        if(inputGradDesc.GetLengths().size() != 1 && inputGradDesc.GetLengths().size() != 2)
-        {
+} // namespace diagflat
 
-            MIOPEN_THROW(miopenStatusBadParm,
-                         "Diag::BwdProblemDescription: Number of tensor dimension is not 1 or 2.");
-        }
-    }
-
-    const TensorDescriptor& GetInputGradDesc() const { return inputGradDesc; }
-    const TensorDescriptor& GetOutputGradDesc() const { return outputGradDesc; }
-    int64_t GetDiagonal() const { return diagonal; }
-
-    bool IsSameType() const
-    {
-        if(inputGradDesc.GetType() != outputGradDesc.GetType())
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    bool IsAllPacked() const
-    {
-        if(!(inputGradDesc.IsPacked() && outputGradDesc.IsPacked()))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    NetworkConfig MakeNetworkConfig() const override;
-
-private:
-    TensorDescriptor outputGradDesc;
-    TensorDescriptor inputGradDesc;
-
-    int64_t diagonal;
-};
-
-} // namespace diag
+} // namespace diagonal
 
 } // namespace miopen

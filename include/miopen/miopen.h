@@ -69,7 +69,7 @@
  * @defgroup argmax
  * @defgroup groupnorm
  * @defgroup cat
- * @defgroup diag
+ * @defgroup diagonal
  *
  */
 
@@ -6586,8 +6586,8 @@ MIOPEN_EXPORT miopenStatus_t miopenBackendInitialize(miopenBackendDescriptor_t d
 
 #ifdef MIOPEN_BETA_API
 
-// Diag APIs
-/** @addtogroup diag
+// Diagonal APIs
+/** @addtogroup diagonal
  *
  *  @{
  */
@@ -6625,6 +6625,23 @@ MIOPEN_EXPORT miopenStatus_t miopenDiagBackward(miopenHandle_t handle,
                                                 const miopenTensorDescriptor_t inputGradDesc,
                                                 void* inputGrad,
                                                 int64_t diagonal = 0);
+
+/*! @brief Execute Diag Flat forward layer
+ *
+ * @param handle               MIOpen handle (input)
+ * @param inputDesc            Tensor descriptor for input tensor (input)
+ * @param input                Input tensor (input)
+ * @param outputDesc           Tensor descriptor for output tensor (input)
+ * @param output               Output tensor (output)
+ * @param offset               Which diagonal to consider (input)
+ * @return                     miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenDiagFlatForward(miopenHandle_t handle,
+                                                   const miopenTensorDescriptor_t inputDesc,
+                                                   void* input,
+                                                   const miopenTensorDescriptor_t outputDesc,
+                                                   void* output,
+                                                   int64_t offset = 0);
 
 /** @} */
 // CLOSEOUT BackendAPI DOXYGEN GROUP

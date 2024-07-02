@@ -35,7 +35,9 @@
 
 namespace miopen {
 
-namespace diag {
+namespace diagonal {
+
+namespace diagflat {
 
 struct FwdInvokeParams : public miopen::InvokeParams
 {
@@ -47,28 +49,14 @@ struct FwdInvokeParams : public miopen::InvokeParams
     ConstData_t input = nullptr;
     Data_t output     = nullptr;
 
-    int64_t diagonal = 0;
+    int64_t offset = 0;
 
     std::size_t GetWorkspaceSize() const { return 0; }
     Data_t GetWorkspace() const { return nullptr; }
 };
 
-struct BwdInvokeParams : public miopen::InvokeParams
-{
-    BwdInvokeParams() = default;
+} // namespace diagflat
 
-    const TensorDescriptor* outputGradDesc = nullptr;
-    const TensorDescriptor* inputGradDesc  = nullptr;
-
-    ConstData_t outputGrad = nullptr;
-    Data_t inputGrad       = nullptr;
-
-    int64_t diagonal = 0;
-
-    std::size_t GetWorkspaceSize() const { return 0; }
-    Data_t GetWorkspace() const { return nullptr; }
-};
-
-} // namespace diag
+} // namespace diagonal
 
 } // namespace miopen

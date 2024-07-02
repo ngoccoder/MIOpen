@@ -24,16 +24,15 @@
  *
  *******************************************************************************/
 
-#include "miopen/diag/problem_description.hpp"
 #include "miopen/kernel_info.hpp"
 #include "miopen/mlo_internal.hpp"
 #include "miopen/tensor_view_utils.hpp"
 #include <cstddef>
 #include <miopen/datatype.hpp>
 #include <miopen/kernel_build_params.hpp>
-#include <miopen/diag/invoke_params.hpp>
-#include <miopen/diag/solvers.hpp>
-#include <miopen/diag.hpp>
+#include <miopen/diagonal/diag/invoke_params.hpp>
+#include <miopen/diagonal/solvers.hpp>
+#include <miopen/diagonal.hpp>
 #include <miopen/target_properties.hpp>
 
 #define LOCAL_SIZE 256
@@ -42,13 +41,76 @@ namespace miopen {
 
 namespace solver {
 
+namespace diagonal {
+
+template <int N>
+tensor_view_t<N - 1>
+getDiagonal(const tensor_view_t<N>& tv, int64_t offset, int64_t dim1, int64_t dim2)
+{
+    if(dim1 == dim2)
+    {
+        MIOPEN_THROW(miopenStatusInternalError, "Diagonal dimensions can not be identical");
+    }
+
+    int64_t diag_size;
+    if(offset >= 0)
+    {
+        diag_size = std::max<int64_t>(std::min(tv.size[dim1], tv.size[dim2] - offset), 0);
+    }
+    else
+    {
+        diag_size = std::max<int64_t>(std::min(tv.size[dim1] + offset, tv.size[dim2]), 0);
+    }
+
+    uint64_t new_offset = tv.offset;
+    if(diag_size == 0)
+    {
+        // skip
+    }
+    else if(offset >= 0)
+    {
+        new_offset += offset * tv.stride[dim2];
+    }
+    else
+    {
+        new_offset -= offset * tv.stride[dim1];
+    }
+
+    tensor_view_t<N - 1> res;
+    res.offset = new_offset;
+
+    int curIdx    = 0;
+    int curNewIdx = 0;
+    while(curNewIdx < N - 2)
+    {
+        if(curIdx == dim1 || curIdx == dim2)
+        {
+            curIdx++;
+        }
+        else
+        {
+            res.size[curNewIdx]   = tv.size[curIdx];
+            res.stride[curNewIdx] = tv.stride[curIdx];
+            curNewIdx++;
+            curIdx++;
+        }
+    }
+    res.size[N - 2]   = diag_size;
+    res.stride[N - 2] = tv.stride[dim1] + tv.stride[dim2];
+
+    return res;
+}
+
+template tensor_view_t<1>
+getDiagonal(const tensor_view_t<2>& tv, int64_t offset, int64_t dim1, int64_t dim2);
+
 namespace diag {
 
-bool DiagBackward::IsApplicable(const ExecutionContext& context,
-                                const miopen::diag::BwdProblemDescription& problem) const
+bool DiagForward::IsApplicable(const ExecutionContext& context,
+                               const miopen::diagonal::diag::FwdProblemDescription& problem) const
 {
     std::ignore    = context;
-    auto inputDims = problem.GetInputGradDesc().GetLengths();
+    auto inputDims = problem.GetInputDesc().GetLengths();
 
     if(!problem.IsSameType())
         return false;
@@ -57,16 +119,17 @@ bool DiagBackward::IsApplicable(const ExecutionContext& context,
     return true;
 }
 
-ConvSolution DiagBackward::GetSolution(const ExecutionContext& context,
-                                       const miopen::diag::BwdProblemDescription& problem) const
+ConvSolution
+DiagForward::GetSolution(const ExecutionContext& context,
+                         const miopen::diagonal::diag::FwdProblemDescription& problem) const
 {
     std::ignore = context;
 
     auto result = ConvSolution{miopenStatusSuccess};
 
-    auto dtype         = problem.GetInputGradDesc().GetType();
-    auto input_dtype   = miopen::GetDataType(problem.GetInputGradDesc().GetType());
-    auto output_dtype  = miopen::GetDataType(problem.GetOutputGradDesc().GetType());
+    auto dtype         = problem.GetInputDesc().GetType();
+    auto input_dtype   = miopen::GetDataType(problem.GetInputDesc().GetType());
+    auto output_dtype  = miopen::GetDataType(problem.GetOutputDesc().GetType());
     auto kernel        = KernelInfo{};
     kernel.kernel_file = "MIOpenDiag.cpp";
 
@@ -80,49 +143,12 @@ ConvSolution DiagBackward::GetSolution(const ExecutionContext& context,
 
     kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
-    auto inLens = problem.GetInputGradDesc().GetLengths();
-    if(inLens.size() == 1)
+    if(problem.GetInputDesc().GetLengths().size() == 1)
     {
-        int64_t ingrad_numel = problem.GetInputGradDesc().GetElementSize();
+        auto input_numel = problem.GetInputDesc().GetElementSize();
 
         size_t xlocalsize = LOCAL_SIZE;
-        size_t xgridsize  = AlignUp(ingrad_numel, xlocalsize);
-        size_t ylocalsize = 1;
-        size_t ygridsize  = 1;
-        size_t zlocalsize = 1;
-        size_t zgridsize  = 1;
-
-        kernel.kernel_name = "Diag2dForward";
-
-        kernel.l_wk.push_back(xlocalsize);
-        kernel.l_wk.push_back(ylocalsize);
-        kernel.l_wk.push_back(zlocalsize);
-
-        kernel.g_wk.push_back(xgridsize);
-        kernel.g_wk.push_back(ygridsize);
-        kernel.g_wk.push_back(zgridsize);
-
-        result.construction_params.push_back(kernel);
-
-        result.invoker_factory = [](const std::vector<Kernel>& kernels) {
-            return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
-                decltype(auto) kernel = handle_.Run(kernels.front());
-                decltype(auto) params = raw_params.CastTo<miopen::diag::BwdInvokeParams>();
-                auto ingrad_numel     = params.inputGradDesc->GetElementSize();
-                auto outgrad_tv       = get_inner_expanded_tv<2>(*params.outputGradDesc);
-                long offset = (params.diagonal >= 0 ? params.diagonal * outgrad_tv.stride[1]
-                                                    : -params.diagonal * outgrad_tv.stride[0]);
-
-                kernel(params.outputGrad, params.inputGrad, ingrad_numel, offset, outgrad_tv);
-            };
-        };
-    }
-    else if(inLens[0] == inLens[1])
-    {
-        auto outgrad_numel = problem.GetOutputGradDesc().GetElementSize();
-
-        size_t xlocalsize = LOCAL_SIZE;
-        size_t xgridsize  = AlignUp(outgrad_numel, xlocalsize);
+        size_t xgridsize  = AlignUp(input_numel, xlocalsize);
         size_t ylocalsize = 1;
         size_t ygridsize  = 1;
         size_t zlocalsize = 1;
@@ -143,28 +169,29 @@ ConvSolution DiagBackward::GetSolution(const ExecutionContext& context,
         result.invoker_factory = [](const std::vector<Kernel>& kernels) {
             return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
                 decltype(auto) kernel = handle_.Run(kernels.front());
-                decltype(auto) params = raw_params.CastTo<miopen::diag::BwdInvokeParams>();
-                auto outgrad_numel    = params.outputGradDesc->GetElementSize();
-                auto inputgrad_tv     = get_inner_expanded_tv<2>(*params.inputGradDesc);
-                long offset = (params.diagonal >= 0 ? params.diagonal * inputgrad_tv.stride[1]
-                                                    : -params.diagonal * inputgrad_tv.stride[0]);
+                decltype(auto) params =
+                    raw_params.CastTo<miopen::diagonal::diag::FwdInvokeParams>();
+                auto input_numel = params.inputDesc->GetElementSize();
+                auto output_tv   = get_inner_expanded_tv<2>(*params.outputDesc);
+                long offset      = (params.diagonal >= 0 ? params.diagonal * output_tv.stride[1]
+                                                         : -params.diagonal * output_tv.stride[0]);
 
-                kernel(params.outputGrad, params.inputGrad, outgrad_numel, offset, inputgrad_tv);
+                kernel(params.input, params.output, input_numel, offset, output_tv);
             };
         };
     }
-    else
+    else if(problem.GetInputDesc().GetLengths().size() == 2)
     {
-        auto outgrad_numel = problem.GetOutputGradDesc().GetElementSize();
+        int64_t output_numel = problem.GetOutputDesc().GetElementSize();
 
         size_t xlocalsize = LOCAL_SIZE;
-        size_t xgridsize  = AlignUp(outgrad_numel, xlocalsize);
+        size_t xgridsize  = AlignUp(output_numel, xlocalsize);
         size_t ylocalsize = 1;
         size_t ygridsize  = 1;
         size_t zlocalsize = 1;
         size_t zgridsize  = 1;
 
-        kernel.kernel_name = "Assign1d";
+        kernel.kernel_name = "Diag2dForward";
 
         kernel.l_wk.push_back(xlocalsize);
         kernel.l_wk.push_back(ylocalsize);
@@ -179,13 +206,14 @@ ConvSolution DiagBackward::GetSolution(const ExecutionContext& context,
         result.invoker_factory = [](const std::vector<Kernel>& kernels) {
             return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
                 decltype(auto) kernel = handle_.Run(kernels.front());
-                decltype(auto) params = raw_params.CastTo<miopen::diag::BwdInvokeParams>();
-                auto outgrad_numel    = params.outputGradDesc->GetElementSize();
-                auto outgrad_tv       = get_inner_expanded_tv<1>(*params.outputGradDesc);
-                auto inputgrad_tv     = get_inner_expanded_tv<2>(*params.inputGradDesc);
-                auto diagonal_tv = miopen::diag::getDiagonal(inputgrad_tv, params.diagonal, 0, 1);
+                decltype(auto) params =
+                    raw_params.CastTo<miopen::diagonal::diag::FwdInvokeParams>();
+                auto output_numel = params.outputDesc->GetElementSize();
+                auto input_tv     = get_inner_expanded_tv<2>(*params.inputDesc);
+                long offset       = (params.diagonal >= 0 ? params.diagonal * input_tv.stride[1]
+                                                          : -params.diagonal * input_tv.stride[0]);
 
-                kernel(params.outputGrad, params.inputGrad, outgrad_numel, outgrad_tv, diagonal_tv);
+                kernel(params.input, params.output, output_numel, offset, input_tv);
             };
         };
     }
@@ -194,6 +222,8 @@ ConvSolution DiagBackward::GetSolution(const ExecutionContext& context,
 }
 
 } // namespace diag
+
+} // namespace diagonal
 
 } // namespace solver
 

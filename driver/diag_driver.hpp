@@ -28,7 +28,8 @@
 
 #include "InputFlags.hpp"
 #include "driver.hpp"
-#include "miopen/diag/problem_description.hpp"
+#include "miopen/diagonal/diag/problem_description.hpp"
+#include "miopen/diagonal/solvers.hpp"
 #include "miopen/errors.hpp"
 #include "miopen/tensor_view_utils.hpp"
 #include "tensor_driver.hpp"
@@ -99,7 +100,7 @@ int32_t mloDiagBackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
     {
         auto outgrad_numel = miopen::deref(outputGradDesc).GetElementSize();
         auto input_tv      = miopen::get_inner_expanded_tv<2>(miopen::deref(inputGradDesc));
-        auto diagonal_tv   = miopen::diag::getDiagonal(input_tv, diagonal, 0, 1);
+        auto diagonal_tv   = miopen::solver::diagonal::getDiagonal(input_tv, diagonal, 0, 1);
 
         for(size_t i = 0; i < outgrad_numel; i++)
         {

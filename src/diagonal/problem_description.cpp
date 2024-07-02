@@ -28,75 +28,17 @@
 #include "miopen/errors.hpp"
 #include "miopen/miopen.h"
 #include <cstdint>
-#include <miopen/diag/problem_description.hpp>
+#include <miopen/diagonal/diag/problem_description.hpp>
+#include <miopen/diagonal/diagflat/problem_description.hpp>
 #include <miopen/names.hpp>
 
 #include <sstream>
 
 namespace miopen {
 
+namespace diagonal {
+
 namespace diag {
-
-template <int N>
-tensor_view_t<N - 1>
-getDiagonal(const tensor_view_t<N>& tv, int64_t offset, int64_t dim1, int64_t dim2)
-{
-    if(dim1 == dim2)
-    {
-        MIOPEN_THROW(miopenStatusInternalError, "Diagonal dimensions can not be identical");
-    }
-
-    int64_t diag_size;
-    if(offset >= 0)
-    {
-        diag_size = std::max<int64_t>(std::min(tv.size[dim1], tv.size[dim2] - offset), 0);
-    }
-    else
-    {
-        diag_size = std::max<int64_t>(std::min(tv.size[dim1] + offset, tv.size[dim2]), 0);
-    }
-
-    uint64_t new_offset = tv.offset;
-    if(diag_size == 0)
-    {
-        // skip
-    }
-    else if(offset >= 0)
-    {
-        new_offset += offset * tv.stride[dim2];
-    }
-    else
-    {
-        new_offset -= offset * tv.stride[dim1];
-    }
-
-    tensor_view_t<N - 1> res;
-    res.offset = new_offset;
-
-    int curIdx    = 0;
-    int curNewIdx = 0;
-    while(curNewIdx < N - 2)
-    {
-        if(curIdx == dim1 || curIdx == dim2)
-        {
-            curIdx++;
-        }
-        else
-        {
-            res.size[curNewIdx]   = tv.size[curIdx];
-            res.stride[curNewIdx] = tv.stride[curIdx];
-            curNewIdx++;
-            curIdx++;
-        }
-    }
-    res.size[N - 2]   = diag_size;
-    res.stride[N - 2] = tv.stride[dim1] + tv.stride[dim2];
-
-    return res;
-}
-
-template tensor_view_t<1>
-getDiagonal(const tensor_view_t<2>& tv, int64_t offset, int64_t dim1, int64_t dim2);
 
 NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {
@@ -143,5 +85,33 @@ NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
 }
 
 } // namespace diag
+
+namespace diagflat {
+
+NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
+{
+    auto inputlength = inputDesc.GetLengths();
+
+    auto input_numel = std::accumulate(
+        inputlength.begin(), inputlength.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+
+    auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
+    auto output_dtype = miopen::GetDataType(outputDesc.GetType());
+
+    std::ostringstream ss;
+
+    ss << "input_dtype" << input_dtype;
+    ss << "output_dtype" << output_dtype;
+    ss << "offset" << offset;
+    ss << "numDim" << inputlength.size();
+    ss << "input_numel" << input_numel;
+    ss << IsAllPacked();
+
+    return NetworkConfig{ss.str()};
+}
+
+} // namespace diagflat
+
+} // namespace diagonal
 
 } // namespace miopen

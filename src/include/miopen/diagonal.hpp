@@ -23,45 +23,37 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#pragma once
+#ifndef MIOPEN_DIAGONAL_HPP_
+#define MIOPEN_DIAGONAL_HPP_
 
-#include "miopen/execution_context.hpp"
-#include <miopen/diag/problem_description.hpp>
-#include <miopen/solver.hpp>
-#include <utility>
+#include "miopen/miopen.h"
+#include <miopen/common.hpp>
 
 namespace miopen {
 
-namespace solver {
+struct Handle;
+struct TensorDescriptor;
 
-namespace diag {
+miopenStatus_t DiagForward(Handle& handle,
+                           const TensorDescriptor& inputDesc,
+                           Data_t input,
+                           const TensorDescriptor& outputDesc,
+                           Data_t output,
+                           int64_t diagonal);
 
-using DiagFwdSolver = NonTunableSolverBase<ExecutionContext, miopen::diag::FwdProblemDescription>;
+miopenStatus_t DiagBackward(Handle& handle,
+                            const TensorDescriptor& outputGradDesc,
+                            Data_t outputGrad,
+                            const TensorDescriptor& inputGradDesc,
+                            Data_t inputGrad,
+                            int64_t diagonal);
 
-struct DiagForward final : DiagFwdSolver
-{
-    const std::string& SolverDbId() const override { return GetSolverDbId<DiagForward>(); }
-
-    bool IsApplicable(const ExecutionContext& context,
-                      const miopen::diag::FwdProblemDescription& problem) const override;
-    ConvSolution GetSolution(const ExecutionContext& context,
-                             const miopen::diag::FwdProblemDescription& problem) const override;
-};
-
-using DiagBwdSolver = NonTunableSolverBase<ExecutionContext, miopen::diag::BwdProblemDescription>;
-
-struct DiagBackward final : DiagBwdSolver
-{
-    const std::string& SolverDbId() const override { return GetSolverDbId<DiagBackward>(); }
-
-    bool IsApplicable(const ExecutionContext& context,
-                      const miopen::diag::BwdProblemDescription& problem) const override;
-    ConvSolution GetSolution(const ExecutionContext& context,
-                             const miopen::diag::BwdProblemDescription& problem) const override;
-};
-
-} // namespace diag
-
-} // namespace solver
+miopenStatus_t DiagFlatForward(Handle& handle,
+                               const TensorDescriptor& inputDesc,
+                               Data_t input,
+                               const TensorDescriptor& outputDesc,
+                               Data_t output,
+                               int64_t offset);
 
 } // namespace miopen
+#endif // _MIOPEN_DIAGONAL_HPP_

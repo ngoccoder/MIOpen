@@ -23,30 +23,32 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#ifndef MIOPEN_DIAG_HPP_
-#define MIOPEN_DIAG_HPP_
+#ifndef MIOPEN_DONT_USE_HIP_RUNTIME_HEADERS
+#include <hip/hip_fp16.h>
+#include <hip/hip_runtime.h>
+#endif
 
-#include "miopen/miopen.h"
-#include <miopen/common.hpp>
+#include "float_types.h"
+#include "tensor_view.hpp"
 
-namespace miopen {
+template <typename TI, typename TO>
+__device__ void
+DiagFlatForwardKernel(const TI* input, TO* output, long N, long offset, tensor_view_t<2> output_tv)
+{
+    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+    if(gid >= N)
+        return;
 
-struct Handle;
-struct TensorDescriptor;
+    long stride0 = output_tv.stride[0];
+    long stride1 = output_tv.stride[1];
 
-miopenStatus_t DiagForward(Handle& handle,
-                           const TensorDescriptor& inputDesc,
-                           Data_t input,
-                           const TensorDescriptor& outputDesc,
-                           Data_t output,
-                           int64_t diagonal);
+    long output_idx = gid * (stride0 + stride1) + offset;
 
-miopenStatus_t DiagBackward(Handle& handle,
-                            const TensorDescriptor& outputGradDesc,
-                            Data_t outputGrad,
-                            const TensorDescriptor& inputGradDesc,
-                            Data_t inputGrad,
-                            int64_t diagonal);
+    output[output_idx] = input[gid];
+}
 
-} // namespace miopen
-#endif // _MIOPEN_DIAG_HPP_
+extern "C" __global__ void DiagFlatForward(
+    const INPUT_TYPE* input, OUTPUT_TYPE* output, long N, long offset, tensor_view_t<2> output_tv)
+{
+    DiagFlatForwardKernel<INPUT_TYPE, OUTPUT_TYPE>(input, output, N, offset, output_tv);
+}
