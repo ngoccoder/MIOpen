@@ -38,7 +38,7 @@
 #include <functional>
 #include <gtest/gtest.h>
 #include <miopen/miopen.h>
-#include <miopen/diag.hpp>
+#include <miopen/diagonal.hpp>
 #include <numeric>
 
 struct DiagTestCase

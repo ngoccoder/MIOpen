@@ -27,7 +27,7 @@
 #define GUARD_CPU_DIAG_HPP
 
 #include "ford.hpp"
-#include "miopen/diag/problem_description.hpp"
+#include "miopen/diagonal/solvers.hpp"
 #include "miopen/tensor_layout.hpp"
 #include "miopen/tensor_view_utils.hpp"
 #include "tensor_holder.hpp"
@@ -70,7 +70,7 @@ void cpu_diag_backward(tensor<T> outputGrad, tensor<T>& ref_inputGrad, int64_t d
     {
         auto outputGrad_numel = outputGrad.desc.GetElementSize();
         auto inputGrad_tv     = miopen::get_inner_expanded_tv<2>(ref_inputGrad.desc);
-        auto diagonal_tv      = miopen::diag::getDiagonal(inputGrad_tv, diagonal, 0, 1);
+        auto diagonal_tv      = miopen::solver::diagonal::getDiagonal(inputGrad_tv, diagonal, 0, 1);
 
         par_ford(outputGrad_numel)([&](size_t o) {
             long inputIdx           = o * diagonal_tv.stride[0] + diagonal_tv.offset;
