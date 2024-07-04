@@ -30,6 +30,7 @@
 #include <cstdint>
 #include <miopen/diagonal/diag/problem_description.hpp>
 #include <miopen/diagonal/diagflat/problem_description.hpp>
+#include <miopen/diagonal/diagembed/problem_description.hpp>
 #include <miopen/names.hpp>
 
 #include <sstream>
@@ -111,6 +112,32 @@ NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 }
 
 } // namespace diagflat
+
+namespace diagembed {
+
+NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
+{
+    auto inputlength = inputDesc.GetLengths();
+
+    auto input_numel = std::accumulate(
+        inputlength.begin(), inputlength.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+
+    auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
+    auto output_dtype = miopen::GetDataType(outputDesc.GetType());
+
+    std::ostringstream ss;
+
+    ss << "input_dtype" << input_dtype;
+    ss << "output_dtype" << output_dtype;
+    ss << "offset" << offset;
+    ss << "numDim" << inputlength.size();
+    ss << "input_numel" << input_numel;
+    ss << IsAllPacked();
+
+    return NetworkConfig{ss.str()};
+}
+
+} // namespace diagembed
 
 } // namespace diagonal
 

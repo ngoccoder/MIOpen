@@ -55,5 +55,14 @@ miopenStatus_t DiagFlatForward(Handle& handle,
                                Data_t output,
                                int64_t offset);
 
+miopenStatus_t DiagEmbedForward(Handle& handle,
+                                const TensorDescriptor& inputDesc,
+                                Data_t input,
+                                const TensorDescriptor& outputDesc,
+                                Data_t output,
+                                int64_t offset,
+                                int64_t dim1,
+                                int64_t dim2);
+
 } // namespace miopen
 #endif // _MIOPEN_DIAGONAL_HPP_

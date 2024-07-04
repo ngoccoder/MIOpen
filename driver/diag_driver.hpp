@@ -99,8 +99,8 @@ int32_t mloDiagBackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
     if(outgrad_len.size() == 1)
     {
         auto outgrad_numel = miopen::deref(outputGradDesc).GetElementSize();
-        auto input_tv      = miopen::get_inner_expanded_tv<2>(miopen::deref(inputGradDesc));
-        auto diagonal_tv   = miopen::solver::diagonal::getDiagonal(input_tv, diagonal, 0, 1);
+        auto diagonal_tv =
+            miopen::solver::diagonal::getDiagonal(miopen::deref(inputGradDesc), diagonal, 0, 1);
 
         for(size_t i = 0; i < outgrad_numel; i++)
         {

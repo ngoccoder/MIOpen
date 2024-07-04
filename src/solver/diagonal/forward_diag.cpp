@@ -26,6 +26,7 @@
 
 #include "miopen/kernel_info.hpp"
 #include "miopen/mlo_internal.hpp"
+#include "miopen/tensor.hpp"
 #include "miopen/tensor_view_utils.hpp"
 #include <cstddef>
 #include <miopen/datatype.hpp>
@@ -43,9 +44,8 @@ namespace solver {
 
 namespace diagonal {
 
-template <int N>
-tensor_view_t<N - 1>
-getDiagonal(const tensor_view_t<N>& tv, int64_t offset, int64_t dim1, int64_t dim2)
+tensor_view_t<5>
+getDiagonal(const TensorDescriptor& tensor, int64_t offset, int64_t dim1, int64_t dim2)
 {
     if(dim1 == dim2)
     {
@@ -53,35 +53,38 @@ getDiagonal(const tensor_view_t<N>& tv, int64_t offset, int64_t dim1, int64_t di
     }
 
     int64_t diag_size;
+    auto lens     = tensor.GetLengths();
+    size_t dimNum = lens.size();
+    auto strides  = tensor.GetStrides();
     if(offset >= 0)
     {
-        diag_size = std::max<int64_t>(std::min(tv.size[dim1], tv.size[dim2] - offset), 0);
+        diag_size = std::max<int64_t>(std::min(lens[dim1], lens[dim2] - offset), 0);
     }
     else
     {
-        diag_size = std::max<int64_t>(std::min(tv.size[dim1] + offset, tv.size[dim2]), 0);
+        diag_size = std::max<int64_t>(std::min(lens[dim1] + offset, lens[dim2]), 0);
     }
 
-    uint64_t new_offset = tv.offset;
+    uint64_t new_offset = 0;
     if(diag_size == 0)
     {
         // skip
     }
     else if(offset >= 0)
     {
-        new_offset += offset * tv.stride[dim2];
+        new_offset += offset * strides[dim2];
     }
     else
     {
-        new_offset -= offset * tv.stride[dim1];
+        new_offset -= offset * strides[dim1];
     }
 
-    tensor_view_t<N - 1> res;
+    tensor_view_t<5> res;
     res.offset = new_offset;
 
     int curIdx    = 0;
     int curNewIdx = 0;
-    while(curNewIdx < N - 2)
+    while(curNewIdx < dimNum - 2)
     {
         if(curIdx == dim1 || curIdx == dim2)
         {
@@ -89,20 +92,23 @@ getDiagonal(const tensor_view_t<N>& tv, int64_t offset, int64_t dim1, int64_t di
         }
         else
         {
-            res.size[curNewIdx]   = tv.size[curIdx];
-            res.stride[curNewIdx] = tv.stride[curIdx];
+            res.size[curNewIdx]   = lens[curIdx];
+            res.stride[curNewIdx] = strides[curIdx];
             curNewIdx++;
             curIdx++;
         }
     }
-    res.size[N - 2]   = diag_size;
-    res.stride[N - 2] = tv.stride[dim1] + tv.stride[dim2];
+    res.size[dimNum - 2]   = diag_size;
+    res.stride[dimNum - 2] = strides[dim1] + strides[dim2];
+
+    for(int i = dimNum - 1; i < 5; ++i)
+    {
+        res.stride[i] = (i == 0 ? 1 : res.stride[i - 1]);
+        res.size[i]   = 1;
+    }
 
     return res;
 }
-
-template tensor_view_t<1>
-getDiagonal(const tensor_view_t<2>& tv, int64_t offset, int64_t dim1, int64_t dim2);
 
 namespace diag {
 

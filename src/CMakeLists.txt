@@ -260,6 +260,7 @@ set( MIOpen_Source
     solver/conv_winoRxS_fused.cpp
     solver/diagonal/backward_diag.cpp
     solver/diagonal/forward_diag.cpp
+    solver/diagonal/forward_diagembed.cpp
     solver/diagonal/forward_diagflat.cpp
     solver/fft.cpp
     solver/gemm.cpp

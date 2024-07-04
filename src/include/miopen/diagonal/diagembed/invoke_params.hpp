@@ -1,3 +1,4 @@
+
 /*******************************************************************************
  *
  * MIT License
@@ -26,73 +27,37 @@
 
 #pragma once
 
-#include "miopen/tensor_view_utils.hpp"
+#include "miopen/common.hpp"
+#include <cstddef>
 #include <cstdint>
-#include <miopen/problem_description_base.hpp>
+#include <miopen/invoke_params.hpp>
 #include <miopen/tensor.hpp>
-#include <miopen/activ.hpp>
-
-#include <string>
 
 namespace miopen {
 
-struct NetworkConfig;
-
 namespace diagonal {
 
-namespace diagflat {
+namespace diagembed {
 
-struct FwdProblemDescription : ProblemDescriptionBase
+struct FwdInvokeParams : public miopen::InvokeParams
 {
-    // Forward constructor
-    FwdProblemDescription(const TensorDescriptor& inputDesc_,
-                          const TensorDescriptor& outputDesc_,
-                          int64_t offset_)
-        : inputDesc(inputDesc_), outputDesc(outputDesc_), offset(offset_)
-    {
-        if(outputDesc.GetLengths().size() != 2)
-        {
+    FwdInvokeParams() = default;
 
-            MIOPEN_THROW(miopenStatusBadParm,
-                         "DiagFlat::FwdProblemDescription: Number of output tensor's dimension "
-                         "must equal 2.");
-        }
-    }
+    const TensorDescriptor* inputDesc  = nullptr;
+    const TensorDescriptor* outputDesc = nullptr;
 
-    const TensorDescriptor& GetInputDesc() const { return inputDesc; }
-    const TensorDescriptor& GetOutputDesc() const { return outputDesc; }
-    int64_t GetOffset() const { return offset; }
+    ConstData_t input = nullptr;
+    Data_t output     = nullptr;
 
-    bool IsSameType() const
-    {
-        if(inputDesc.GetType() != outputDesc.GetType())
-        {
-            return false;
-        }
+    int64_t offset = 0;
+    int64_t dim1   = -2;
+    int64_t dim2   = -1;
 
-        return true;
-    }
-
-    bool IsAllPacked() const
-    {
-        if(!(inputDesc.IsPacked() && outputDesc.IsPacked()))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    NetworkConfig MakeNetworkConfig() const override;
-
-private:
-    TensorDescriptor inputDesc;
-    TensorDescriptor outputDesc;
-
-    int64_t offset;
+    std::size_t GetWorkspaceSize() const { return 0; }
+    Data_t GetWorkspace() const { return nullptr; }
 };
 
-} // namespace diagflat
+} // namespace diagembed
 
 } // namespace diagonal
 

@@ -88,3 +88,26 @@ extern "C" miopenStatus_t miopenDiagFlatForward(miopenHandle_t handle,
                                 offset);
     });
 }
+
+extern "C" miopenStatus_t miopenDiagEmbedForward(miopenHandle_t handle,
+                                                 const miopenTensorDescriptor_t inputDesc,
+                                                 void* input,
+                                                 const miopenTensorDescriptor_t outputDesc,
+                                                 void* output,
+                                                 int64_t offset,
+                                                 int64_t dim1,
+                                                 int64_t dim2)
+{
+    MIOPEN_LOG_FUNCTION(handle, inputDesc, input, outputDesc, output, offset, dim1, dim2);
+
+    return miopen::try_([&] {
+        miopen::DiagEmbedForward(miopen::deref(handle),
+                                 miopen::deref(inputDesc),
+                                 DataCast(input),
+                                 miopen::deref(outputDesc),
+                                 DataCast(output),
+                                 offset,
+                                 dim1,
+                                 dim2);
+    });
+}

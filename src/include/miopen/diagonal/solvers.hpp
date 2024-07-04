@@ -25,9 +25,11 @@
  *******************************************************************************/
 #pragma once
 
+#include <miopen/diagonal/diag/problem_description.hpp>
+#include "miopen/diagonal/diagembed/problem_description.hpp"
 #include "miopen/diagonal/diagflat/problem_description.hpp"
 #include "miopen/execution_context.hpp"
-#include <miopen/diagonal/diag/problem_description.hpp>
+#include "miopen/tensor.hpp"
 #include <miopen/solver.hpp>
 #include <utility>
 
@@ -37,11 +39,8 @@ namespace solver {
 
 namespace diagonal {
 
-template <int N>
-tensor_view_t<N - 1>
-getDiagonal(const tensor_view_t<N>& tv, int64_t offset, int64_t dim1, int64_t dim2);
-extern template tensor_view_t<1>
-getDiagonal(const tensor_view_t<2>& tv, int64_t offset, int64_t dim1, int64_t dim2);
+tensor_view_t<5>
+getDiagonal(const TensorDescriptor& tv, int64_t offset, int64_t dim1, int64_t dim2);
 
 namespace diag {
 
@@ -93,6 +92,25 @@ struct DiagFlatForward final : DiagFlatFwdSolver
 };
 
 } // namespace diagflat
+
+namespace diagembed {
+
+using DiagEmbedFwdSolver =
+    NonTunableSolverBase<ExecutionContext, miopen::diagonal::diagembed::FwdProblemDescription>;
+
+struct DiagEmbedForward final : DiagEmbedFwdSolver
+{
+    const std::string& SolverDbId() const override { return GetSolverDbId<DiagEmbedForward>(); }
+
+    bool
+    IsApplicable(const ExecutionContext& context,
+                 const miopen::diagonal::diagembed::FwdProblemDescription& problem) const override;
+    ConvSolution
+    GetSolution(const ExecutionContext& context,
+                const miopen::diagonal::diagembed::FwdProblemDescription& problem) const override;
+};
+
+} // namespace diagembed
 
 } // namespace diagonal
 

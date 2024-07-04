@@ -24,15 +24,15 @@
  *
  *******************************************************************************/
 
+#include <miopen/diagonal/diag/invoke_params.hpp>
+#include "miopen/diagonal/diagembed/invoke_params.hpp"
 #include "miopen/diagonal/diagflat/invoke_params.hpp"
-#include "miopen/diagonal/diagflat/problem_description.hpp"
 #include "miopen/handle.hpp"
 #include "miopen/miopen.h"
 #include <miopen/datatype.hpp>
 #include <miopen/find_solution.hpp>
 #include <miopen/float_equal.hpp>
 #include <miopen/kernel_cache.hpp>
-#include <miopen/diagonal/diag/invoke_params.hpp>
 #include <miopen/diagonal/solvers.hpp>
 #include <miopen/diagonal.hpp>
 #include <miopen/tensor.hpp>
@@ -118,6 +118,39 @@ miopenStatus_t DiagFlatForward(Handle& handle,
 
     const auto algo    = AlgorithmName{"DiagFlatForward"};
     const auto solvers = solver::SolverContainer<solver::diagonal::diagflat::DiagFlatForward>{};
+
+    solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
+
+    return miopenStatusSuccess;
+}
+
+miopenStatus_t DiagEmbedForward(Handle& handle,
+                                const TensorDescriptor& inputDesc,
+                                Data_t input,
+                                const TensorDescriptor& outputDesc,
+                                Data_t output,
+                                int64_t offset,
+                                int64_t dim1,
+                                int64_t dim2)
+{
+    const auto problem =
+        diagonal::diagembed::FwdProblemDescription{inputDesc, outputDesc, offset, dim1, dim2};
+
+    const auto invoke_params = [&]() {
+        auto tmp       = diagonal::diagembed::FwdInvokeParams{};
+        tmp.type       = InvokeType::Run;
+        tmp.inputDesc  = &inputDesc;
+        tmp.input      = input;
+        tmp.outputDesc = &outputDesc;
+        tmp.output     = output;
+        tmp.offset     = offset;
+        tmp.dim1       = dim1;
+        tmp.dim2       = dim2;
+        return tmp;
+    }();
+
+    const auto algo    = AlgorithmName{"DiagEmbededForward"};
+    const auto solvers = solver::SolverContainer<solver::diagonal::diagembed::DiagEmbedForward>{};
 
     solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
 

@@ -187,8 +187,7 @@ DiagBackward::GetSolution(const ExecutionContext& context,
                     raw_params.CastTo<miopen::diagonal::diag::BwdInvokeParams>();
                 auto outgrad_numel = params.outputGradDesc->GetElementSize();
                 auto outgrad_tv    = get_inner_expanded_tv<1>(*params.outputGradDesc);
-                auto inputgrad_tv  = get_inner_expanded_tv<2>(*params.inputGradDesc);
-                auto diagonal_tv   = getDiagonal(inputgrad_tv, params.diagonal, 0, 1);
+                auto diagonal_tv   = getDiagonal(*params.inputGradDesc, params.diagonal, 0, 1);
 
                 kernel(params.outputGrad, params.inputGrad, outgrad_numel, outgrad_tv, diagonal_tv);
             };
