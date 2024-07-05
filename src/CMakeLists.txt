@@ -259,6 +259,7 @@ set( MIOpen_Source
     solver/conv_winoRxS.cpp
     solver/conv_winoRxS_fused.cpp
     solver/diagonal/backward_diag.cpp
+    solver/diagonal/diagonal.cpp
     solver/diagonal/forward_diag.cpp
     solver/diagonal/forward_diagembed.cpp
     solver/diagonal/forward_diagflat.cpp
@@ -447,6 +448,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         ${GPU_BATCHED_TRANSPOSE_KERNEL_HIP}
         ${GPU_GENERAL_TENSOR_REORDER_KERNEL_HIP_SOURCE}
         kernels/MIOpenArgmax.cpp
+        kernels/MIOpenAssign.cpp
         kernels/MIOpenCat.cpp
         kernels/MIOpenCheckNumerics.cpp
         kernels/MIOpenBatchNormActivBwdPerAct.cl

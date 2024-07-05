@@ -292,12 +292,13 @@ int DiagFlatDriver<Tgpu, Tref>::RunForwardGPU()
         STOP_TIME
         int iter = inflags.GetValueInt("iter");
         if(WALL_CLOCK)
-            std::cout << "Wall-clock Time Forward Diag Elapsed: " << t.gettime_ms() / iter
+            std::cout << "Wall-clock Time Forward Diag Flat Elapsed: " << t.gettime_ms() / iter
                       << " ms\n";
 
         float kernel_average_time =
             iter > 1 ? (kernel_total_time - kernel_first_time) / (iter - 1) : kernel_first_time;
-        std::cout << "GPU Kernel Time Forward Diag Elapsed: " << kernel_average_time << " ms\n";
+        std::cout << "GPU Kernel Time Forward Diag Flat Elapsed: " << kernel_average_time
+                  << " ms\n";
     }
 
     if(out_dev->FromGPU(GetStream(), out.data()) != 0)
@@ -343,13 +344,13 @@ int DiagFlatDriver<Tgpu, Tref>::VerifyForward()
 
     if(!std::isfinite(error) || error > tolerance)
     {
-        std::cout << "Forward Diag FAILED: " << error << " > " << tolerance << std::endl;
+        std::cout << "Forward Diag Flat FAILED: " << error << " > " << tolerance << std::endl;
         return EC_VerifyFwd;
     }
     else
     {
-        std::cout << "Forward Diag Verifies OK on CPU reference (" << error << " < " << tolerance
-                  << ')' << std::endl;
+        std::cout << "Forward Diag Flat Verifies OK on CPU reference (" << error << " < "
+                  << tolerance << ')' << std::endl;
     }
 
     return miopenStatusSuccess;

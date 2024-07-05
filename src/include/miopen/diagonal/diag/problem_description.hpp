@@ -54,7 +54,7 @@ struct FwdProblemDescription : ProblemDescriptionBase
         {
 
             MIOPEN_THROW(miopenStatusBadParm,
-                         "Diag::FwdProblemDescription: Number of tensor dimension is not 1 or 2.");
+                         "Diag::FwdProblemDescription: Number of tensor dimension must be 1 or 2.");
         }
     }
 
@@ -103,7 +103,7 @@ struct BwdProblemDescription : ProblemDescriptionBase
         {
 
             MIOPEN_THROW(miopenStatusBadParm,
-                         "Diag::BwdProblemDescription: Number of tensor dimension is not 1 or 2.");
+                         "Diag::BwdProblemDescription: Number of tensor dimension must be 1 or 2.");
         }
     }
 

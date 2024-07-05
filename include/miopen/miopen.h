@@ -6660,9 +6660,9 @@ MIOPEN_EXPORT miopenStatus_t miopenDiagEmbedForward(miopenHandle_t handle,
                                                     void* input,
                                                     const miopenTensorDescriptor_t outputDesc,
                                                     void* output,
-                                                    int64_t offset,
-                                                    int64_t dim1,
-                                                    int64_t dim2);
+                                                    int64_t offset = 0,
+                                                    int64_t dim1   = -2,
+                                                    int64_t dim2   = -1);
 
 /** @} */
 // CLOSEOUT BackendAPI DOXYGEN GROUP

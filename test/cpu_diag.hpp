@@ -69,8 +69,8 @@ void cpu_diag_backward(tensor<T> outputGrad, tensor<T>& ref_inputGrad, int64_t d
     if(outputGrad.desc.GetLengths().size() == 1)
     {
         auto outputGrad_numel = outputGrad.desc.GetElementSize();
-        auto inputGrad_tv     = miopen::get_inner_expanded_tv<2>(ref_inputGrad.desc);
-        auto diagonal_tv      = miopen::solver::diagonal::getDiagonal(inputGrad_tv, diagonal, 0, 1);
+        auto diagonal_tv =
+            miopen::solver::diagonal::getDiagonal(ref_inputGrad.desc, diagonal, 0, 1);
 
         par_ford(outputGrad_numel)([&](size_t o) {
             long inputIdx           = o * diagonal_tv.stride[0] + diagonal_tv.offset;

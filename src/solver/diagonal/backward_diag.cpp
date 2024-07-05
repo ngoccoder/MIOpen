@@ -66,11 +66,10 @@ DiagBackward::GetSolution(const ExecutionContext& context,
 
     auto result = ConvSolution{miopenStatusSuccess};
 
-    auto dtype         = problem.GetInputGradDesc().GetType();
-    auto input_dtype   = miopen::GetDataType(problem.GetInputGradDesc().GetType());
-    auto output_dtype  = miopen::GetDataType(problem.GetOutputGradDesc().GetType());
-    auto kernel        = KernelInfo{};
-    kernel.kernel_file = "MIOpenDiag.cpp";
+    auto dtype        = problem.GetInputGradDesc().GetType();
+    auto input_dtype  = miopen::GetDataType(problem.GetInputGradDesc().GetType());
+    auto output_dtype = miopen::GetDataType(problem.GetOutputGradDesc().GetType());
+    auto kernel       = KernelInfo{};
 
     const auto build_params = KernelBuildParameters{
         {"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
@@ -94,6 +93,7 @@ DiagBackward::GetSolution(const ExecutionContext& context,
         size_t zlocalsize = 1;
         size_t zgridsize  = 1;
 
+        kernel.kernel_file = "MIOpenDiag.cpp";
         kernel.kernel_name = "Diag2dForward";
 
         kernel.l_wk.push_back(xlocalsize);
@@ -131,6 +131,7 @@ DiagBackward::GetSolution(const ExecutionContext& context,
         size_t zlocalsize = 1;
         size_t zgridsize  = 1;
 
+        kernel.kernel_file = "MIOpenDiag.cpp";
         kernel.kernel_name = "Diag1dForward";
 
         kernel.l_wk.push_back(xlocalsize);
@@ -168,7 +169,8 @@ DiagBackward::GetSolution(const ExecutionContext& context,
         size_t zlocalsize = 1;
         size_t zgridsize  = 1;
 
-        kernel.kernel_name = "Assign1d";
+        kernel.kernel_file = "MIOpenAssign.cpp";
+        kernel.kernel_name = "Assign5d";
 
         kernel.l_wk.push_back(xlocalsize);
         kernel.l_wk.push_back(ylocalsize);
@@ -186,7 +188,7 @@ DiagBackward::GetSolution(const ExecutionContext& context,
                 decltype(auto) params =
                     raw_params.CastTo<miopen::diagonal::diag::BwdInvokeParams>();
                 auto outgrad_numel = params.outputGradDesc->GetElementSize();
-                auto outgrad_tv    = get_inner_expanded_tv<1>(*params.outputGradDesc);
+                auto outgrad_tv    = get_inner_expanded_tv<5>(*params.outputGradDesc);
                 auto diagonal_tv   = getDiagonal(*params.inputGradDesc, params.diagonal, 0, 1);
 
                 kernel(params.outputGrad, params.inputGrad, outgrad_numel, outgrad_tv, diagonal_tv);

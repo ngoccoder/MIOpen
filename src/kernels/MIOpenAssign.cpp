@@ -32,43 +32,27 @@
 #include "tensor_view.hpp"
 
 template <typename TI, typename TO>
-__device__ void
-Diag1dForwardKernel(const TI* input, TO* output, long N, long offset, tensor_view_t<2> output_tv)
+__device__ void Assign5dKernel(
+    const TI* input, TO* output, long N, tensor_view_t<5> input_tv, tensor_view_t<5> output_tv)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
     if(gid >= N)
         return;
 
-    long stride0 = output_tv.stride[0];
-    long stride1 = output_tv.stride[1];
+    tensor_layout_t<5> inputLayout(input_tv, gid);
+    auto inputIdx = input_tv.get_tensor_view_idx(inputLayout);
 
-    long outputIdx    = gid * (stride0 + stride1) + offset;
-    output[outputIdx] = input[gid];
+    tensor_layout_t<5> outputLayout(output_tv, gid);
+    auto outputIdx = output_tv.get_tensor_view_idx(outputLayout);
+
+    output[outputIdx] = input[inputIdx];
 }
 
-extern "C" __global__ void Diag1dForward(
-    const INPUT_TYPE* input, OUTPUT_TYPE* output, long N, long offset, tensor_view_t<2> output_tv)
+extern "C" __global__ void Assign5d(const INPUT_TYPE* input,
+                                    OUTPUT_TYPE* output,
+                                    long N,
+                                    tensor_view_t<5> input_tv,
+                                    tensor_view_t<5> output_tv)
 {
-    Diag1dForwardKernel<INPUT_TYPE, OUTPUT_TYPE>(input, output, N, offset, output_tv);
-}
-
-template <typename TI, typename TO>
-__device__ void
-Diag2dForwardKernel(const TI* input, TO* output, long N, long offset, tensor_view_t<2> input_tv)
-{
-    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
-    if(gid >= N)
-        return;
-
-    long input_stride_0 = input_tv.stride[0];
-    long input_stride_1 = input_tv.stride[1];
-
-    long input_idx = gid * (input_stride_0 + input_stride_1) + offset;
-    output[gid]    = input[input_idx];
-}
-
-extern "C" __global__ void Diag2dForward(
-    const INPUT_TYPE* input, OUTPUT_TYPE* output, long N, long offset, tensor_view_t<2> input_tv)
-{
-    Diag2dForwardKernel<INPUT_TYPE, OUTPUT_TYPE>(input, output, N, offset, input_tv);
+    Assign5dKernel(input, output, N, input_tv, output_tv);
 }

@@ -79,7 +79,6 @@ ConvSolution DiagEmbedForward::GetSolution(
         {"INPUT_TYPE", input_dtype == "bfloat16" ? "ushort" : input_dtype},
         {"OUTPUT_TYPE", output_dtype == "bfloat16" ? "ushort" : output_dtype}};
 
-    kernel.kernel_file  = "MIOpenDiag.cpp";
     kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
     auto input_numel = problem.GetInputDesc().GetElementSize();
@@ -91,6 +90,7 @@ ConvSolution DiagEmbedForward::GetSolution(
     size_t zlocalsize = 1;
     size_t zgridsize  = 1;
 
+    kernel.kernel_file = "MIOpenAssign.cpp";
     kernel.kernel_name = "Assign5d";
 
     kernel.l_wk.push_back(xlocalsize);

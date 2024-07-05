@@ -44,9 +44,7 @@ namespace diag {
 NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {
     auto inputlength = inputDesc.GetLengths();
-
-    auto input_numel = std::accumulate(
-        inputlength.begin(), inputlength.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    auto input_numel = inputDesc.GetElementSize();
 
     auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
     auto output_dtype = miopen::GetDataType(outputDesc.GetType());
@@ -65,10 +63,9 @@ NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 
 NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
 {
-    auto inputlength = inputGradDesc.GetLengths();
+    auto inputgradlength = inputGradDesc.GetLengths();
 
-    auto input_numel = std::accumulate(
-        inputlength.begin(), inputlength.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    auto inputgrad_numel = inputGradDesc.GetElementSize();
 
     auto input_dtype  = miopen::GetDataType(inputGradDesc.GetType());
     auto output_dtype = miopen::GetDataType(outputGradDesc.GetType());
@@ -78,8 +75,8 @@ NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
     ss << "input_dtype" << input_dtype;
     ss << "output_dtype" << output_dtype;
     ss << "diagonal" << diagonal;
-    ss << "numDim" << inputlength.size();
-    ss << "input_numel" << input_numel;
+    ss << "numDim" << inputgradlength.size();
+    ss << "input_numel" << inputgrad_numel;
     ss << IsAllPacked();
 
     return NetworkConfig{ss.str()};
@@ -91,11 +88,8 @@ namespace diagflat {
 
 NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {
-    auto inputlength = inputDesc.GetLengths();
-
-    auto input_numel = std::accumulate(
-        inputlength.begin(), inputlength.end(), static_cast<size_t>(1), std::multiplies<size_t>());
-
+    auto inputlength  = inputDesc.GetLengths();
+    auto input_numel  = inputDesc.GetElementSize();
     auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
     auto output_dtype = miopen::GetDataType(outputDesc.GetType());
 
