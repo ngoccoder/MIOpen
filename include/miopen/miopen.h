@@ -6609,23 +6609,6 @@ MIOPEN_EXPORT miopenStatus_t miopenDiagForward(miopenHandle_t handle,
                                                void* output,
                                                int64_t diagonal = 0);
 
-/*! @brief Execute Diag backward layer
- *
- * @param handle                   MIOpen handle (input)
- * @param outputGradDesc           Tensor descriptor for gradient output tensor (input)
- * @param outputGrad               Gradient output tensor (input)
- * @param inputGradDesc            Tensor descriptor for gradient input tensor (input)
- * @param inputGrad                Gradient input tensor (output)
- * @param diagonal                 Which diagonal to consider (input)
- * @return                         miopenStatus_t
- */
-MIOPEN_EXPORT miopenStatus_t miopenDiagBackward(miopenHandle_t handle,
-                                                const miopenTensorDescriptor_t outputGradDesc,
-                                                void* outputGrad,
-                                                const miopenTensorDescriptor_t inputGradDesc,
-                                                void* inputGrad,
-                                                int64_t diagonal = 0);
-
 /*! @brief Execute Diag Flat forward layer
  *
  * @param handle               MIOpen handle (input)

@@ -61,27 +61,6 @@ NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
     return NetworkConfig{ss.str()};
 }
 
-NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
-{
-    auto inputgradlength = inputGradDesc.GetLengths();
-
-    auto inputgrad_numel = inputGradDesc.GetElementSize();
-
-    auto input_dtype  = miopen::GetDataType(inputGradDesc.GetType());
-    auto output_dtype = miopen::GetDataType(outputGradDesc.GetType());
-
-    std::ostringstream ss;
-
-    ss << "input_dtype" << input_dtype;
-    ss << "output_dtype" << output_dtype;
-    ss << "diagonal" << diagonal;
-    ss << "numDim" << inputgradlength.size();
-    ss << "input_numel" << inputgrad_numel;
-    ss << IsAllPacked();
-
-    return NetworkConfig{ss.str()};
-}
-
 } // namespace diag
 
 namespace diagflat {
@@ -113,8 +92,7 @@ NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {
     auto inputlength = inputDesc.GetLengths();
 
-    auto input_numel = std::accumulate(
-        inputlength.begin(), inputlength.end(), static_cast<size_t>(1), std::multiplies<size_t>());
+    auto input_numel = inputDesc.GetElementSize();
 
     auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
     auto output_dtype = miopen::GetDataType(outputDesc.GetType());
@@ -124,6 +102,8 @@ NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
     ss << "input_dtype" << input_dtype;
     ss << "output_dtype" << output_dtype;
     ss << "offset" << offset;
+    ss << "dim1" << dim1;
+    ss << "dim2" << dim2;
     ss << "numDim" << inputlength.size();
     ss << "input_numel" << input_numel;
     ss << IsAllPacked();

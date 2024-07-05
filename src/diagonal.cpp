@@ -67,35 +67,6 @@ miopenStatus_t DiagForward(Handle& handle,
     return miopenStatusSuccess;
 }
 
-miopenStatus_t DiagBackward(Handle& handle,
-                            const TensorDescriptor& outputGradDesc,
-                            Data_t outputGrad,
-                            const TensorDescriptor& inputGradDesc,
-                            Data_t inputGrad,
-                            int64_t diagonal)
-{
-    const auto problem =
-        diagonal::diag::BwdProblemDescription{outputGradDesc, inputGradDesc, diagonal};
-
-    const auto invoke_params = [&]() {
-        auto tmp           = diagonal::diag::BwdInvokeParams{};
-        tmp.type           = InvokeType::Run;
-        tmp.outputGradDesc = &outputGradDesc;
-        tmp.outputGrad     = outputGrad;
-        tmp.inputGradDesc  = &inputGradDesc;
-        tmp.inputGrad      = inputGrad;
-        tmp.diagonal       = diagonal;
-        return tmp;
-    }();
-
-    const auto algo    = AlgorithmName{"DiagBackward"};
-    const auto solvers = solver::SolverContainer<solver::diagonal::diag::DiagBackward>{};
-
-    solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
-
-    return miopenStatusSuccess;
-}
-
 miopenStatus_t DiagFlatForward(Handle& handle,
                                const TensorDescriptor& inputDesc,
                                Data_t input,

@@ -135,8 +135,6 @@ public:
     {
         miopenCreateTensorDescriptor(&inputTensor);
         miopenCreateTensorDescriptor(&outputTensor);
-        miopenCreateTensorDescriptor(&outputGradTensor);
-        miopenCreateTensorDescriptor(&inputGradTensor);
 
         data_type = miopen_type<Tgpu>{};
     }
@@ -165,8 +163,6 @@ public:
     {
         miopenDestroyTensorDescriptor(outputTensor);
         miopenDestroyTensorDescriptor(inputTensor);
-        miopenDestroyTensorDescriptor(outputGradTensor);
-        miopenDestroyTensorDescriptor(inputGradTensor);
     }
 
 private:
@@ -177,21 +173,13 @@ private:
 
     miopenTensorDescriptor_t inputTensor;
     miopenTensorDescriptor_t outputTensor;
-    miopenTensorDescriptor_t outputGradTensor;
-    miopenTensorDescriptor_t inputGradTensor;
 
     std::unique_ptr<GPUMem> in_dev;
     std::unique_ptr<GPUMem> out_dev;
-    std::unique_ptr<GPUMem> outgrad_dev;
-    std::unique_ptr<GPUMem> ingrad_dev;
 
     std::vector<Tgpu> in;
     std::vector<Tgpu> out;
     std::vector<Tref> outhost;
-
-    std::vector<Tgpu> outgrad;
-    std::vector<Tgpu> ingrad;
-    std::vector<Tref> ingradhost;
 
     int64_t diagonal;
 };
@@ -250,22 +238,13 @@ int DiagDriver<Tgpu, Tref>::GetandSetData()
     if(isOutputRequired)
         SetTensorNd(outputTensor, out_len, data_type);
 
-    // Backwards
-    SetTensorNd(inputGradTensor, in_len, data_type);
-    if(isOutputRequired)
-        SetTensorNd(outputGradTensor, out_len, data_type);
-
     return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
 int DiagDriver<Tgpu, Tref>::AddCmdLineArgs()
 {
-    inflags.AddInputFlag("forw",
-                         'F',
-                         "1",
-                         "Run only Forward (1) or Run both Forward and Backward (0) (Default = 1)",
-                         "int");
+    inflags.AddInputFlag("forw", 'F', "1", "Run only Forward (1) (Default = 1)", "int");
     inflags.AddInputFlag("batchsize", 'n', "2", "Mini-batch size (Default=2)", "int");
     inflags.AddInputFlag("in_channels", 'c', "0", "Number of Input Channels (Default=0)", "int");
     inflags.AddInputFlag("in_d", 'D', "0", "Input Depth (Default=0)", "int");
@@ -323,7 +302,7 @@ template <typename Tgpu, typename Tref>
 int DiagDriver<Tgpu, Tref>::SetBNParametersFromCmdLineArgs()
 {
     forw = inflags.GetValueInt("forw");
-    if(forw != 0 && forw != 1)
+    if(forw != 1)
     {
         printf("Incorrect Forward Mode\n");
         exit(EXIT_FAILURE); // NOLINT (concurrency-mt-unsafe)
@@ -363,52 +342,6 @@ int DiagDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 
         if(out_dev->ToGPU(GetStream(), out.data()) != 0)
             std::cerr << "Error copying (out) to GPU, size: " << out_dev->GetSize() << std::endl;
-    }
-    else if(forw == 0 && isOutputRequired)
-    {
-        size_t in_sz      = GetTensorSpace(inputTensor);
-        size_t out_sz     = GetTensorSpace(outputTensor);
-        size_t ingrad_sz  = GetTensorSpace(inputGradTensor);
-        size_t outgrad_sz = GetTensorSpace(outputGradTensor);
-
-        // GPU allocation
-        in_dev      = std::unique_ptr<GPUMem>(new GPUMem(ctx, in_sz, sizeof(Tgpu)));
-        out_dev     = std::unique_ptr<GPUMem>(new GPUMem(ctx, out_sz, sizeof(Tgpu)));
-        ingrad_dev  = std::unique_ptr<GPUMem>(new GPUMem(ctx, ingrad_sz, sizeof(Tgpu)));
-        outgrad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, outgrad_sz, sizeof(Tgpu)));
-
-        // GPU host allocation
-        in      = std::vector<Tgpu>(in_sz, static_cast<Tgpu>(0));
-        out     = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
-        ingrad  = std::vector<Tgpu>(ingrad_sz, static_cast<Tgpu>(0));
-        outgrad = std::vector<Tgpu>(outgrad_sz, static_cast<Tgpu>(0));
-
-        // CPU allocation
-        outhost    = std::vector<Tref>(out_sz, static_cast<Tref>(0));
-        ingradhost = std::vector<Tref>(ingrad_sz, static_cast<Tref>(0));
-
-        for(int i = 0; i < in_sz; i++)
-        {
-            in[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
-        }
-        for(int i = 0; i < outgrad_sz; i++)
-        {
-            outgrad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
-        }
-
-        if(in_dev->ToGPU(GetStream(), in.data()) != 0)
-            std::cerr << "Error copying (input) to GPU, size: " << in_dev->GetSize() << std::endl;
-
-        if(out_dev->ToGPU(GetStream(), out.data()) != 0)
-            std::cerr << "Error copying (out) to GPU, size: " << out_dev->GetSize() << std::endl;
-
-        if(ingrad_dev->ToGPU(GetStream(), ingrad.data()) != 0)
-            std::cerr << "Error copying (ingrad) to GPU, size: " << ingrad_dev->GetSize()
-                      << std::endl;
-
-        if(outgrad_dev->ToGPU(GetStream(), outgrad.data()) != 0)
-            std::cerr << "Error copying (outgrad) to GPU, size: " << outgrad_dev->GetSize()
-                      << std::endl;
     }
 
     return miopenStatusSuccess;
@@ -477,45 +410,6 @@ int DiagDriver<Tgpu, Tref>::RunForwardCPU()
 template <typename Tgpu, typename Tref>
 int DiagDriver<Tgpu, Tref>::RunBackwardGPU()
 {
-    if(isOutputRequired)
-    {
-        float kernel_total_time = 0;
-        float kernel_first_time = 0;
-        Timer t;
-        START_TIME;
-        for(int i = 0; i < inflags.GetValueInt("iter"); i++)
-        {
-            miopenDiagBackward(GetHandle(),
-                               outputGradTensor,
-                               outgrad_dev->GetMem(),
-                               inputGradTensor,
-                               ingrad_dev->GetMem(),
-                               diagonal);
-            float time = 0.0;
-            miopenGetKernelTime(GetHandle(), &time);
-            kernel_total_time += time;
-            if(i == 0)
-                kernel_first_time = time;
-        }
-
-        if(inflags.GetValueInt("time") == 1)
-        {
-            STOP_TIME
-            int iter = inflags.GetValueInt("iter");
-            if(WALL_CLOCK)
-                std::cout << "Wall-clock Time Backward Diag Elapsed: " << t.gettime_ms() / iter
-                          << " ms\n";
-            float kernel_average_time =
-                iter > 1 ? (kernel_total_time - kernel_first_time) / (iter - 1) : kernel_first_time;
-            std::cout << "GPU Kernel Time Backward Diag Elapsed: " << kernel_average_time
-                      << " ms\n";
-        }
-
-        if(ingrad_dev->FromGPU(GetStream(), ingrad.data()) != 0)
-            std::cerr << "Error copying (ingrad_dev) from GPU, size: " << ingrad_dev->GetSize()
-                      << std::endl;
-    }
-
     return miopenStatusSuccess;
 }
 
@@ -556,33 +450,12 @@ int DiagDriver<Tgpu, Tref>::VerifyForward()
 template <typename Tgpu, typename Tref>
 int DiagDriver<Tgpu, Tref>::RunBackwardCPU()
 {
-    if(isOutputRequired)
-    {
-        mloDiagBackwardRunHost(
-            outputGradTensor, outgrad.data(), inputGradTensor, ingradhost.data(), diagonal);
-    }
-
     return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
 int DiagDriver<Tgpu, Tref>::VerifyBackward()
 {
-    RunBackwardCPU();
-    const Tref tolerance = GetTolerance();
-    auto error           = isOutputRequired ? miopen::rms_range(ingradhost, ingrad) : 0;
-
-    if(!std::isfinite(error) || error > tolerance)
-    {
-        std::cout << "Backward Diag FAILED: " << error << " > " << tolerance << std::endl;
-        return EC_VerifyBwd;
-    }
-    else
-    {
-        std::cout << "Backward Diag Verifies OK on CPU reference (" << error << " < " << tolerance
-                  << ')' << std::endl;
-    }
-
     return miopenStatusSuccess;
 }
 

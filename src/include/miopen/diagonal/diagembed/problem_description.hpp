@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include "miopen/errors.hpp"
 #include "miopen/tensor_view_utils.hpp"
 #include <cstdint>
 #include <miopen/problem_description_base.hpp>
@@ -45,12 +46,6 @@ namespace diagembed {
 struct FwdProblemDescription : ProblemDescriptionBase
 {
     // Forward constructor
-    FwdProblemDescription(const TensorDescriptor& inputDesc_, const TensorDescriptor& outputDesc_)
-        : inputDesc(inputDesc_), outputDesc(outputDesc_)
-    {
-        // sp only <= 4 dim input
-    }
-
     FwdProblemDescription(const TensorDescriptor& inputDesc_,
                           const TensorDescriptor& outputDesc_,
                           int64_t offset_,
@@ -63,13 +58,26 @@ struct FwdProblemDescription : ProblemDescriptionBase
             MIOPEN_THROW(miopenStatusBadParm,
                          "DiagEmbed::FwdProblemDescription: dim1 and dim2 cannot be identical.");
         }
-        // if(outputDesc.GetLengths().size() != 2)
-        //{
-        //
-        //    MIOPEN_THROW(miopenStatusBadParm,
-        //                 "DiagFlat::FwdProblemDescription: Number of output tensor's dimension "
-        //                 "must equal 2.");
-        //}
+
+        if(inputDesc.GetLengths().size() > 4)
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "DiagEmbed::FwdProblemDescription: Number of tensor dimension must be "
+                         "less than 5.");
+        }
+
+        if(dim1 < 0 || dim2 < 0)
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "DiagEmbed::FwdProblemDescription: dim1 and dim2 must be non-negative.");
+        }
+
+        if(dim1 >= outputDesc.GetLengths().size() || dim2 >= outputDesc.GetLengths().size())
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "DiagEmbed::FwdProblemDescription: dim1 and dim2 must be less than the "
+                         "number of output tensor's dimension.");
+        }
     }
 
     const TensorDescriptor& GetInputDesc() const { return inputDesc; }

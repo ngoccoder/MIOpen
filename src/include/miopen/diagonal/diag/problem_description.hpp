@@ -91,55 +91,6 @@ private:
     int64_t diagonal;
 };
 
-struct BwdProblemDescription : ProblemDescriptionBase
-{
-    // Forward constructor
-    BwdProblemDescription(const TensorDescriptor& outputGradDesc_,
-                          const TensorDescriptor& inputGradDesc_,
-                          int64_t diagonal_)
-        : outputGradDesc(outputGradDesc_), inputGradDesc(inputGradDesc_), diagonal(diagonal_)
-    {
-        if(inputGradDesc.GetLengths().size() != 1 && inputGradDesc.GetLengths().size() != 2)
-        {
-
-            MIOPEN_THROW(miopenStatusBadParm,
-                         "Diag::BwdProblemDescription: Number of tensor dimension must be 1 or 2.");
-        }
-    }
-
-    const TensorDescriptor& GetInputGradDesc() const { return inputGradDesc; }
-    const TensorDescriptor& GetOutputGradDesc() const { return outputGradDesc; }
-    int64_t GetDiagonal() const { return diagonal; }
-
-    bool IsSameType() const
-    {
-        if(inputGradDesc.GetType() != outputGradDesc.GetType())
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    bool IsAllPacked() const
-    {
-        if(!(inputGradDesc.IsPacked() && outputGradDesc.IsPacked()))
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    NetworkConfig MakeNetworkConfig() const override;
-
-private:
-    TensorDescriptor outputGradDesc;
-    TensorDescriptor inputGradDesc;
-
-    int64_t diagonal;
-};
-
 } // namespace diag
 
 } // namespace diagonal

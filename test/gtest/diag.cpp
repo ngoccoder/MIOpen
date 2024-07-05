@@ -56,18 +56,6 @@ struct DiagFwdTestBFP16 : DiagFwdTest<bfloat16>
 {
 };
 
-struct DiagBwdTestFloat : DiagBwdTest<float>
-{
-};
-
-struct DiagBwdTestFP16 : DiagBwdTest<float16>
-{
-};
-
-struct DiagBwdTestBFP16 : DiagBwdTest<bfloat16>
-{
-};
-
 } // namespace diag
 using namespace diag;
 
@@ -113,52 +101,6 @@ TEST_P(DiagFwdTestBFP16, DiagTestFw)
     }
 }
 
-TEST_P(DiagBwdTestFloat, DiagTestBw)
-{
-    if(miopen::IsUnset(ENV(MIOPEN_TEST_ALL)) ||
-       (miopen::IsEnabled(ENV(MIOPEN_TEST_ALL)) && GetFloatArg() == "--float"))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-}
-
-TEST_P(DiagBwdTestFP16, DiagTestBw)
-{
-    if(miopen::IsUnset(ENV(MIOPEN_TEST_ALL)) ||
-       (miopen::IsEnabled(ENV(MIOPEN_TEST_ALL)) && GetFloatArg() == "--fp16"))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-}
-
-TEST_P(DiagBwdTestBFP16, DiagTestBw)
-{
-    if(miopen::IsUnset(ENV(MIOPEN_TEST_ALL)) ||
-       (miopen::IsEnabled(ENV(MIOPEN_TEST_ALL)) && GetFloatArg() == "--bfp16"))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-}
-
 INSTANTIATE_TEST_SUITE_P(DiagTestSet, DiagFwdTestFloat, testing::ValuesIn(DiagTestConfigs()));
 INSTANTIATE_TEST_SUITE_P(DiagTestSet, DiagFwdTestFP16, testing::ValuesIn(DiagTestConfigs()));
 INSTANTIATE_TEST_SUITE_P(DiagTestSet, DiagFwdTestBFP16, testing::ValuesIn(DiagTestConfigs()));
-
-INSTANTIATE_TEST_SUITE_P(DiagTestSet, DiagBwdTestFloat, testing::ValuesIn(DiagTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(DiagTestSet, DiagBwdTestFP16, testing::ValuesIn(DiagTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(DiagTestSet, DiagBwdTestBFP16, testing::ValuesIn(DiagTestConfigs()));

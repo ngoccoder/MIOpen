@@ -58,20 +58,6 @@ struct DiagForward final : DiagFwdSolver
                 const miopen::diagonal::diag::FwdProblemDescription& problem) const override;
 };
 
-using DiagBwdSolver =
-    NonTunableSolverBase<ExecutionContext, miopen::diagonal::diag::BwdProblemDescription>;
-
-struct DiagBackward final : DiagBwdSolver
-{
-    const std::string& SolverDbId() const override { return GetSolverDbId<DiagBackward>(); }
-
-    bool IsApplicable(const ExecutionContext& context,
-                      const miopen::diagonal::diag::BwdProblemDescription& problem) const override;
-    ConvSolution
-    GetSolution(const ExecutionContext& context,
-                const miopen::diagonal::diag::BwdProblemDescription& problem) const override;
-};
-
 } // namespace diag
 
 namespace diagflat {

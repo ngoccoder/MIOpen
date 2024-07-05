@@ -258,7 +258,6 @@ set( MIOpen_Source
     solver/conv_wino_fury_RxS.cpp
     solver/conv_winoRxS.cpp
     solver/conv_winoRxS_fused.cpp
-    solver/diagonal/backward_diag.cpp
     solver/diagonal/diagonal.cpp
     solver/diagonal/forward_diag.cpp
     solver/diagonal/forward_diagembed.cpp
