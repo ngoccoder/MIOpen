@@ -84,6 +84,7 @@ public:
         data_type = miopen_type<Tgpu>{};
     }
 
+    std::vector<int> ComputeStrides(std::vector<int> input);
     int AddCmdLineArgs() override;
     int ParseCmdLineArgs(int argc, char* argv[]) override;
     InputFlags& GetInputFlags() override { return inflags; }
@@ -114,6 +115,7 @@ private:
     InputFlags inflags;
 
     int forw;
+    bool isContiguous;
 
     miopenTensorDescriptor_t inputTensor;
     miopenTensorDescriptor_t outputTensor;
@@ -147,17 +149,33 @@ int DiagFlatDriver<Tgpu, Tref>::GetandSetData()
 
     std::vector<int> in_len = GetInputTensorLengthsFromCmdLine();
     offset                  = inflags.GetValueInt("Offset");
+    isContiguous            = inflags.GetValueInt("contiguous") > 0 ? true : false;
 
-    SetTensorNd(inputTensor, in_len, data_type);
+    auto inStride = ComputeStrides(in_len);
+    SetTensorNd(inputTensor, in_len, inStride, data_type);
 
     auto input_numel = miopen::deref(inputTensor).GetElementSize();
     auto outsz       = input_numel + abs(offset);
     std::vector<int> out_len{outsz, outsz};
-    out_len = {outsz, outsz};
 
     SetTensorNd(outputTensor, out_len, data_type);
 
     return miopenStatusSuccess;
+}
+
+// Equivalent tensor.transpose(0, -1).contiguous().transpose(0, -1)
+template <typename Tgpu, typename Tref>
+std::vector<int> DiagFlatDriver<Tgpu, Tref>::ComputeStrides(std::vector<int> inputDim)
+{
+    if(!isContiguous)
+        std::swap(inputDim.front(), inputDim.back());
+    std::vector<int> strides(inputDim.size());
+    strides.back() = 1;
+    for(int i = inputDim.size() - 2; i >= 0; --i)
+        strides[i] = strides[i + 1] * inputDim[i + 1];
+    if(!isContiguous)
+        std::swap(strides.front(), strides.back());
+    return strides;
 }
 
 template <typename Tgpu, typename Tref>
@@ -165,13 +183,14 @@ int DiagFlatDriver<Tgpu, Tref>::AddCmdLineArgs()
 {
     inflags.AddInputFlag("forw", 'F', "1", "Run only Forward (1) (Default = 1)", "int");
     inflags.AddInputFlag("batchsize", 'n', "2", "Mini-batch size (Default=2)", "int");
-    inflags.AddInputFlag("in_channels", 'c', "0", "Number of Input Channels (Default=0)", "int");
+    inflags.AddInputFlag("in_channels", 'c', "5", "Number of Input Channels (Default=0)", "int");
     inflags.AddInputFlag("in_d", 'D', "0", "Input Depth (Default=0)", "int");
     inflags.AddInputFlag("in_h", 'H', "0", "Input Height (Default=0)", "int");
     inflags.AddInputFlag("in_w", 'W', "4", "Input Width (Default=4)", "int");
 
     inflags.AddInputFlag(
         "Offset", 'R', "0", "Control which diagonal to consider (Default=0)", "int");
+    inflags.AddInputFlag("contiguous", 'C', "1", "Tensor is contiguous or not", "int");
     inflags.AddInputFlag("iter", 'i', "10", "Number of Iterations (Default=10)", "int");
     inflags.AddInputFlag("verify", 'V', "1", "Verify Each Layer (Default=1)", "int");
     inflags.AddInputFlag("time", 't', "0", "Time Each Layer (Default=0)", "int");
