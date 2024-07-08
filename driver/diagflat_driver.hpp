@@ -84,7 +84,7 @@ public:
         data_type = miopen_type<Tgpu>{};
     }
 
-    std::vector<int> ComputeStrides(std::vector<int> input);
+    std::vector<int> ComputeStrides(std::vector<int> inputDim);
     int AddCmdLineArgs() override;
     int ParseCmdLineArgs(int argc, char* argv[]) override;
     InputFlags& GetInputFlags() override { return inflags; }

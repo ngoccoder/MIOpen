@@ -52,11 +52,12 @@ struct DiagEmbedTestCase
     int64_t offset;
     int64_t dim1;
     int64_t dim2;
+    bool isContiguous;
     friend std::ostream& operator<<(std::ostream& os, const DiagEmbedTestCase& tc)
     {
         return os << " N:" << tc.N << " C:" << tc.C << " D:" << tc.D << " H:" << tc.H
                   << " W:" << tc.W << " offset:" << tc.offset << " dim1:" << tc.dim1
-                  << " dim2:" << tc.dim2;
+                  << " dim2:" << tc.dim2 << " isContiguous:" << tc.isContiguous;
     }
 
     std::vector<size_t> GetInput()
@@ -87,20 +88,42 @@ struct DiagEmbedTestCase
             return std::vector<size_t>({0});
         }
     }
+
+    std::vector<size_t> ComputeStrides(std::vector<size_t> inputDim) const
+    {
+        if(!isContiguous)
+            std::swap(inputDim.front(), inputDim.back());
+        std::vector<size_t> strides(inputDim.size());
+        strides.back() = 1;
+        for(int i = inputDim.size() - 2; i >= 0; --i)
+            strides[i] = strides[i + 1] * inputDim[i + 1];
+        if(!isContiguous)
+            std::swap(strides.front(), strides.back());
+        return strides;
+    }
 };
 
 std::vector<DiagEmbedTestCase> DiagEmbedTestConfigs()
 { // n c d h w dim
     // clang-format off
     return {
-        { 2,    0,   0,  0,   4,    0, 0, 1},
-        { 2,    0,   0,  0,   4,    8, 0, 1},
-        { 2,    0,   0,  0,   4,    -8, 2, 1},
-        { 16,    0,   0,  0,   16,    0, 0, 1},
-        { 16,    0,   0,  0,   16,    2, 0, 2},
-        { 16,    0,   0,  0,   16,    -2, 0, 1},
-        { 32,    0,   0,  0,    0,     0, 0, 1},
-        { 32,    4,   0,  2,    4,     2, 0, 3},
+        { 2,    0,   0,  0,   4,    0, 0, 1, false},
+        { 2,    0,   0,  0,   4,    8, 0, 1, false},
+        { 2,    0,   0,  0,   4,    -8, 2, 1, false},
+        { 16,    0,   0,  0,   16,    0, 0, 1, false},
+        { 16,    0,   0,  0,   16,    2, 0, 2, false},
+        { 16,    0,   0,  0,   16,    -2, 0, 1, false},
+        { 32,    0,   0,  0,    0,     0, 0, 1, false},
+        { 32,    4,   0,  2,    4,     2, 0, 3, false},
+
+        { 2,    0,   0,  0,   4,    0, 0, 1, true},
+        { 2,    0,   0,  0,   4,    8, 0, 1, true},
+        { 2,    0,   0,  0,   4,    -8, 2, 1, true},
+        { 16,    0,   0,  0,   16,    0, 0, 1, true},
+        { 16,    0,   0,  0,   16,    2, 0, 2, true},
+        { 16,    0,   0,  0,   16,    -2, 0, 1, true},
+        { 32,    0,   0,  0,    0,     0, 0, 1, true},
+        { 32,    4,   0,  2,    4,     2, 0, 3, true},
       };
     // clang-format on
 }
@@ -113,16 +136,18 @@ protected:
     {
         auto&& handle    = get_handle();
         diagembed_config = GetParam();
-        auto gen_value   = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
+        std::cout << diagembed_config << std::endl;
+        auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
 
         offset = diagembed_config.offset;
         dim1   = diagembed_config.dim1;
         dim2   = diagembed_config.dim2;
 
-        auto in_dims = diagembed_config.GetInput();
-        auto numDim  = in_dims.size();
+        auto in_dims  = diagembed_config.GetInput();
+        auto inStride = diagembed_config.ComputeStrides(in_dims);
+        auto numDim   = in_dims.size();
 
-        input = tensor<T>{in_dims}.generate(gen_value);
+        input = tensor<T>{in_dims, inStride}.generate(gen_value);
         if(dim1 == dim2)
         {
             throw std::runtime_error("Dim1 and Dim2 cannot be the same");

@@ -93,6 +93,7 @@ public:
         data_type = miopen_type<Tgpu>{};
     }
 
+    std::vector<int> ComputeStrides(std::vector<int> inputDim);
     int AddCmdLineArgs() override;
     int ParseCmdLineArgs(int argc, char* argv[]) override;
     InputFlags& GetInputFlags() override { return inflags; }
@@ -123,6 +124,7 @@ private:
     InputFlags inflags;
 
     int forw;
+    bool isContiguous;
 
     miopenTensorDescriptor_t inputTensor;
     miopenTensorDescriptor_t outputTensor;
@@ -160,6 +162,7 @@ int DiagEmbedDriver<Tgpu, Tref>::GetandSetData()
     offset                  = inflags.GetValueInt("Offset");
     dim1                    = inflags.GetValueInt("Dim1");
     dim2                    = inflags.GetValueInt("Dim2");
+    isContiguous            = inflags.GetValueInt("contiguous") > 0 ? true : false;
     auto numDim             = in_len.size();
 
     if(dim1 == dim2)
@@ -180,7 +183,8 @@ int DiagEmbedDriver<Tgpu, Tref>::GetandSetData()
         throw std::runtime_error("Dimension out of range");
     }
 
-    SetTensorNd(inputTensor, in_len, data_type);
+    auto inStride = ComputeStrides(in_len);
+    SetTensorNd(inputTensor, in_len, inStride, data_type);
     auto out_len = in_len;
 
     auto new_dim_len = abs(offset) + in_len[numDim - 1];
@@ -201,6 +205,21 @@ int DiagEmbedDriver<Tgpu, Tref>::GetandSetData()
     SetTensorNd(outputTensor, out_len, data_type);
 
     return miopenStatusSuccess;
+}
+
+// Equivalent tensor.transpose(0, -1).contiguous().transpose(0, -1)
+template <typename Tgpu, typename Tref>
+std::vector<int> DiagEmbedDriver<Tgpu, Tref>::ComputeStrides(std::vector<int> inputDim)
+{
+    if(!isContiguous)
+        std::swap(inputDim.front(), inputDim.back());
+    std::vector<int> strides(inputDim.size());
+    strides.back() = 1;
+    for(int i = inputDim.size() - 2; i >= 0; --i)
+        strides[i] = strides[i + 1] * inputDim[i + 1];
+    if(!isContiguous)
+        std::swap(strides.front(), strides.back());
+    return strides;
 }
 
 template <typename Tgpu, typename Tref>
@@ -225,6 +244,7 @@ int DiagEmbedDriver<Tgpu, Tref>::AddCmdLineArgs()
                          "-1",
                          "Second dimension with respect to which to take diagonal (Default=-1)",
                          "int");
+    inflags.AddInputFlag("contiguous", 'C', "1", "Tensor is contiguous or not", "int");
     inflags.AddInputFlag("iter", 'i', "10", "Number of Iterations (Default=10)", "int");
     inflags.AddInputFlag("verify", 'V', "1", "Verify Each Layer (Default=1)", "int");
     inflags.AddInputFlag("time", 't', "0", "Time Each Layer (Default=0)", "int");

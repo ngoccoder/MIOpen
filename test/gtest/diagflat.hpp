@@ -49,10 +49,12 @@ struct DiagFlatTestCase
     size_t H;
     size_t W;
     int64_t offset;
+    bool isContiguous;
     friend std::ostream& operator<<(std::ostream& os, const DiagFlatTestCase& tc)
     {
         return os << " N:" << tc.N << " C:" << tc.C << " D:" << tc.D << " H:" << tc.H
-                  << " W:" << tc.W << " offset:" << tc.offset;
+                  << " W:" << tc.W << " offset:" << tc.offset
+                  << " isContiguous:" << tc.isContiguous;
     }
 
     std::vector<size_t> GetInput()
@@ -83,20 +85,41 @@ struct DiagFlatTestCase
             return std::vector<size_t>({0});
         }
     }
+
+    std::vector<size_t> ComputeStrides(std::vector<size_t> inputDim) const
+    {
+        if(!isContiguous)
+            std::swap(inputDim.front(), inputDim.back());
+        std::vector<size_t> strides(inputDim.size());
+        strides.back() = 1;
+        for(int i = inputDim.size() - 2; i >= 0; --i)
+            strides[i] = strides[i + 1] * inputDim[i + 1];
+        if(!isContiguous)
+            std::swap(strides.front(), strides.back());
+        return strides;
+    }
 };
 
 std::vector<DiagFlatTestCase> DiagFlatTestConfigs()
 { // n c d h w dim
     // clang-format off
     return {
-        { 2,    0,   0,  0,   4,    0},
-        { 2,    0,   0,  0,   4,    8},
-        { 2,    0,   0,  0,   4,    -8},
-        { 16,    0,   0,  0,   16,    0},
-        { 16,    0,   0,  0,   16,    2},
-        { 16,    0,   0,  0,   16,    -2},
-        { 32,    0,   0,  0,    0,     0},
-        { 32,    4,   7,  2,    4,     2},
+        { 2,    0,   0,  0,   4,    0, true},
+        { 2,    0,   0,  0,   4,    0, false},
+        { 2,    0,   0,  0,   4,    8, true},
+        { 2,    0,   0,  0,   4,    8, false},
+        { 2,    0,   0,  0,   4,    -8, true},
+        { 2,    0,   0,  0,   4,    -8, false},
+        { 16,    0,   0,  0,   16,    0, true},
+        { 16,    0,   0,  0,   16,    0, false},
+        { 16,    0,   0,  0,   16,    2, true},
+        { 16,    0,   0,  0,   16,    2, false},
+        { 16,    0,   0,  0,   16,    -2, true},
+        { 16,    0,   0,  0,   16,    -2, false},
+        { 32,    0,   0,  0,    0,     0, true},
+        { 32,    0,   0,  0,    0,     0, false},
+        { 32,    4,   7,  2,    4,     2, true},
+        { 32,    4,   7,  2,    4,     2, false},
       };
     // clang-format on
 }
@@ -110,13 +133,15 @@ protected:
 
         auto&& handle   = get_handle();
         diagflat_config = GetParam();
-        auto gen_value  = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
+        std::cout << diagflat_config << std::endl;
+        auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
 
         offset = diagflat_config.offset;
 
-        auto in_dims = diagflat_config.GetInput();
+        auto in_dims  = diagflat_config.GetInput();
+        auto inStride = diagflat_config.ComputeStrides(in_dims);
 
-        input            = tensor<T>{in_dims}.generate(gen_value);
+        input            = tensor<T>{in_dims, inStride}.generate(gen_value);
         auto input_numel = input.desc.GetElementSize();
         auto outsz       = input_numel + abs(offset);
 
