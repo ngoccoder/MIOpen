@@ -76,7 +76,7 @@ TEST_P(DiagEmbedFwdTestFloat, DiagEmbedTestFw)
 TEST_P(DiagEmbedFwdTestFP16, DiagEmbedTestFw)
 {
     if(miopen::IsUnset(ENV(MIOPEN_TEST_ALL)) ||
-       (miopen::IsEnabled(ENV(MIOPEN_TEST_ALL)) && GetFloatArg() == "--fp16"))
+       (miopen::IsEnabled(ENV(MIOPEN_TEST_ALL)) && GetFloatArg() == "--half"))
     {
         RunTest();
         Verify();

@@ -55,7 +55,7 @@ struct FwdProblemDescription : ProblemDescriptionBase
 
             MIOPEN_THROW(miopenStatusBadParm,
                          "DiagFlat::FwdProblemDescription: Number of output tensor's dimension "
-                         "must equal 2.");
+                         "must be 2.");
         }
     }
 
