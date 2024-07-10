@@ -43,9 +43,6 @@ namespace diag {
 
 NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {
-    auto inputlength = inputDesc.GetLengths();
-    auto input_numel = inputDesc.GetElementSize();
-
     auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
     auto output_dtype = miopen::GetDataType(outputDesc.GetType());
 
@@ -54,8 +51,8 @@ NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
     ss << "input_dtype" << input_dtype;
     ss << "output_dtype" << output_dtype;
     ss << "diagonal" << diagonal;
-    ss << "numDim" << inputlength.size();
-    ss << "input_numel" << input_numel;
+    ss << "numDim" << inputDesc.GetSize();
+    ss << "input_numel" << inputDesc.GetElementSize();
     ss << IsAllPacked();
 
     return NetworkConfig{ss.str()};
@@ -67,8 +64,6 @@ namespace diagflat {
 
 NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {
-    auto inputlength  = inputDesc.GetLengths();
-    auto input_numel  = inputDesc.GetElementSize();
     auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
     auto output_dtype = miopen::GetDataType(outputDesc.GetType());
 
@@ -77,8 +72,8 @@ NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
     ss << "input_dtype" << input_dtype;
     ss << "output_dtype" << output_dtype;
     ss << "offset" << offset;
-    ss << "numDim" << inputlength.size();
-    ss << "input_numel" << input_numel;
+    ss << "numDim" << inputDesc.GetSize();
+    ss << "input_numel" << inputDesc.GetElementSize();
     ss << IsAllPacked();
 
     return NetworkConfig{ss.str()};
@@ -90,10 +85,6 @@ namespace diagembed {
 
 NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {
-    auto inputlength = inputDesc.GetLengths();
-
-    auto input_numel = inputDesc.GetElementSize();
-
     auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
     auto output_dtype = miopen::GetDataType(outputDesc.GetType());
 
@@ -104,8 +95,8 @@ NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
     ss << "offset" << offset;
     ss << "dim1" << dim1;
     ss << "dim2" << dim2;
-    ss << "numDim" << inputlength.size();
-    ss << "input_numel" << input_numel;
+    ss << "numDim" << inputDesc.GetSize();
+    ss << "input_numel" << inputDesc.GetElementSize();
     ss << IsAllPacked();
 
     return NetworkConfig{ss.str()};

@@ -24,6 +24,7 @@
  *
  *******************************************************************************/
 
+#include "miopen/errors.hpp"
 #include "miopen/kernel_info.hpp"
 #include "miopen/mlo_internal.hpp"
 #include "miopen/tensor.hpp"
@@ -112,7 +113,7 @@ DiagForward::GetSolution(const ExecutionContext& context,
                 decltype(auto) params =
                     raw_params.CastTo<miopen::diagonal::diag::FwdInvokeParams>();
                 auto input_numel = params.inputDesc->GetElementSize();
-                auto output_tv   = get_inner_expanded_tv<2>(*params.outputDesc);
+                auto output_tv   = get_inner_expanded_tv<2>(deref(params.outputDesc));
                 long offset      = (params.diagonal >= 0 ? params.diagonal * output_tv.stride[1]
                                                          : -params.diagonal * output_tv.stride[0]);
 
@@ -150,7 +151,7 @@ DiagForward::GetSolution(const ExecutionContext& context,
                 decltype(auto) params =
                     raw_params.CastTo<miopen::diagonal::diag::FwdInvokeParams>();
                 auto output_numel = params.outputDesc->GetElementSize();
-                auto input_tv     = get_inner_expanded_tv<2>(*params.inputDesc);
+                auto input_tv     = get_inner_expanded_tv<2>(deref(params.inputDesc));
                 long offset       = (params.diagonal >= 0 ? params.diagonal * input_tv.stride[1]
                                                           : -params.diagonal * input_tv.stride[0]);
 

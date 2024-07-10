@@ -109,7 +109,7 @@ ConvSolution DiagEmbedForward::GetSolution(
             decltype(auto) params =
                 raw_params.CastTo<miopen::diagonal::diagembed::FwdInvokeParams>();
             auto input_numel = params.inputDesc->GetElementSize();
-            auto input_tv    = get_inner_expanded_tv<5>(*params.inputDesc);
+            auto input_tv    = get_inner_expanded_tv<5>(deref(params.inputDesc));
             auto diag_tv = getDiagonal(*params.outputDesc, params.offset, params.dim1, params.dim2);
             kernel(params.input, params.output, input_numel, input_tv, diag_tv);
         };

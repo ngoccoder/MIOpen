@@ -109,7 +109,7 @@ DiagFlatForward::GetSolution(const ExecutionContext& context,
             decltype(auto) params =
                 raw_params.CastTo<miopen::diagonal::diagflat::FwdInvokeParams>();
             auto input_numel   = params.inputDesc->GetElementSize();
-            auto output_tv     = get_inner_expanded_tv<2>(*params.outputDesc);
+            auto output_tv     = get_inner_expanded_tv<2>(deref(params.outputDesc));
             auto output_offset = params.offset >= 0 ? params.offset * output_tv.stride[1]
                                                     : -params.offset * output_tv.stride[0];
             kernel(params.input, params.output, input_numel, output_offset, output_tv);
