@@ -50,7 +50,7 @@ struct FwdProblemDescription : ProblemDescriptionBase
                           int64_t offset_)
         : inputDesc(inputDesc_), outputDesc(outputDesc_), offset(offset_)
     {
-        if(outputDesc.GetLengths().size() != 2)
+        if(outputDesc.GetSize() != 2)
         {
 
             MIOPEN_THROW(miopenStatusBadParm,

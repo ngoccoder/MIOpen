@@ -37,7 +37,7 @@
 template <class T>
 void cpu_diag_forward(tensor<T> input, tensor<T>& ref_output, int64_t diagonal)
 {
-    if(input.desc.GetLengths().size() == 1)
+    if(input.desc.GetSize() == 1)
     {
         auto input_numel = input.desc.GetElementSize();
         auto output_tv   = miopen::get_inner_expanded_tv<2>(ref_output.desc);
@@ -49,7 +49,7 @@ void cpu_diag_forward(tensor<T> input, tensor<T>& ref_output, int64_t diagonal)
             ref_output[outputIdx] = input[o];
         });
     }
-    else if(input.desc.GetLengths().size() == 2)
+    else if(input.desc.GetSize() == 2)
     {
         auto output_numel = ref_output.desc.GetElementSize();
         auto input_tv     = miopen::get_inner_expanded_tv<2>(input.desc);

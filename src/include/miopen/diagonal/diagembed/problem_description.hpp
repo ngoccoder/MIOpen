@@ -59,7 +59,7 @@ struct FwdProblemDescription : ProblemDescriptionBase
                          "DiagEmbed::FwdProblemDescription: dim1 and dim2 cannot be identical.");
         }
 
-        if(inputDesc.GetLengths().size() > 4)
+        if(inputDesc.GetSize() > 4)
         {
             MIOPEN_THROW(miopenStatusBadParm,
                          "DiagEmbed::FwdProblemDescription: Number of tensor dimension must be "
@@ -72,7 +72,7 @@ struct FwdProblemDescription : ProblemDescriptionBase
                          "DiagEmbed::FwdProblemDescription: dim1 and dim2 must be non-negative.");
         }
 
-        if(dim1 >= outputDesc.GetLengths().size() || dim2 >= outputDesc.GetLengths().size())
+        if(dim1 >= outputDesc.GetSize() || dim2 >= outputDesc.GetSize())
         {
             MIOPEN_THROW(miopenStatusBadParm,
                          "DiagEmbed::FwdProblemDescription: dim1 and dim2 must be less than the "

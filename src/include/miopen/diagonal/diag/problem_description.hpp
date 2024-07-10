@@ -50,7 +50,7 @@ struct FwdProblemDescription : ProblemDescriptionBase
                           int64_t diagonal_)
         : inputDesc(inputDesc_), outputDesc(outputDesc_), diagonal(diagonal_)
     {
-        if(inputDesc.GetLengths().size() != 1 && inputDesc.GetLengths().size() != 2)
+        if(inputDesc.GetSize() != 1 && inputDesc.GetSize() != 2)
         {
 
             MIOPEN_THROW(miopenStatusBadParm,
