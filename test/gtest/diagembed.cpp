@@ -90,7 +90,7 @@ TEST_P(DiagEmbedFwdTestFP16, DiagEmbedTestFw)
 TEST_P(DiagEmbedFwdTestBFP16, DiagEmbedTestFw)
 {
     if(miopen::IsUnset(ENV(MIOPEN_TEST_ALL)) ||
-       (miopen::IsEnabled(ENV(MIOPEN_TEST_ALL)) && GetFloatArg() == "--bfp16"))
+       (miopen::IsEnabled(ENV(MIOPEN_TEST_ALL)) && GetFloatArg() == "--bfloat16"))
     {
         RunTest();
         Verify();

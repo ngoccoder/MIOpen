@@ -115,7 +115,6 @@ std::vector<DiagEmbedTestCase> DiagEmbedTestConfigs()
         { 16,    0,   0,  0,   16,    -2, 0, 1, false},
         { 32,    0,   0,  0,    0,     0, 0, 1, false},
         { 32,    4,   0,  2,    4,     2, 0, 3, false},
-
         { 2,    0,   0,  0,   4,    0, 0, 1, true},
         { 2,    0,   0,  0,   4,    8, 0, 1, true},
         { 2,    0,   0,  0,   4,    -8, 2, 1, true},

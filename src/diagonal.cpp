@@ -51,7 +51,6 @@ miopenStatus_t DiagForward(Handle& handle,
 
     const auto invoke_params = [&]() {
         auto tmp       = diagonal::diag::FwdInvokeParams{};
-        tmp.type       = InvokeType::Run;
         tmp.inputDesc  = &inputDesc;
         tmp.input      = input;
         tmp.outputDesc = &outputDesc;
@@ -79,7 +78,6 @@ miopenStatus_t DiagFlatForward(Handle& handle,
 
     const auto invoke_params = [&]() {
         auto tmp       = diagonal::diagflat::FwdInvokeParams{};
-        tmp.type       = InvokeType::Run;
         tmp.inputDesc  = &inputDesc;
         tmp.input      = input;
         tmp.outputDesc = &outputDesc;
@@ -110,7 +108,6 @@ miopenStatus_t DiagEmbedForward(Handle& handle,
 
     const auto invoke_params = [&]() {
         auto tmp       = diagonal::diagembed::FwdInvokeParams{};
-        tmp.type       = InvokeType::Run;
         tmp.inputDesc  = &inputDesc;
         tmp.input      = input;
         tmp.outputDesc = &outputDesc;
