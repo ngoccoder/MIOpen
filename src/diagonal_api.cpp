@@ -34,7 +34,7 @@
 
 extern "C" miopenStatus_t miopenDiagForward(miopenHandle_t handle,
                                             const miopenTensorDescriptor_t inputDesc,
-                                            void* input,
+                                            const void* input,
                                             const miopenTensorDescriptor_t outputDesc,
                                             void* output,
                                             int64_t diagonal)
@@ -53,7 +53,7 @@ extern "C" miopenStatus_t miopenDiagForward(miopenHandle_t handle,
 
 extern "C" miopenStatus_t miopenDiagFlatForward(miopenHandle_t handle,
                                                 const miopenTensorDescriptor_t inputDesc,
-                                                void* input,
+                                                const void* input,
                                                 const miopenTensorDescriptor_t outputDesc,
                                                 void* output,
                                                 int64_t offset)
@@ -72,7 +72,7 @@ extern "C" miopenStatus_t miopenDiagFlatForward(miopenHandle_t handle,
 
 extern "C" miopenStatus_t miopenDiagEmbedForward(miopenHandle_t handle,
                                                  const miopenTensorDescriptor_t inputDesc,
-                                                 void* input,
+                                                 const void* input,
                                                  const miopenTensorDescriptor_t outputDesc,
                                                  void* output,
                                                  int64_t offset,

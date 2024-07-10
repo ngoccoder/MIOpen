@@ -25,6 +25,7 @@
  *******************************************************************************/
 
 #include <miopen/diagonal/diag/invoke_params.hpp>
+#include "miopen/common.hpp"
 #include "miopen/diagonal/diagembed/invoke_params.hpp"
 #include "miopen/diagonal/diagflat/invoke_params.hpp"
 #include "miopen/handle.hpp"
@@ -41,7 +42,7 @@ namespace miopen {
 
 miopenStatus_t DiagForward(Handle& handle,
                            const TensorDescriptor& inputDesc,
-                           Data_t input,
+                           ConstData_t input,
                            const TensorDescriptor& outputDesc,
                            Data_t output,
                            int64_t diagonal)
@@ -69,7 +70,7 @@ miopenStatus_t DiagForward(Handle& handle,
 
 miopenStatus_t DiagFlatForward(Handle& handle,
                                const TensorDescriptor& inputDesc,
-                               Data_t input,
+                               ConstData_t input,
                                const TensorDescriptor& outputDesc,
                                Data_t output,
                                int64_t offset)
@@ -97,7 +98,7 @@ miopenStatus_t DiagFlatForward(Handle& handle,
 
 miopenStatus_t DiagEmbedForward(Handle& handle,
                                 const TensorDescriptor& inputDesc,
-                                Data_t input,
+                                ConstData_t input,
                                 const TensorDescriptor& outputDesc,
                                 Data_t output,
                                 int64_t offset,

@@ -6599,12 +6599,12 @@ MIOPEN_EXPORT miopenStatus_t miopenBackendInitialize(miopenBackendDescriptor_t d
  * @param input                Input tensor (input)
  * @param outputDesc           Tensor descriptor for output tensor (input)
  * @param output               Output tensor (output)
- * @param diagonal             Which diagonal to consider (input)
+ * @param diagonal             Which diagonal to consider, default 0 (input)
  * @return                     miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t miopenDiagForward(miopenHandle_t handle,
                                                const miopenTensorDescriptor_t inputDesc,
-                                               void* input,
+                                               const void* input,
                                                const miopenTensorDescriptor_t outputDesc,
                                                void* output,
                                                int64_t diagonal = 0);
@@ -6616,12 +6616,12 @@ MIOPEN_EXPORT miopenStatus_t miopenDiagForward(miopenHandle_t handle,
  * @param input                Input tensor (input)
  * @param outputDesc           Tensor descriptor for output tensor (input)
  * @param output               Output tensor (output)
- * @param offset               Which diagonal to consider (input)
+ * @param offset               Which diagonal to consider, default 0 (input)
  * @return                     miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t miopenDiagFlatForward(miopenHandle_t handle,
                                                    const miopenTensorDescriptor_t inputDesc,
-                                                   void* input,
+                                                   const void* input,
                                                    const miopenTensorDescriptor_t outputDesc,
                                                    void* output,
                                                    int64_t offset = 0);
@@ -6633,14 +6633,14 @@ MIOPEN_EXPORT miopenStatus_t miopenDiagFlatForward(miopenHandle_t handle,
  * @param input                Input tensor (input)
  * @param outputDesc           Tensor descriptor for output tensor (input)
  * @param output               Output tensor (output)
- * @param offset               Which diagonal to consider (input)
- * @param dim1                 First dimension with respect to take diagonal (input)
- * @param dim2                 Second dimension with respect to take diagonal (input)
+ * @param offset               Which diagonal to consider, default 0 (input)
+ * @param dim1                 First dimension with respect to take diagonal,default -2 (input)
+ * @param dim2                 Second dimension with respect to take diagonal, default -1 (input)
  * @return                     miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t miopenDiagEmbedForward(miopenHandle_t handle,
                                                     const miopenTensorDescriptor_t inputDesc,
-                                                    void* input,
+                                                    const void* input,
                                                     const miopenTensorDescriptor_t outputDesc,
                                                     void* output,
                                                     int64_t offset = 0,
@@ -6648,7 +6648,7 @@ MIOPEN_EXPORT miopenStatus_t miopenDiagEmbedForward(miopenHandle_t handle,
                                                     int64_t dim2   = -1);
 
 /** @} */
-// CLOSEOUT BackendAPI DOXYGEN GROUP
+// CLOSEOUT diagonal DOXYGEN GROUP
 #endif // MIOPEN_BETA_API
 
 #ifdef __cplusplus

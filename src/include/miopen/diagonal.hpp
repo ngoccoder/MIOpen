@@ -36,28 +36,21 @@ struct TensorDescriptor;
 
 miopenStatus_t DiagForward(Handle& handle,
                            const TensorDescriptor& inputDesc,
-                           Data_t input,
+                           ConstData_t input,
                            const TensorDescriptor& outputDesc,
                            Data_t output,
                            int64_t diagonal);
 
-miopenStatus_t DiagBackward(Handle& handle,
-                            const TensorDescriptor& outputGradDesc,
-                            Data_t outputGrad,
-                            const TensorDescriptor& inputGradDesc,
-                            Data_t inputGrad,
-                            int64_t diagonal);
-
 miopenStatus_t DiagFlatForward(Handle& handle,
                                const TensorDescriptor& inputDesc,
-                               Data_t input,
+                               ConstData_t input,
                                const TensorDescriptor& outputDesc,
                                Data_t output,
                                int64_t offset);
 
 miopenStatus_t DiagEmbedForward(Handle& handle,
                                 const TensorDescriptor& inputDesc,
-                                Data_t input,
+                                ConstData_t input,
                                 const TensorDescriptor& outputDesc,
                                 Data_t output,
                                 int64_t offset,

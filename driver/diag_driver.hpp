@@ -88,43 +88,6 @@ int32_t mloDiagForwardRunHost(miopenTensorDescriptor_t inputDesc,
     return 0;
 }
 
-template <typename Tgpu, typename Tcheck>
-int32_t mloDiagBackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
-                               Tgpu* outputGrad,
-                               miopenTensorDescriptor_t inputGradDesc,
-                               Tcheck* inputGradHost,
-                               int64_t diagonal)
-{
-    auto outgrad_len = miopen::deref(outputGradDesc).GetLengths();
-    if(outgrad_len.size() == 1)
-    {
-        auto outgrad_numel = miopen::deref(outputGradDesc).GetElementSize();
-        auto diagonal_tv =
-            miopen::solver::diagonal::getDiagonal(miopen::deref(inputGradDesc), diagonal, 0, 1);
-
-        for(size_t i = 0; i < outgrad_numel; i++)
-        {
-            long inputIdx           = i * diagonal_tv.stride[0] + diagonal_tv.offset;
-            inputGradHost[inputIdx] = outputGrad[i];
-        }
-    }
-    else if(outgrad_len.size() == 2) // special case
-    {
-        auto outgrad_tv   = miopen::get_inner_expanded_tv<2>(miopen::deref(outputGradDesc));
-        auto ingrad_numel = miopen::deref(inputGradDesc).GetElementSize();
-        auto offset =
-            (diagonal >= 0) ? diagonal * outgrad_tv.stride[1] : -diagonal * outgrad_tv.stride[0];
-
-        for(size_t i = 0; i < ingrad_numel; i++)
-        {
-            long outGradIdx  = i * (outgrad_tv.stride[0] + outgrad_tv.stride[1]) + offset;
-            inputGradHost[i] = outputGrad[outGradIdx];
-        }
-    }
-
-    return 0;
-}
-
 #endif
 
 template <typename Tgpu, typename Tref>
