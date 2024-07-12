@@ -26,13 +26,8 @@
 
 #pragma once
 
-#include "miopen/tensor_view_utils.hpp"
-#include <cstdint>
-#include <miopen/problem_description_base.hpp>
 #include <miopen/tensor.hpp>
-#include <miopen/activ.hpp>
-
-#include <string>
+#include <miopen/problem_description_base.hpp>
 
 namespace miopen {
 

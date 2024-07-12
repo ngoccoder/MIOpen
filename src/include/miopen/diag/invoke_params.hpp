@@ -27,9 +27,6 @@
 
 #pragma once
 
-#include "miopen/common.hpp"
-#include <cstddef>
-#include <cstdint>
 #include <miopen/invoke_params.hpp>
 #include <miopen/tensor.hpp>
 

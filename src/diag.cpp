@@ -25,16 +25,9 @@
  *******************************************************************************/
 
 #include <miopen/diag/invoke_params.hpp>
-#include "miopen/common.hpp"
-#include "miopen/handle.hpp"
-#include "miopen/miopen.h"
-#include <miopen/datatype.hpp>
 #include <miopen/find_solution.hpp>
-#include <miopen/float_equal.hpp>
-#include <miopen/kernel_cache.hpp>
 #include <miopen/diag/solvers.hpp>
 #include <miopen/diag.hpp>
-#include <miopen/tensor.hpp>
 
 namespace miopen {
 

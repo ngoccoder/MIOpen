@@ -26,10 +26,7 @@
 #pragma once
 
 #include <miopen/diag/problem_description.hpp>
-#include "miopen/execution_context.hpp"
-#include "miopen/tensor.hpp"
 #include <miopen/solver.hpp>
-#include <utility>
 
 namespace miopen {
 

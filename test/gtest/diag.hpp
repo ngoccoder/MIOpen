@@ -79,18 +79,18 @@ std::vector<DiagTestCase> DiagTestConfigs()
 { // n c d h w dim
     // clang-format off
     return {
-        DiagTestCase({2, 4}, 0, true),
-        DiagTestCase({2, 4}, 8, true),
-        DiagTestCase({2, 4}, -8, true),
-        DiagTestCase({16, 16}, 0, true),
-        DiagTestCase({16, 16}, 2, true),
-        DiagTestCase({16, 16}, -2, true),
-        DiagTestCase({2, 4}, 0, false),
-        DiagTestCase({2, 4}, 8, false),
-        DiagTestCase({2, 4}, -8, false),
-        DiagTestCase({16, 16}, 0, false),
-        DiagTestCase({16, 16}, 2, false),
-        DiagTestCase({16, 16}, -2, false),
+        DiagTestCase({2048, 4096}, 0, true),
+        DiagTestCase({2222, 4444}, 8, true),
+        DiagTestCase({2222, 4444}, -8, true),
+        DiagTestCase({16000, 16000}, 0, true),
+        DiagTestCase({16000, 16000}, 2, true),
+        DiagTestCase({16000, 16000}, -2, true),
+        DiagTestCase({2048, 4096}, 0, false),
+        DiagTestCase({2048, 4096}, 8, false),
+        DiagTestCase({2048, 4096}, -8, false),
+        DiagTestCase({16166, 16166}, 0, false),
+        DiagTestCase({16111, 1621}, 2, false),
+        DiagTestCase({16111, 1621}, -2, false),
       };
     // clang-format on
 }
@@ -117,7 +117,7 @@ protected:
 
         std::vector<size_t> out_dims;
 
-        if(input.desc.GetLengths().size() == 1)
+        if(input.desc.GetSize() == 1)
         {
             size_t sz = in_dims[0] + abs(diagonal);
             out_dims  = {sz, sz};

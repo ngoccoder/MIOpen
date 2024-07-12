@@ -24,18 +24,13 @@
  *
  *******************************************************************************/
 
-#include "miopen/errors.hpp"
-#include "miopen/kernel_info.hpp"
-#include "miopen/mlo_internal.hpp"
 #include "miopen/tensor.hpp"
-#include "miopen/tensor_view_utils.hpp"
-#include <cstddef>
+#include <miopen/tensor_view_utils.hpp>
 #include <miopen/datatype.hpp>
 #include <miopen/kernel_build_params.hpp>
 #include <miopen/diag/invoke_params.hpp>
 #include <miopen/diag/solvers.hpp>
 #include <miopen/diag.hpp>
-#include <miopen/target_properties.hpp>
 
 #define LOCAL_SIZE 256
 
@@ -49,8 +44,9 @@ bool IsImprovementOverROCm(const miopen::diag::FwdProblemDescription& problem)
 {
     TensorDescriptor inputDesc = problem.GetInputDesc();
     size_t dimNum              = inputDesc.GetSize();
+    auto numElements           = inputDesc.GetElementSize();
 
-    return dimNum == 2;
+    return dimNum == 2 && numElements >= 4096576;
 }
 
 bool DiagForward::IsApplicable(const ExecutionContext& /*context*/,
@@ -103,11 +99,10 @@ ConvSolution DiagForward::GetSolution(const ExecutionContext& context,
     kernel.g_wk.push_back(zgridsize);
 
     result.construction_params.push_back(kernel);
-    result.invoker_factory = [](const std::vector<Kernel>& kernels) {
+    result.invoker_factory = [output_numel](const std::vector<Kernel>& kernels) {
         return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
             decltype(auto) kernel = handle_.Run(kernels.front());
             decltype(auto) params = raw_params.CastTo<miopen::diag::FwdInvokeParams>();
-            auto output_numel     = params.outputDesc->GetElementSize();
             auto input_tv         = get_inner_expanded_tv<2>(deref(params.inputDesc));
             long offset           = (params.diagonal >= 0 ? params.diagonal * input_tv.stride[1]
                                                           : -params.diagonal * input_tv.stride[0]);

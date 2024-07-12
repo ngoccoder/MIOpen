@@ -24,13 +24,7 @@
  *
  *******************************************************************************/
 
-#include "miopen/datatype.hpp"
-#include "miopen/errors.hpp"
-#include "miopen/miopen.h"
-#include <cstdint>
 #include <miopen/diag/problem_description.hpp>
-#include <miopen/names.hpp>
-
 #include <sstream>
 
 namespace miopen {
@@ -39,11 +33,8 @@ namespace diag {
 
 NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {
-    auto input_dtype = miopen::GetDataType(inputDesc.GetType());
-
     std::ostringstream ss;
 
-    ss << "input_dtype" << input_dtype;
     ss << "diagonal" << diagonal;
     ss << "numDim" << inputDesc.GetSize();
     ss << "input_numel" << inputDesc.GetElementSize();

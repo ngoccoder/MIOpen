@@ -26,7 +26,6 @@
 #ifndef MIOPEN_DIAG_HPP_
 #define MIOPEN_DIAG_HPP_
 
-#include "miopen/miopen.h"
 #include <miopen/common.hpp>
 
 namespace miopen {
