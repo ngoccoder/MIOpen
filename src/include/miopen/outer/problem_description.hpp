@@ -66,6 +66,7 @@ struct ProblemDescription : ProblemDescriptionBase
         }
     }
 
+    bool isForward() const { return is_fwd; }
     const TensorDescriptor& GetX1Desc() const { return x1Desc; }
     const TensorDescriptor& GetX2Desc() const { return x2Desc; }
     const TensorDescriptor& GetYDesc() const { return yDesc; }

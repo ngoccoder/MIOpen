@@ -40,7 +40,103 @@ namespace solver {
 
 namespace outer {
 
-static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& problem) { return true; }
+static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& problem)
+{
+    auto dtype = problem.GetX1Desc().GetType();
+    auto ydims = problem.GetYDesc().GetLengths();
+
+    if(dtype == miopenHalf)
+    {
+        if(ydims[0] <= 512)
+        {
+            return true;
+        }
+        else if(ydims[0] <= 2048)
+        {
+            if(ydims[1] <= 2048)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if(ydims[1] <= 128)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+    else if(dtype == miopenFloat)
+    {
+        if(ydims[0] <= 512)
+        {
+            return true;
+        }
+        else if(ydims[0] <= 2048)
+        {
+            if(ydims[1] <= 512)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if(ydims[1] <= 128)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+    else if(dtype == miopenBFloat16)
+    {
+        if(ydims[0] <= 512)
+        {
+            return true;
+        }
+        else if(ydims[0] <= 2048)
+        {
+            if(ydims[1] <= 2048)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if(ydims[1] <= 128)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+    else
+    {
+        return false;
+    }
+}
 
 bool OuterForward::IsApplicable([[maybe_unused]] const ExecutionContext& context,
                                 const miopen::outer::ProblemDescription& problem) const

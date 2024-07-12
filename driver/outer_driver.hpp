@@ -222,8 +222,8 @@ int OuterDriver<Tgpu, Tref>::GetandSetData()
 
     std::vector<int> out_len({in_n, in_m});
 
-    SetTensorNd(yDesc, out_len, data_type);
-    SetTensorNd(yGradDesc, out_len, data_type);
+    SetTensorNd(outputDesc, out_len, data_type);
+    SetTensorNd(outputGradDesc, out_len, data_type);
 
     return 0;
 }
@@ -268,7 +268,7 @@ int OuterDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 {
     size_t in1_sz = GetTensorSize(input1Desc);
     size_t in2_sz = GetTensorSize(input2Desc);
-    size_t out_sz = GetTensorSize(yDesc);
+    size_t out_sz = GetTensorSize(outputDesc);
 
     uint32_t ctx = 0;
 
@@ -333,7 +333,7 @@ int OuterDriver<Tgpu, Tref>::RunForwardGPU()
                            in1_dev->GetMem(),
                            input2Desc,
                            in2_dev->GetMem(),
-                           yDesc,
+                           outputDesc,
                            out_dev->GetMem());
 
         float time = 0.0;
@@ -366,7 +366,7 @@ template <typename Tgpu, typename Tref>
 int OuterDriver<Tgpu, Tref>::RunForwardCPU()
 {
     mloSumForwardRunHost<Tgpu, Tref>(
-        input1Desc, input2Desc, yDesc, in1.data(), in2.data(), outhost.data());
+        input1Desc, input2Desc, outputDesc, in1.data(), in2.data(), outhost.data());
 
     return miopenStatusSuccess;
 }
@@ -390,7 +390,7 @@ int OuterDriver<Tgpu, Tref>::RunBackwardGPU()
                                  in2_dev->GetMem(),
                                  input1GradDesc,
                                  in1Grad_dev->GetMem(),
-                                 yGradDesc,
+                                 outputGradDesc,
                                  outGrad_dev->GetMem());
 
         miopenGetKernelTime(GetHandle(), &time_tmp);
@@ -401,7 +401,7 @@ int OuterDriver<Tgpu, Tref>::RunBackwardGPU()
                                  in1_dev->GetMem(),
                                  input2GradDesc,
                                  in2Grad_dev->GetMem(),
-                                 yGradDesc,
+                                 outputGradDesc,
                                  outGrad_dev->GetMem());
 
         miopenGetKernelTime(GetHandle(), &time_tmp);
@@ -443,7 +443,7 @@ int OuterDriver<Tgpu, Tref>::RunBackwardCPU()
                                       input2Desc,
                                       input1GradDesc,
                                       input2GradDesc,
-                                      yGradDesc,
+                                      outputGradDesc,
                                       in1.data(),
                                       in2.data(),
                                       outGrad.data(),

@@ -40,7 +40,19 @@ namespace solver {
 
 namespace outer {
 
-static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& problem) { return true; }
+static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& problem)
+{
+    auto dtype = problem.GetX1Desc().GetType();
+    auto ydims = problem.GetYDesc().GetLengths();
+    if(ydims[0] <= 32 && ydims[1] <= 128)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
 
 bool OuterBackwardGrad2::IsApplicable([[maybe_unused]] const ExecutionContext& context,
                                       const miopen::outer::ProblemDescription& problem) const
