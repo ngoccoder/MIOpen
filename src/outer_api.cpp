@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2023 Advanced Micro Devices, Inc.
+ * Copyright (c) 2024 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -66,7 +66,7 @@ extern "C" miopenStatus_t miopenOuterForward(miopenHandle_t handle,
                                              const miopenTensorDescriptor_t yDesc,
                                              void* y)
 {
-    MIOPEN_LOG_FUNCTION(handle, x1Desc, x1, x2Desc, x2, yDesc, yDesc, y);
+    MIOPEN_LOG_FUNCTION(handle, x1Desc, x1, x2Desc, x2, yDesc, y);
 
     LogCmdOuter(yDesc, true);
 

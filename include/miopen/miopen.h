@@ -6156,7 +6156,7 @@ MIOPEN_EXPORT miopenStatus_t miopenT5LayerNormBackward(miopenHandle_t handle,
 #endif
 
 #ifdef MIOPEN_BETA_API
-// Cat APIs
+// Outer APIs
 /** @addtogroup outer
  *
  *  @{
@@ -6217,7 +6217,7 @@ MIOPEN_EXPORT miopenStatus_t miopenOuterBackwardGrad2(miopenHandle_t handle,
                                                       const void* yGrad);
 
 /** @} */
-// CLOSEOUT CAT DOXYGEN GROUP
+// CLOSEOUT OUTER DOXYGEN GROUP
 #endif
 
 #ifdef MIOPEN_BETA_API

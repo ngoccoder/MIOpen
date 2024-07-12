@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2023 Advanced Micro Devices, Inc.
+ * Copyright (c) 2024 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,14 +45,14 @@
 template <typename Tgpu, typename Tcheck>
 int32_t mloSumForwardRunHost(miopenTensorDescriptor_t input1Desc,
                              miopenTensorDescriptor_t input2Desc,
-                             miopenTensorDescriptor_t yDesc,
+                             miopenTensorDescriptor_t outputDesc,
                              Tgpu* input1,
                              Tgpu* input2,
                              Tcheck* outputhost)
 {
     auto input1_dims = miopen::deref(input1Desc).GetLengths();
     auto input2_dims = miopen::deref(input2Desc).GetLengths();
-    auto output_dims = miopen::deref(yDesc).GetLengths();
+    auto output_dims = miopen::deref(outputDesc).GetLengths();
 
     size_t in_n = input1_dims[0];
     size_t in_m = input2_dims[0];
@@ -76,7 +76,7 @@ int32_t mloSumBackwardRunHost(miopenTensorDescriptor_t input1Desc,
                               miopenTensorDescriptor_t input2Desc,
                               miopenTensorDescriptor_t input1GradDesc,
                               miopenTensorDescriptor_t input2GradDesc,
-                              miopenTensorDescriptor_t yGradDesc,
+                              miopenTensorDescriptor_t outputGradDesc,
                               Tgpu* input1,
                               Tgpu* input2,
                               Tgpu* outGrad,
@@ -85,7 +85,7 @@ int32_t mloSumBackwardRunHost(miopenTensorDescriptor_t input1Desc,
 {
     auto input1_dims = miopen::deref(input1Desc).GetLengths();
     auto input2_dims = miopen::deref(input2Desc).GetLengths();
-    auto output_dims = miopen::deref(yGradDesc).GetLengths();
+    auto output_dims = miopen::deref(outputGradDesc).GetLengths();
 
     size_t in_n = input1_dims[0];
     size_t in_m = input2_dims[0];
@@ -122,11 +122,11 @@ public:
     {
         miopenCreateTensorDescriptor(&input1Desc);
         miopenCreateTensorDescriptor(&input2Desc);
-        miopenCreateTensorDescriptor(&yDesc);
+        miopenCreateTensorDescriptor(&outputDesc);
 
         miopenCreateTensorDescriptor(&input1GradDesc);
         miopenCreateTensorDescriptor(&input2GradDesc);
-        miopenCreateTensorDescriptor(&yGradDesc);
+        miopenCreateTensorDescriptor(&outputGradDesc);
 
         data_type = miopen_type<Tgpu>{};
     }
@@ -153,7 +153,11 @@ public:
     {
         miopenDestroyTensorDescriptor(input1Desc);
         miopenDestroyTensorDescriptor(input1Desc);
-        miopenDestroyTensorDescriptor(yDesc);
+        miopenDestroyTensorDescriptor(outputDesc);
+
+        miopenDestroyTensorDescriptor(input1GradDesc);
+        miopenDestroyTensorDescriptor(input2GradDesc);
+        miopenDestroyTensorDescriptor(outputGradDesc);
     }
 
 private:
@@ -165,8 +169,8 @@ private:
     miopenTensorDescriptor_t input2Desc;
     miopenTensorDescriptor_t input1GradDesc;
     miopenTensorDescriptor_t input2GradDesc;
-    miopenTensorDescriptor_t yDesc;
-    miopenTensorDescriptor_t yGradDesc;
+    miopenTensorDescriptor_t outputDesc;
+    miopenTensorDescriptor_t outputGradDesc;
 
     std::unique_ptr<GPUMem> in1_dev;
     std::unique_ptr<GPUMem> in2_dev;
@@ -185,8 +189,6 @@ private:
     std::vector<Tref> in1Gradhost;
     std::vector<Tref> in2Gradhost;
     std::vector<Tref> outhost;
-
-    size_t ws_sizeInBytes;
 };
 
 template <typename Tgpu, typename Tref>
@@ -229,13 +231,13 @@ int OuterDriver<Tgpu, Tref>::GetandSetData()
 template <typename Tgpu, typename Tref>
 int OuterDriver<Tgpu, Tref>::AddCmdLineArgs()
 {
-    inflags.AddInputFlag("forw", 'F', "1", "Run only Forward Sum (Default=1)", "int");
-    inflags.AddInputFlag("in_n", 'N', "128", "n size (Default=32)", "int");
-    inflags.AddInputFlag("in_m", 'M', "256", "m size(Default=32)", "int");
+    inflags.AddInputFlag("forw", 'F', "1", "Run only Forward Outer (Default=1)", "int");
+    inflags.AddInputFlag("in_n", 'N', "32", "n size (Default=32)", "int");
+    inflags.AddInputFlag("in_m", 'M', "32", "m size (Default=32)", "int");
 
     inflags.AddInputFlag(
         "wall", 'w', "0", "Wall-clock Time Each Layer, Requires time == 1 (Default=0)", "int");
-    inflags.AddInputFlag("iter", 'i', "5", "Number of Iterations (Default=10)", "int");
+    inflags.AddInputFlag("iter", 'i', "10", "Number of Iterations (Default=10)", "int");
     inflags.AddInputFlag("verify", 'V', "1", "Verify Each Layer (Default=1)", "int");
     inflags.AddInputFlag("time", 't', "0", "Time Each Layer (Default=0)", "int");
     inflags.AddInputFlag(
@@ -267,9 +269,6 @@ int OuterDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
     size_t in1_sz = GetTensorSize(input1Desc);
     size_t in2_sz = GetTensorSize(input2Desc);
     size_t out_sz = GetTensorSize(yDesc);
-
-    if(ws_sizeInBytes == static_cast<size_t>(-1))
-        return miopenStatusAllocFailed;
 
     uint32_t ctx = 0;
 
@@ -349,7 +348,7 @@ int OuterDriver<Tgpu, Tref>::RunForwardGPU()
         STOP_TIME
         int iter = inflags.GetValueInt("iter");
         if(WALL_CLOCK)
-            std::cout << "Wall-clock Time Forward T5LayerNorm Elapsed: " << t.gettime_ms() / iter
+            std::cout << "Wall-clock Time Forward Outer Elapsed: " << t.gettime_ms() / iter
                       << " ms\n";
 
         float kernel_average_time =
@@ -418,7 +417,7 @@ int OuterDriver<Tgpu, Tref>::RunBackwardGPU()
         STOP_TIME
         int iter = inflags.GetValueInt("iter");
         if(WALL_CLOCK)
-            std::cout << "Wall-clock Time Forward T5LayerNorm Elapsed: " << t.gettime_ms() / iter
+            std::cout << "Wall-clock Time Forward Outer Elapsed: " << t.gettime_ms() / iter
                       << " ms\n";
 
         float kernel_average_time =
@@ -474,12 +473,12 @@ int OuterDriver<Tgpu, Tref>::VerifyForward()
 
     if(!std::isfinite(error) || error > tolerance)
     {
-        std::cout << "Forward Sum FAILED: " << error << " > " << tolerance << std::endl;
+        std::cout << "Forward Outer FAILED: " << error << " > " << tolerance << std::endl;
         return EC_VerifyFwd;
     }
     else
     {
-        std::cout << "Forward Sum Verifies OK on CPU reference (" << error << " < " << tolerance
+        std::cout << "Forward Outer Verifies OK on CPU reference (" << error << " < " << tolerance
                   << ')' << std::endl;
     }
 

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2023 Advanced Micro Devices, Inc.
+ * Copyright (c) 2024 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -29,8 +29,6 @@
 #endif
 
 #include "float_types.h"
-
-#include <stdio.h>
 
 extern "C" __global__ void OuterForward(const FLOAT* input1,
                                         const FLOAT* input2,
