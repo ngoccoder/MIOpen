@@ -88,10 +88,7 @@ static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& probl
             return true;
         }
     }
-    else
-    {
-        return false;
-    }
+    return false;
 }
 
 bool OuterForward::IsApplicable([[maybe_unused]] const ExecutionContext& context,
