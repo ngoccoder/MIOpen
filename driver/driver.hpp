@@ -203,8 +203,8 @@ inline std::string ParseBaseArg(int argc, char* argv[])
        arg != "addlayernorm" && arg != "addlayernormfp16" && arg != "addlayernormbfp16" &&
        arg != "t5layernorm" && arg != "t5layernormfp16" && arg != "t5layernormbfp16" &&
        arg != "adam" && arg != "adamfp16" && arg != "ampadam" && arg != "reduceextreme" &&
-       arg != "reduceextremefp16" && arg != "reduceextremebfp16" && arg != "--version" &&
-       arg != "outer" && arg != "outerfp16" && arg != "outerbfp16")
+       arg != "reduceextremefp16" && arg != "reduceextremebfp16" && arg != "outer" &&
+       arg != "outerfp16" && arg != "outerbfp16" && arg != "--version")
     {
         printf("FAILED: Invalid Base Input Argument\n");
         Usage();

@@ -43,7 +43,7 @@ miopenStatus_t OuterForward(Handle& handle,
                             const TensorDescriptor& yDesc,
                             Data_t y)
 {
-    const auto problem       = outer::ProblemDescription(true, NONE, x1Desc, x2Desc, yDesc);
+    const auto problem       = outer::ProblemDescription(true, outer::NONE, x1Desc, x2Desc, yDesc);
     const auto invoke_params = outer::InvokeParamsForward{x1Desc, x1, x2Desc, x2, yDesc, y};
     const auto algo          = AlgorithmName{"OuterForward"};
     const auto solvers       = solver::SolverContainer<solver::outer::OuterForward>{};
@@ -60,7 +60,8 @@ miopenStatus_t OuterBackwardGrad1(Handle& handle,
                                   const TensorDescriptor& yGradDesc,
                                   ConstData_t yGrad)
 {
-    const auto problem = outer::ProblemDescription(false, ONE, x1GradDesc, x2Desc, yGradDesc);
+    const auto problem =
+        outer::ProblemDescription(false, outer::ONE, x1GradDesc, x2Desc, yGradDesc);
     const auto invoke_params =
         outer::InvokeParamsBackwardGrad1{x2Desc, x2, x1GradDesc, x1Grad, yGradDesc, yGrad};
     const auto algo    = AlgorithmName{"OuterBackwardGrad1"};
@@ -78,7 +79,8 @@ miopenStatus_t OuterBackwardGrad2(Handle& handle,
                                   const TensorDescriptor& yGradDesc,
                                   ConstData_t yGrad)
 {
-    const auto problem = outer::ProblemDescription(false, TWO, x1Desc, x2GradDesc, yGradDesc);
+    const auto problem =
+        outer::ProblemDescription(false, outer::TWO, x1Desc, x2GradDesc, yGradDesc);
     const auto invoke_params =
         outer::InvokeParamsBackwardGrad2{x1Desc, x1, x2GradDesc, x2Grad, yGradDesc, yGrad};
     const auto algo    = AlgorithmName{"OuterBackwardGrad2"};

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2023 Advanced Micro Devices, Inc.
+ * Copyright (c) 2024 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -46,21 +46,21 @@ struct OuterTestCase
     std::vector<size_t> GetInput() { return std::vector<size_t>({N, M}); }
 };
 
-std::vector<OuterTestCase> OuterTestConfigs()
-{ // n c d h w dim nanPropagation
-    // clang-format off
-    return {
-        {128,128},
-        {128,2048},
-        {128,32768},
-        {2048,128},
-        {2048,2048},
-        {2048,32768},
-        {32768,128},
-        {32768,2048},
-        {32768,32768}
-    };
-    // clang-format on
+std::vector<OuterTestCase> OuterFwdTestConfigs()
+{
+    return {{512, 128},
+            {512, 32768},
+            {2048, 128},
+            {2048, 256},
+            {2048, 512},
+            {32768, 32},
+            {32768, 64},
+            {32768, 128}};
+}
+
+std::vector<OuterTestCase> OuterBwdTestConfigs()
+{
+    return {{16, 16}, {16, 32}, {16, 64}, {16, 128}, {32, 16}, {32, 32}, {32, 64}, {32, 128}};
 }
 
 template <typename T = float>

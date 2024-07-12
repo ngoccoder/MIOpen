@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2023 Advanced Micro Devices, Inc.
+ * Copyright (c) 2024 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,20 +39,13 @@ void cpu_outer_forward(tensor<T> input1, tensor<T> input2, tensor<T>& ref_output
     size_t in_m = input2_dims[0];
 
     size_t cnt = 0;
-    bool ok    = false;
-    if(ok)
-        std::cout << "cpu output"
-                  << "\n";
+
     for(size_t i = 0; i < in_n; i++)
     {
         for(size_t j = 0; j < in_m; j++)
         {
             ref_output[cnt++] = input1[i] * input2[j];
-            if(ok)
-                std::cout << ref_output[cnt - 1] << " ";
         }
-        if(ok)
-            std::cout << "\n";
     }
 }
 

@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2023 Advanced Micro Devices, Inc.
+ * Copyright (c) 2024 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -149,9 +149,13 @@ TEST_P(OuterBwdTestBFloat16, OuterBwdTest)
     }
 };
 
-INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterFwdTestFloat, testing::ValuesIn(OuterTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterBwdTestFloat, testing::ValuesIn(OuterTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterFwdTestHalf, testing::ValuesIn(OuterTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterBwdTestHalf, testing::ValuesIn(OuterTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterFwdTestBFloat16, testing::ValuesIn(OuterTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterBwdTestBFloat16, testing::ValuesIn(OuterTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterFwdTestFloat, testing::ValuesIn(OuterFwdTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterBwdTestFloat, testing::ValuesIn(OuterBwdTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterFwdTestHalf, testing::ValuesIn(OuterFwdTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterBwdTestHalf, testing::ValuesIn(OuterBwdTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(OuterTestSet,
+                         OuterFwdTestBFloat16,
+                         testing::ValuesIn(OuterFwdTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(OuterTestSet,
+                         OuterBwdTestBFloat16,
+                         testing::ValuesIn(OuterBwdTestConfigs()));

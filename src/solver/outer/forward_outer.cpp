@@ -32,8 +32,6 @@
 #include <miopen/kernel_build_params.hpp>
 #include <miopen/target_properties.hpp>
 
-static const size_t LOCAL_SIZE = 256;
-
 namespace miopen {
 
 namespace solver {
@@ -51,27 +49,13 @@ static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& probl
         {
             return true;
         }
-        else if(ydims[0] <= 2048)
+        else if(ydims[0] <= 2048 && ydims[1] <= 2048)
         {
-            if(ydims[1] <= 2048)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return true;
         }
-        else
+        else if(2048 < ydims[0] && ydims[1] <= 128)
         {
-            if(ydims[1] <= 128)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return true;
         }
     }
     else if(dtype == miopenFloat)
@@ -80,27 +64,13 @@ static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& probl
         {
             return true;
         }
-        else if(ydims[0] <= 2048)
+        else if(ydims[0] <= 2048 && ydims[1] <= 512)
         {
-            if(ydims[1] <= 512)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return true;
         }
-        else
+        else if(2048 < ydims[0] && ydims[1] <= 128)
         {
-            if(ydims[1] <= 128)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return true;
         }
     }
     else if(dtype == miopenBFloat16)
@@ -109,27 +79,13 @@ static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& probl
         {
             return true;
         }
-        else if(ydims[0] <= 2048)
+        else if(ydims[0] <= 2048 && ydims[1] <= 2048)
         {
-            if(ydims[1] <= 2048)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return true;
         }
-        else
+        else if(2048 < ydims[0] && ydims[1] <= 128)
         {
-            if(ydims[1] <= 128)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return true;
         }
     }
     else
@@ -151,7 +107,8 @@ bool OuterForward::IsApplicable([[maybe_unused]] const ExecutionContext& context
 ConvSolution OuterForward::GetSolution(const ExecutionContext& context,
                                        const miopen::outer::ProblemDescription& problem) const
 {
-    auto result = ConvSolution{miopenStatusSuccess};
+    static const size_t LOCAL_SIZE = 256;
+    auto result                    = ConvSolution{miopenStatusSuccess};
 
     auto dtype  = problem.GetX1Desc().GetType();
     auto x1dims = problem.GetX1Desc().GetLengths();

@@ -6168,7 +6168,7 @@ MIOPEN_EXPORT miopenStatus_t miopenT5LayerNormBackward(miopenHandle_t handle,
  * @param x1             Source data tensor x1 (input)
  * @param x2Desc         Tensor descriptor of input tensor x2 (input)
  * @param x2             Source data tensor x2 (input)
- * @param yDesc          Tensor descriptor of output tensor y (input)
+ * @param yDesc          Tensor descriptor of output tensor y (output)
  * @param y              Data tensor y (output)
  * @return               miopenStatus_t
  */
@@ -6184,10 +6184,10 @@ MIOPEN_EXPORT miopenStatus_t miopenOuterForward(miopenHandle_t handle,
  * @param handle         MIOpen handle (input)
  * @param x2Desc         Tensor descriptor of input tensor x2 (input)
  * @param x2             Source data tensor x2 (input)
- * @param x1GradDesc     Tensor descriptor of input tensor x1Grad (input)
- * @param x1Grad         Source data tensor x1Grad (input)
+ * @param x1GradDesc     Tensor descriptor of input tensor x1Grad (output)
+ * @param x1Grad         Source data tensor x1Grad (output)
  * @param yGradDesc      Tensor descriptor of output tensor yGrad (input)
- * @param yGrad          Data tensor yGrad (output)
+ * @param yGrad          Data tensor yGrad (input)
  * @return               miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t miopenOuterBackwardGrad1(miopenHandle_t handle,
@@ -6202,10 +6202,10 @@ MIOPEN_EXPORT miopenStatus_t miopenOuterBackwardGrad1(miopenHandle_t handle,
  * @param handle         MIOpen handle (input)
  * @param x1Desc         Tensor descriptor of input tensor x2 (input)
  * @param x1             Source data tensor x2 (input)
- * @param x2GradDesc     Tensor descriptor of input tensor x1Grad (input)
- * @param x2Grad         Source data tensor x1Grad (input)
- * @param yGradDesc      Tensor descriptor of output tensor y (input)
- * @param yGrad          Data tensor y (output)
+ * @param x2GradDesc     Tensor descriptor of input tensor x1Grad (output)
+ * @param x2Grad         Source data tensor x1Grad (output)
+ * @param yGradDesc      Tensor descriptor of output tensor yGrad (input)
+ * @param yGrad          Data tensor yGrad (input)
  * @return               miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t miopenOuterBackwardGrad2(miopenHandle_t handle,

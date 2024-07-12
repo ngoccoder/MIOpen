@@ -37,14 +37,14 @@ namespace miopen {
 
 struct NetworkConfig;
 
+namespace outer {
+
 enum gradType
 {
     NONE,
     ONE,
     TWO
 };
-
-namespace outer {
 
 struct ProblemDescription : ProblemDescriptionBase
 {
@@ -58,11 +58,21 @@ struct ProblemDescription : ProblemDescriptionBase
         const auto dtype = yDesc.GetType();
         if(x1Desc.GetType() != dtype)
         {
-            MIOPEN_THROW(miopenStatusBadParm, "OuterForward: Tensor types do not match.");
+            MIOPEN_THROW(miopenStatusBadParm, "Outer: Tensor types do not match.");
         }
         if(x2Desc.GetType() != dtype)
         {
-            MIOPEN_THROW(miopenStatusBadParm, "OuterForward: Tensor types do not match.");
+            MIOPEN_THROW(miopenStatusBadParm, "Outer: Tensor types do not match.");
+        }
+        if(is_fwd == true && (grad_ == ONE || grad_ == TWO))
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "Outer: the direciton and the gradient type do not match");
+        }
+        if(is_fwd == false && grad_ == NONE)
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "Outer: the direciton and the gradient type do not match");
         }
     }
 

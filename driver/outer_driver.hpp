@@ -235,8 +235,6 @@ int OuterDriver<Tgpu, Tref>::AddCmdLineArgs()
     inflags.AddInputFlag("in_n", 'N', "32", "n size (Default=32)", "int");
     inflags.AddInputFlag("in_m", 'M', "32", "m size (Default=32)", "int");
 
-    inflags.AddInputFlag(
-        "wall", 'w', "0", "Wall-clock Time Each Layer, Requires time == 1 (Default=0)", "int");
     inflags.AddInputFlag("iter", 'i', "10", "Number of Iterations (Default=10)", "int");
     inflags.AddInputFlag("verify", 'V', "1", "Verify Each Layer (Default=1)", "int");
     inflags.AddInputFlag("time", 't', "0", "Time Each Layer (Default=0)", "int");
@@ -508,7 +506,8 @@ int OuterDriver<Tgpu, Tref>::VerifyBackward()
     else
     {
         std::cout << "Backward Outer Verifies OK on CPU reference (" << error1 << " < " << tolerance
-                  << ')' << " and " << error2 << " < " << tolerance << ')' << std::endl;
+                  << ')' << " and "
+                  << "(" << error2 << " < " << tolerance << ')' << std::endl;
     }
     return miopenStatusSuccess;
 }

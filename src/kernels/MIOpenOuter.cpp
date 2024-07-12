@@ -60,7 +60,7 @@ extern "C" __global__ void OuterBackwardGrad1(const FLOAT* input2,
         return;
 
     FLOAT_ACCUM sum = 0;
-    for(unsigned int j = 0; j < m; ++j)
+    for(size_t j = 0; j < m; ++j)
     {
         sum += CVT_FLOAT2ACCUM(input2[j]) * CVT_FLOAT2ACCUM(output_grad[gid * m + j]);
     }
@@ -79,7 +79,7 @@ extern "C" __global__ void OuterBackwardGrad2(const FLOAT* input1,
         return;
 
     FLOAT_ACCUM sum = 0;
-    for(unsigned int i = 0; i < n; ++i)
+    for(size_t i = 0; i < n; ++i)
     {
         sum += CVT_FLOAT2ACCUM(input1[i]) * CVT_FLOAT2ACCUM(output_grad[i * m + gid]);
     }

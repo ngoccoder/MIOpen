@@ -32,8 +32,6 @@
 #include <miopen/kernel_build_params.hpp>
 #include <miopen/target_properties.hpp>
 
-static const size_t LOCAL_SIZE = 256;
-
 namespace miopen {
 
 namespace solver {
@@ -42,7 +40,6 @@ namespace outer {
 
 static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& problem)
 {
-    auto dtype = problem.GetX1Desc().GetType();
     auto ydims = problem.GetYDesc().GetLengths();
     if(ydims[0] <= 32 && ydims[1] <= 128)
     {
@@ -67,12 +64,11 @@ bool OuterBackwardGrad2::IsApplicable([[maybe_unused]] const ExecutionContext& c
 ConvSolution OuterBackwardGrad2::GetSolution(const ExecutionContext& context,
                                              const miopen::outer::ProblemDescription& problem) const
 {
-    auto result = ConvSolution{miopenStatusSuccess};
+    static const size_t LOCAL_SIZE = 256;
+    auto result                    = ConvSolution{miopenStatusSuccess};
 
     auto dtype  = problem.GetX1Desc().GetType();
-    auto x1dims = problem.GetX1Desc().GetLengths();
     auto x2dims = problem.GetX2Desc().GetLengths();
-    auto ydims  = problem.GetYDesc().GetLengths();
 
     auto input_dtype  = miopen::GetDataType(problem.GetX1Desc().GetType());
     auto output_dtype = miopen::GetDataType(problem.GetYDesc().GetType());
