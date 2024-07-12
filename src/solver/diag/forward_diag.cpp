@@ -45,16 +45,22 @@ namespace solver {
 
 namespace diag {
 
-bool DiagForward::IsApplicable(const ExecutionContext& context,
+bool IsImprovementOverROCm(const miopen::diag::FwdProblemDescription& problem)
+{
+    TensorDescriptor inputDesc = problem.GetInputDesc();
+    size_t dimNum              = inputDesc.GetSize();
+
+    return dimNum == 2;
+}
+
+bool DiagForward::IsApplicable(const ExecutionContext& /*context*/,
                                const miopen::diag::FwdProblemDescription& problem) const
 {
-    std::ignore    = context;
-    auto inputDims = problem.GetInputDesc().GetLengths();
+    if(!IsImprovementOverROCm(problem))
+    {
+        return false;
+    }
 
-    if(!problem.IsSameType())
-        return false;
-    if(!problem.IsAllPacked())
-        return false;
     return true;
 }
 
@@ -66,8 +72,7 @@ ConvSolution DiagForward::GetSolution(const ExecutionContext& context,
     auto result = ConvSolution{miopenStatusSuccess};
 
     auto dtype        = problem.GetInputDesc().GetType();
-    auto input_dtype  = miopen::GetDataType(problem.GetInputDesc().GetType());
-    auto output_dtype = miopen::GetDataType(problem.GetOutputDesc().GetType());
+    auto in_out_dtype = miopen::GetDataType(problem.GetInputDesc().GetType());
     auto kernel       = KernelInfo{};
 
     const auto build_params = KernelBuildParameters{
@@ -75,85 +80,40 @@ ConvSolution DiagForward::GetSolution(const ExecutionContext& context,
         {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
         {"MIOPEN_USE_FP64", static_cast<int>(dtype == miopenDouble)},
         {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
-        {"INPUT_TYPE", input_dtype == "bfloat16" ? "ushort" : input_dtype},
-        {"OUTPUT_TYPE", output_dtype == "bfloat16" ? "ushort" : output_dtype}};
+        {"IN_OUT_TYPE", in_out_dtype == "bfloat16" ? "ushort" : in_out_dtype}};
 
     kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
-    if(problem.GetInputDesc().GetLengths().size() == 1)
-    {
-        auto input_numel = problem.GetInputDesc().GetElementSize();
+    int64_t output_numel = problem.GetOutputDesc().GetElementSize();
+    size_t xlocalsize    = LOCAL_SIZE;
+    size_t xgridsize     = AlignUp(output_numel, xlocalsize);
+    size_t ylocalsize    = 1;
+    size_t ygridsize     = 1;
+    size_t zlocalsize    = 1;
+    size_t zgridsize     = 1;
 
-        size_t xlocalsize = LOCAL_SIZE;
-        size_t xgridsize  = AlignUp(input_numel, xlocalsize);
-        size_t ylocalsize = 1;
-        size_t ygridsize  = 1;
-        size_t zlocalsize = 1;
-        size_t zgridsize  = 1;
+    kernel.kernel_file = "MIOpenDiag.cpp";
+    kernel.kernel_name = "Diag2dForward";
 
-        kernel.kernel_file = "MIOpenDiag.cpp";
-        kernel.kernel_name = "Diag1dForward";
+    kernel.l_wk.push_back(xlocalsize);
+    kernel.l_wk.push_back(ylocalsize);
+    kernel.l_wk.push_back(zlocalsize);
+    kernel.g_wk.push_back(xgridsize);
+    kernel.g_wk.push_back(ygridsize);
+    kernel.g_wk.push_back(zgridsize);
 
-        kernel.l_wk.push_back(xlocalsize);
-        kernel.l_wk.push_back(ylocalsize);
-        kernel.l_wk.push_back(zlocalsize);
-
-        kernel.g_wk.push_back(xgridsize);
-        kernel.g_wk.push_back(ygridsize);
-        kernel.g_wk.push_back(zgridsize);
-
-        result.construction_params.push_back(kernel);
-
-        result.invoker_factory = [](const std::vector<Kernel>& kernels) {
-            return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
-                decltype(auto) kernel = handle_.Run(kernels.front());
-                decltype(auto) params = raw_params.CastTo<miopen::diag::FwdInvokeParams>();
-                auto input_numel      = params.inputDesc->GetElementSize();
-                auto output_tv        = get_inner_expanded_tv<2>(deref(params.outputDesc));
-                long offset = (params.diagonal >= 0 ? params.diagonal * output_tv.stride[1]
-                                                    : -params.diagonal * output_tv.stride[0]);
-
-                kernel(params.input, params.output, input_numel, offset, output_tv);
-            };
+    result.construction_params.push_back(kernel);
+    result.invoker_factory = [](const std::vector<Kernel>& kernels) {
+        return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
+            decltype(auto) kernel = handle_.Run(kernels.front());
+            decltype(auto) params = raw_params.CastTo<miopen::diag::FwdInvokeParams>();
+            auto output_numel     = params.outputDesc->GetElementSize();
+            auto input_tv         = get_inner_expanded_tv<2>(deref(params.inputDesc));
+            long offset           = (params.diagonal >= 0 ? params.diagonal * input_tv.stride[1]
+                                                          : -params.diagonal * input_tv.stride[0]);
+            kernel(params.input, params.output, output_numel, offset, input_tv);
         };
-    }
-    else if(problem.GetInputDesc().GetLengths().size() == 2)
-    {
-        int64_t output_numel = problem.GetOutputDesc().GetElementSize();
-
-        size_t xlocalsize = LOCAL_SIZE;
-        size_t xgridsize  = AlignUp(output_numel, xlocalsize);
-        size_t ylocalsize = 1;
-        size_t ygridsize  = 1;
-        size_t zlocalsize = 1;
-        size_t zgridsize  = 1;
-
-        kernel.kernel_file = "MIOpenDiag.cpp";
-        kernel.kernel_name = "Diag2dForward";
-
-        kernel.l_wk.push_back(xlocalsize);
-        kernel.l_wk.push_back(ylocalsize);
-        kernel.l_wk.push_back(zlocalsize);
-
-        kernel.g_wk.push_back(xgridsize);
-        kernel.g_wk.push_back(ygridsize);
-        kernel.g_wk.push_back(zgridsize);
-
-        result.construction_params.push_back(kernel);
-
-        result.invoker_factory = [](const std::vector<Kernel>& kernels) {
-            return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
-                decltype(auto) kernel = handle_.Run(kernels.front());
-                decltype(auto) params = raw_params.CastTo<miopen::diag::FwdInvokeParams>();
-                auto output_numel     = params.outputDesc->GetElementSize();
-                auto input_tv         = get_inner_expanded_tv<2>(deref(params.inputDesc));
-                long offset           = (params.diagonal >= 0 ? params.diagonal * input_tv.stride[1]
-                                                              : -params.diagonal * input_tv.stride[0]);
-
-                kernel(params.input, params.output, output_numel, offset, input_tv);
-            };
-        };
-    }
+    };
 
     return result;
 }

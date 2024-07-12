@@ -101,7 +101,6 @@ public:
     InputFlags& GetInputFlags() override { return inflags; }
 
     int GetandSetData() override;
-    std::vector<int> GetInputTensorLengthsFromCmdLine();
 
     int SetBNParametersFromCmdLineArgs();
 
@@ -146,6 +145,8 @@ template <typename Tgpu, typename Tref>
 int DiagDriver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
 {
     inflags.Parse(argc, argv);
+    diagonal     = inflags.GetValueInt("Diagonal");
+    isContiguous = inflags.GetValueInt("contiguous") > 0 ? true : false;
 
     if(inflags.GetValueInt("time") == 1)
     {
@@ -159,12 +160,8 @@ int DiagDriver<Tgpu, Tref>::GetandSetData()
 {
     SetBNParametersFromCmdLineArgs();
 
-    std::vector<int> in_len = GetInputTensorLengthsFromCmdLine();
-    diagonal                = inflags.GetValueInt("Diagonal");
-    isContiguous            = inflags.GetValueInt("contiguous") > 0 ? true : false;
-
-    auto inStride = ComputeStrides(in_len);
-
+    std::vector<int> in_len = inflags.GetValueTensor("dim-lengths").lengths;
+    auto inStride           = ComputeStrides(in_len);
     SetTensorNd(inputTensor, in_len, inStride, data_type);
 
     std::vector<int> out_len;
@@ -221,12 +218,8 @@ template <typename Tgpu, typename Tref>
 int DiagDriver<Tgpu, Tref>::AddCmdLineArgs()
 {
     inflags.AddInputFlag("forw", 'F', "1", "Run only Forward (1) (Default = 1)", "int");
-    inflags.AddInputFlag("batchsize", 'n', "2", "Mini-batch size (Default=2)", "int");
-    inflags.AddInputFlag("in_channels", 'c', "0", "Number of Input Channels (Default=0)", "int");
-    inflags.AddInputFlag("in_d", 'D', "0", "Input Depth (Default=0)", "int");
-    inflags.AddInputFlag("in_h", 'H', "0", "Input Height (Default=0)", "int");
-    inflags.AddInputFlag("in_w", 'W', "4", "Input Width (Default=4)", "int");
-
+    inflags.AddTensorFlag(
+        "dim-lengths", 'D', "256x512", "The dimensional lengths of the input tensor");
     inflags.AddInputFlag(
         "Diagonal", 'R', "0", "Control which diagonal to consider (Default=0)", "int");
     inflags.AddInputFlag("contiguous", 'C', "1", "Tensor is contiguous or not", "int");
@@ -237,42 +230,6 @@ int DiagDriver<Tgpu, Tref>::AddCmdLineArgs()
         "wall", 'w', "0", "Wall-clock Time Each Layer, Requires time == 1 (Default=0)", "int");
 
     return miopenStatusSuccess;
-}
-
-template <typename Tgpu, typename Tref>
-std::vector<int> DiagDriver<Tgpu, Tref>::GetInputTensorLengthsFromCmdLine()
-{
-    int in_n = inflags.GetValueInt("batchsize");
-    int in_c = inflags.GetValueInt("in_channels");
-    int in_d = inflags.GetValueInt("in_d");
-    int in_h = inflags.GetValueInt("in_h");
-    int in_w = inflags.GetValueInt("in_w");
-
-    if((in_n != 0) && (in_c != 0) && (in_d != 0) && (in_h != 0) && (in_w != 0))
-    {
-        return std::vector<int>({in_n, in_c, in_d, in_h, in_w});
-    }
-    else if((in_n != 0) && (in_c != 0) && (in_h != 0) && (in_w != 0))
-    {
-        return std::vector<int>({in_n, in_c, in_h, in_w});
-    }
-    else if((in_n != 0) && (in_c != 0) && (in_w != 0))
-    {
-        return std::vector<int>({in_n, in_c, in_w});
-    }
-    else if((in_n != 0) && (in_w != 0))
-    {
-        return std::vector<int>({in_n, in_w});
-    }
-    else if(in_n != 0)
-    {
-        return std::vector<int>({in_n});
-    }
-    else
-    {
-        std::cerr << "Error Input Tensor Lengths\n" << std::endl;
-        return std::vector<int>({0});
-    }
 }
 
 template <typename Tgpu, typename Tref>

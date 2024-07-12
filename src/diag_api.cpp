@@ -26,7 +26,7 @@
 
 #include "miopen/miopen.h"
 #include "miopen/tensor.hpp"
-#include <miopen/diagonal.hpp>
+#include <miopen/diag.hpp>
 #include <miopen/errors.hpp>
 #include <miopen/handle.hpp>
 #include <miopen/logger.hpp>
@@ -48,47 +48,5 @@ extern "C" miopenStatus_t miopenDiagForward(miopenHandle_t handle,
                             miopen::deref(outputDesc),
                             DataCast(output),
                             diagonal);
-    });
-}
-
-extern "C" miopenStatus_t miopenDiagFlatForward(miopenHandle_t handle,
-                                                const miopenTensorDescriptor_t inputDesc,
-                                                const void* input,
-                                                const miopenTensorDescriptor_t outputDesc,
-                                                void* output,
-                                                int64_t offset)
-{
-    MIOPEN_LOG_FUNCTION(handle, inputDesc, input, outputDesc, output, offset);
-
-    return miopen::try_([&] {
-        miopen::DiagFlatForward(miopen::deref(handle),
-                                miopen::deref(inputDesc),
-                                DataCast(input),
-                                miopen::deref(outputDesc),
-                                DataCast(output),
-                                offset);
-    });
-}
-
-extern "C" miopenStatus_t miopenDiagEmbedForward(miopenHandle_t handle,
-                                                 const miopenTensorDescriptor_t inputDesc,
-                                                 const void* input,
-                                                 const miopenTensorDescriptor_t outputDesc,
-                                                 void* output,
-                                                 int64_t offset,
-                                                 int64_t dim1,
-                                                 int64_t dim2)
-{
-    MIOPEN_LOG_FUNCTION(handle, inputDesc, input, outputDesc, output, offset, dim1, dim2);
-
-    return miopen::try_([&] {
-        miopen::DiagEmbedForward(miopen::deref(handle),
-                                 miopen::deref(inputDesc),
-                                 DataCast(input),
-                                 miopen::deref(outputDesc),
-                                 DataCast(output),
-                                 offset,
-                                 dim1,
-                                 dim2);
     });
 }

@@ -28,7 +28,7 @@
 
 #include <miopen/activ/solvers.hpp>
 #include <miopen/batchnorm/solvers.hpp>
-#include "miopen/diagonal/solvers.hpp"
+#include "miopen/diag/solvers.hpp"
 #include <miopen/fusion/solvers.hpp>
 #include <miopen/groupnorm/solvers.hpp>
 #include <miopen/layernorm/solvers.hpp>

@@ -27,63 +27,38 @@
 #include "../driver/tensor_driver.hpp"
 #include "cpu_diag.hpp"
 #include "get_handle.hpp"
-#include "miopen/allocator.hpp"
 #include "random.hpp"
 #include "tensor_holder.hpp"
 #include "verify.hpp"
-#include <algorithm>
-#include <cmath>
-#include <cstddef>
-#include <cstdint>
-#include <functional>
+
 #include <gtest/gtest.h>
+
+#include <miopen/allocator.hpp>
 #include <miopen/miopen.h>
-#include <miopen/diagonal.hpp>
-#include <numeric>
+#include <miopen/diag.hpp>
 
 struct DiagTestCase
 {
-    size_t N;
-    size_t C;
-    size_t D;
-    size_t H;
-    size_t W;
+    std::vector<size_t> dims;
     int64_t diagonal;
     bool isContiguous;
     friend std::ostream& operator<<(std::ostream& os, const DiagTestCase& tc)
     {
-        return os << " N:" << tc.N << " C:" << tc.C << " D:" << tc.D << " H:" << tc.H
-                  << " W:" << tc.W << " diagonal:" << tc.diagonal
-                  << " isContiguous:" << tc.isContiguous;
+        os << "dims: ";
+        for(auto dim_sz : tc.dims)
+        {
+            os << dim_sz << " ";
+        }
+        return os << " diagonal:" << tc.diagonal << " isContiguous:" << tc.isContiguous;
     }
 
-    std::vector<size_t> GetInput()
+    std::vector<size_t> GetDims() const { return dims; }
+
+    DiagTestCase() {}
+
+    DiagTestCase(std::vector<size_t> dims_, int64_t diagonal_, bool isContiguous_)
+        : dims(dims_), diagonal(diagonal_), isContiguous(isContiguous_)
     {
-        if((N != 0) && (C != 0) && (D != 0) && (H != 0) && (W != 0))
-        {
-            return std::vector<size_t>({N, C, D, H, W});
-        }
-        else if((N != 0) && (C != 0) && (H != 0) && (W != 0))
-        {
-            return std::vector<size_t>({N, C, H, W});
-        }
-        else if((N != 0) && (C != 0) && (W != 0))
-        {
-            return std::vector<size_t>({N, C, W});
-        }
-        else if((N != 0) && (W != 0))
-        {
-            return std::vector<size_t>({N, W});
-        }
-        else if((N != 0))
-        {
-            return std::vector<size_t>({N});
-        }
-        else
-        {
-            std::cout << "Error Input Tensor Lengths\n" << std::endl;
-            return std::vector<size_t>({0});
-        }
     }
 
     std::vector<size_t> ComputeStrides(std::vector<size_t> inputDim) const
@@ -104,30 +79,18 @@ std::vector<DiagTestCase> DiagTestConfigs()
 { // n c d h w dim
     // clang-format off
     return {
-        { 2,    0,   0,  0,   4,    0, true},
-        { 2,    0,   0,  0,   4,    8, true},
-        { 2,    0,   0,  0,   4,    -8, true},
-        { 16,    0,   0,  0,   16,    0, true},
-        { 16,    0,   0,  0,   16,    2, true},
-        { 16,    0,   0,  0,   16,    -2, true},
-        { 32,    0,   0,  0,    0,     0, true},
-        { 32,    0,   0,  0,    0,     2, true},
-        { 32,    0,   0,  0,    0,     -2, true},
-        { 64,    0,  0,  0,    7,     0, true},
-        { 64,    0,  0,  0,    7,     2, true},
-        { 64,    0,  0,  0,    7,     -2, true},
-        { 2,    0,   0,  0,   4,    0, false},
-        { 2,    0,   0,  0,   4,    8, false},
-        { 2,    0,   0,  0,   4,    -8, false},
-        { 16,    0,   0,  0,   16,    0, false},
-        { 16,    0,   0,  0,   16,    2, false},
-        { 16,    0,   0,  0,   16,    -2, false},
-        { 32,    0,   0,  0,    0,     0, false},
-        { 32,    0,   0,  0,    0,     2, false},
-        { 32,    0,   0,  0,    0,     -2, false},
-        { 64,    0,  0,  0,    7,     0, false},
-        { 64,    0,  0,  0,    7,     2, false},
-        { 64,    0,  0,  0,    7,     -2, false},
+        DiagTestCase({2, 4}, 0, true),
+        DiagTestCase({2, 4}, 8, true),
+        DiagTestCase({2, 4}, -8, true),
+        DiagTestCase({16, 16}, 0, true),
+        DiagTestCase({16, 16}, 2, true),
+        DiagTestCase({16, 16}, -2, true),
+        DiagTestCase({2, 4}, 0, false),
+        DiagTestCase({2, 4}, 8, false),
+        DiagTestCase({2, 4}, -8, false),
+        DiagTestCase({16, 16}, 0, false),
+        DiagTestCase({16, 16}, 2, false),
+        DiagTestCase({16, 16}, -2, false),
       };
     // clang-format on
 }
@@ -141,12 +104,13 @@ protected:
 
         auto&& handle = get_handle();
         diag_config   = GetParam();
+
         std::cout << diag_config << std::endl;
         auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
 
         diagonal = diag_config.diagonal;
 
-        auto in_dims  = diag_config.GetInput();
+        auto in_dims  = diag_config.GetDims();
         auto inStride = diag_config.ComputeStrides(in_dims);
 
         input = tensor<T>{in_dims, inStride}.generate(gen_value);

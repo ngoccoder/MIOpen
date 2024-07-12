@@ -110,9 +110,9 @@ set( MIOpen_Source
     ctc_api.cpp
     db.cpp
     db_record.cpp
-    diagonal.cpp
-    diagonal_api.cpp
-    diagonal/problem_description.cpp
+    diag.cpp
+    diag_api.cpp
+    diag/problem_description.cpp
     driver_arguments.cpp
     dropout.cpp
     dropout_api.cpp
@@ -258,8 +258,7 @@ set( MIOpen_Source
     solver/conv_wino_fury_RxS.cpp
     solver/conv_winoRxS.cpp
     solver/conv_winoRxS_fused.cpp
-    solver/diagonal/diagonal.cpp
-    solver/diagonal/forward_diag.cpp
+    solver/diag/forward_diag.cpp
     solver/fft.cpp
     solver/gemm.cpp
     solver/gemm_bwd.cpp

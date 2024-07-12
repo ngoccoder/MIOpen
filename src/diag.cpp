@@ -23,42 +23,46 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#ifndef GUARD_CPU_DIAG_HPP
-#define GUARD_CPU_DIAG_HPP
 
-#include "ford.hpp"
-#include "tensor_holder.hpp"
-
+#include <miopen/diag/invoke_params.hpp>
+#include "miopen/common.hpp"
+#include "miopen/handle.hpp"
+#include "miopen/miopen.h"
+#include <miopen/datatype.hpp>
+#include <miopen/find_solution.hpp>
+#include <miopen/float_equal.hpp>
+#include <miopen/kernel_cache.hpp>
 #include <miopen/diag/solvers.hpp>
-#include <miopen/tensor_view_utils.hpp>
+#include <miopen/diag.hpp>
+#include <miopen/tensor.hpp>
 
-template <class T>
-void cpu_diag_forward(tensor<T> input, tensor<T>& ref_output, int64_t diagonal)
+namespace miopen {
+
+miopenStatus_t DiagForward(Handle& handle,
+                           const TensorDescriptor& inputDesc,
+                           ConstData_t input,
+                           const TensorDescriptor& outputDesc,
+                           Data_t output,
+                           int64_t diagonal)
 {
-    if(input.desc.GetSize() == 1)
-    {
-        auto input_numel = input.desc.GetElementSize();
-        auto output_tv   = miopen::get_inner_expanded_tv<2>(ref_output.desc);
-        auto offset =
-            (diagonal >= 0) ? diagonal * output_tv.stride[1] : -diagonal * output_tv.stride[0];
+    const auto problem = diag::FwdProblemDescription{inputDesc, outputDesc, diagonal};
 
-        par_ford(input_numel)([&](size_t o) {
-            long outputIdx        = o * (output_tv.stride[0] + output_tv.stride[1]) + offset;
-            ref_output[outputIdx] = input[o];
-        });
-    }
-    else if(input.desc.GetSize() == 2)
-    {
-        auto output_numel = ref_output.desc.GetElementSize();
-        auto input_tv     = miopen::get_inner_expanded_tv<2>(input.desc);
-        auto offset =
-            (diagonal >= 0) ? diagonal * input_tv.stride[1] : -diagonal * input_tv.stride[0];
+    const auto invoke_params = [&]() {
+        auto tmp       = diag::FwdInvokeParams{};
+        tmp.inputDesc  = &inputDesc;
+        tmp.input      = input;
+        tmp.outputDesc = &outputDesc;
+        tmp.output     = output;
+        tmp.diagonal   = diagonal;
+        return tmp;
+    }();
 
-        par_ford(output_numel)([&](size_t o) {
-            long inputIdx = o * (input_tv.stride[0] + input_tv.stride[1]) + offset;
-            ref_output[o] = input[inputIdx];
-        });
-    }
+    const auto algo    = AlgorithmName{"DiagForward"};
+    const auto solvers = solver::SolverContainer<solver::diag::DiagForward>{};
+
+    solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
+
+    return miopenStatusSuccess;
 }
 
-#endif
+} // namespace miopen

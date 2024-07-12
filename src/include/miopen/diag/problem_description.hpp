@@ -54,6 +54,18 @@ struct FwdProblemDescription : ProblemDescriptionBase
             MIOPEN_THROW(miopenStatusBadParm,
                          "Diag::FwdProblemDescription: Number of tensor dimension must be 1 or 2.");
         }
+
+        if(!IsAllPacked())
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "Diag::FwdProblemDescription: All tensors must be packed.");
+        }
+
+        if(!IsSameType())
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "Diag::FwdProblemDescription: All tensors must be same type.");
+        }
     }
 
     const TensorDescriptor& GetInputDesc() const { return inputDesc; }

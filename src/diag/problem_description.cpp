@@ -39,17 +39,14 @@ namespace diag {
 
 NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {
-    auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
-    auto output_dtype = miopen::GetDataType(outputDesc.GetType());
+    auto input_dtype = miopen::GetDataType(inputDesc.GetType());
 
     std::ostringstream ss;
 
     ss << "input_dtype" << input_dtype;
-    ss << "output_dtype" << output_dtype;
     ss << "diagonal" << diagonal;
     ss << "numDim" << inputDesc.GetSize();
     ss << "input_numel" << inputDesc.GetElementSize();
-    ss << IsAllPacked();
 
     return NetworkConfig{ss.str()};
 }
