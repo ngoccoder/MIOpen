@@ -1,4 +1,3 @@
-
 /*******************************************************************************
  *
  * MIT License
@@ -24,39 +23,23 @@
  * SOFTWARE.
  *
  *******************************************************************************/
+#ifndef MIOPEN_DIAG_HPP_
+#define MIOPEN_DIAG_HPP_
 
-#pragma once
-
-#include "miopen/common.hpp"
-#include <cstddef>
-#include <cstdint>
-#include <miopen/invoke_params.hpp>
-#include <miopen/tensor.hpp>
+#include "miopen/miopen.h"
+#include <miopen/common.hpp>
 
 namespace miopen {
 
-namespace diagonal {
+struct Handle;
+struct TensorDescriptor;
 
-namespace diagflat {
-
-struct FwdInvokeParams : public miopen::InvokeParams
-{
-    FwdInvokeParams() = default;
-
-    const TensorDescriptor* inputDesc  = nullptr;
-    const TensorDescriptor* outputDesc = nullptr;
-
-    ConstData_t input = nullptr;
-    Data_t output     = nullptr;
-
-    int64_t offset = 0;
-
-    std::size_t GetWorkspaceSize() const { return 0; }
-    Data_t GetWorkspace() const { return nullptr; }
-};
-
-} // namespace diagflat
-
-} // namespace diagonal
+miopenStatus_t DiagForward(Handle& handle,
+                           const TensorDescriptor& inputDesc,
+                           ConstData_t input,
+                           const TensorDescriptor& outputDesc,
+                           Data_t output,
+                           int64_t diagonal);
 
 } // namespace miopen
+#endif // _MIOPEN_DIAG_HPP_

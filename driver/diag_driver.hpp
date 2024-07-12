@@ -28,24 +28,17 @@
 
 #include "InputFlags.hpp"
 #include "driver.hpp"
-#include "miopen/diagonal/diag/problem_description.hpp"
-#include "miopen/diagonal/solvers.hpp"
-#include "miopen/errors.hpp"
-#include "miopen/tensor_view_utils.hpp"
 #include "tensor_driver.hpp"
-#include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-#include <cfloat>
-#include <memory>
-#include <miopen/miopen.h>
-#include <miopen/tensor.hpp>
-#include <numeric>
-#include <vector>
 #include "random.hpp"
 #include "timer.hpp"
-#include "../test/verify.hpp"
+
+#include <../test/verify.hpp>
+
+#include <miopen/errors.hpp>
+#include <miopen/tensor_view_utils.hpp>
+#include <miopen/miopen.h>
+
+#include <vector>
 
 #ifndef MLO_DIAGHOST_H_
 #define MLO_DIAGHOST_H_

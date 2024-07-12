@@ -26,7 +26,6 @@
 #ifndef MIOPEN_GUARD_MIOPEN_H_
 #define MIOPEN_GUARD_MIOPEN_H_
 
-#include <cstdint>
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wextern-c-compat"
@@ -69,7 +68,7 @@
  * @defgroup argmax
  * @defgroup groupnorm
  * @defgroup cat
- * @defgroup diagonal
+ * @defgroup diag
  *
  */
 
@@ -6586,8 +6585,8 @@ MIOPEN_EXPORT miopenStatus_t miopenBackendInitialize(miopenBackendDescriptor_t d
 
 #ifdef MIOPEN_BETA_API
 
-// Diagonal APIs
-/** @addtogroup diagonal
+// Diag APIs
+/** @addtogroup diag
  *
  *  @{
  */
@@ -6609,46 +6608,8 @@ MIOPEN_EXPORT miopenStatus_t miopenDiagForward(miopenHandle_t handle,
                                                void* output,
                                                int64_t diagonal = 0);
 
-/*! @brief Execute Diag Flat forward layer
- *
- * @param handle               MIOpen handle (input)
- * @param inputDesc            Tensor descriptor for input tensor (input)
- * @param input                Input tensor (input)
- * @param outputDesc           Tensor descriptor for output tensor (input)
- * @param output               Output tensor (output)
- * @param offset               Which diagonal to consider, default 0 (input)
- * @return                     miopenStatus_t
- */
-MIOPEN_EXPORT miopenStatus_t miopenDiagFlatForward(miopenHandle_t handle,
-                                                   const miopenTensorDescriptor_t inputDesc,
-                                                   const void* input,
-                                                   const miopenTensorDescriptor_t outputDesc,
-                                                   void* output,
-                                                   int64_t offset = 0);
-
-/*! @brief Execute Diag Embed forward layer
- *
- * @param handle               MIOpen handle (input)
- * @param inputDesc            Tensor descriptor for input tensor (input)
- * @param input                Input tensor (input)
- * @param outputDesc           Tensor descriptor for output tensor (input)
- * @param output               Output tensor (output)
- * @param offset               Which diagonal to consider, default 0 (input)
- * @param dim1                 First dimension with respect to take diagonal,default -2 (input)
- * @param dim2                 Second dimension with respect to take diagonal, default -1 (input)
- * @return                     miopenStatus_t
- */
-MIOPEN_EXPORT miopenStatus_t miopenDiagEmbedForward(miopenHandle_t handle,
-                                                    const miopenTensorDescriptor_t inputDesc,
-                                                    const void* input,
-                                                    const miopenTensorDescriptor_t outputDesc,
-                                                    void* output,
-                                                    int64_t offset = 0,
-                                                    int64_t dim1   = -2,
-                                                    int64_t dim2   = -1);
-
 /** @} */
-// CLOSEOUT diagonal DOXYGEN GROUP
+// CLOSEOUT diag DOXYGEN GROUP
 #endif // MIOPEN_BETA_API
 
 #ifdef __cplusplus

@@ -1,3 +1,4 @@
+
 /*******************************************************************************
  *
  * MIT License
@@ -23,32 +24,35 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#ifndef MIOPEN_DONT_USE_HIP_RUNTIME_HEADERS
-#include <hip/hip_fp16.h>
-#include <hip/hip_runtime.h>
-#endif
 
-#include "float_types.h"
-#include "tensor_view.hpp"
+#pragma once
 
-template <typename TI, typename TO>
-__device__ void
-DiagFlatForwardKernel(const TI* input, TO* output, long N, long offset, tensor_view_t<2> output_tv)
+#include "miopen/common.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <miopen/invoke_params.hpp>
+#include <miopen/tensor.hpp>
+
+namespace miopen {
+
+namespace diag {
+
+struct FwdInvokeParams : public miopen::InvokeParams
 {
-    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
-    if(gid >= N)
-        return;
+    FwdInvokeParams() = default;
 
-    long stride0 = output_tv.stride[0];
-    long stride1 = output_tv.stride[1];
+    const TensorDescriptor* inputDesc  = nullptr;
+    const TensorDescriptor* outputDesc = nullptr;
 
-    long output_idx = gid * (stride0 + stride1) + offset;
+    ConstData_t input = nullptr;
+    Data_t output     = nullptr;
 
-    output[output_idx] = input[gid];
-}
+    int64_t diagonal = 0;
 
-extern "C" __global__ void DiagFlatForward(
-    const INPUT_TYPE* input, OUTPUT_TYPE* output, long N, long offset, tensor_view_t<2> output_tv)
-{
-    DiagFlatForwardKernel<INPUT_TYPE, OUTPUT_TYPE>(input, output, N, offset, output_tv);
-}
+    std::size_t GetWorkspaceSize() const { return 0; }
+    Data_t GetWorkspace() const { return nullptr; }
+};
+
+} // namespace diag
+
+} // namespace miopen

@@ -28,16 +28,12 @@
 #include "miopen/errors.hpp"
 #include "miopen/miopen.h"
 #include <cstdint>
-#include <miopen/diagonal/diag/problem_description.hpp>
-#include <miopen/diagonal/diagflat/problem_description.hpp>
-#include <miopen/diagonal/diagembed/problem_description.hpp>
+#include <miopen/diag/problem_description.hpp>
 #include <miopen/names.hpp>
 
 #include <sstream>
 
 namespace miopen {
-
-namespace diagonal {
 
 namespace diag {
 
@@ -59,51 +55,5 @@ NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 }
 
 } // namespace diag
-
-namespace diagflat {
-
-NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
-{
-    auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
-    auto output_dtype = miopen::GetDataType(outputDesc.GetType());
-
-    std::ostringstream ss;
-
-    ss << "input_dtype" << input_dtype;
-    ss << "output_dtype" << output_dtype;
-    ss << "offset" << offset;
-    ss << "numDim" << inputDesc.GetSize();
-    ss << "input_numel" << inputDesc.GetElementSize();
-    ss << IsAllPacked();
-
-    return NetworkConfig{ss.str()};
-}
-
-} // namespace diagflat
-
-namespace diagembed {
-
-NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
-{
-    auto input_dtype  = miopen::GetDataType(inputDesc.GetType());
-    auto output_dtype = miopen::GetDataType(outputDesc.GetType());
-
-    std::ostringstream ss;
-
-    ss << "input_dtype" << input_dtype;
-    ss << "output_dtype" << output_dtype;
-    ss << "offset" << offset;
-    ss << "dim1" << dim1;
-    ss << "dim2" << dim2;
-    ss << "numDim" << inputDesc.GetSize();
-    ss << "input_numel" << inputDesc.GetElementSize();
-    ss << IsAllPacked();
-
-    return NetworkConfig{ss.str()};
-}
-
-} // namespace diagembed
-
-} // namespace diagonal
 
 } // namespace miopen

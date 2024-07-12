@@ -27,12 +27,10 @@
 #define GUARD_CPU_DIAG_HPP
 
 #include "ford.hpp"
-#include "miopen/diagonal/solvers.hpp"
-#include "miopen/tensor_layout.hpp"
-#include "miopen/tensor_view_utils.hpp"
 #include "tensor_holder.hpp"
-#include <cstddef>
-#include <cstdint>
+
+#include <miopen/diagonal/solvers.hpp>
+#include <miopen/tensor_view_utils.hpp>
 
 template <class T>
 void cpu_diag_forward(tensor<T> input, tensor<T>& ref_output, int64_t diagonal)

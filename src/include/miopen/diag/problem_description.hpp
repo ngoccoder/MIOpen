@@ -26,7 +26,6 @@
 
 #pragma once
 
-#include "miopen/errors.hpp"
 #include "miopen/tensor_view_utils.hpp"
 #include <cstdint>
 #include <miopen/problem_description_base.hpp>
@@ -39,52 +38,27 @@ namespace miopen {
 
 struct NetworkConfig;
 
-namespace diagonal {
-
-namespace diagembed {
+namespace diag {
 
 struct FwdProblemDescription : ProblemDescriptionBase
 {
     // Forward constructor
     FwdProblemDescription(const TensorDescriptor& inputDesc_,
                           const TensorDescriptor& outputDesc_,
-                          int64_t offset_,
-                          int64_t dim1_,
-                          int64_t dim2_)
-        : inputDesc(inputDesc_), outputDesc(outputDesc_), offset(offset_), dim1(dim1_), dim2(dim2_)
+                          int64_t diagonal_)
+        : inputDesc(inputDesc_), outputDesc(outputDesc_), diagonal(diagonal_)
     {
-        if(dim1 == dim2)
+        if(inputDesc.GetSize() != 1 && inputDesc.GetSize() != 2)
         {
-            MIOPEN_THROW(miopenStatusBadParm,
-                         "DiagEmbed::FwdProblemDescription: dim1 and dim2 cannot be identical.");
-        }
 
-        if(inputDesc.GetSize() > 4)
-        {
             MIOPEN_THROW(miopenStatusBadParm,
-                         "DiagEmbed::FwdProblemDescription: Number of tensor dimension must be "
-                         "less than 5.");
-        }
-
-        if(dim1 < 0 || dim2 < 0)
-        {
-            MIOPEN_THROW(miopenStatusBadParm,
-                         "DiagEmbed::FwdProblemDescription: dim1 and dim2 must be non-negative.");
-        }
-
-        if(dim1 >= outputDesc.GetSize() || dim2 >= outputDesc.GetSize())
-        {
-            MIOPEN_THROW(miopenStatusBadParm,
-                         "DiagEmbed::FwdProblemDescription: dim1 and dim2 must be less than the "
-                         "number of output tensor's dimension.");
+                         "Diag::FwdProblemDescription: Number of tensor dimension must be 1 or 2.");
         }
     }
 
     const TensorDescriptor& GetInputDesc() const { return inputDesc; }
     const TensorDescriptor& GetOutputDesc() const { return outputDesc; }
-    int64_t GetOffset() const { return offset; }
-    int64_t GetDim1() const { return dim1; }
-    int64_t GetDim2() const { return dim2; }
+    int64_t GetDiagonal() const { return diagonal; }
 
     bool IsSameType() const
     {
@@ -112,13 +86,9 @@ private:
     TensorDescriptor inputDesc;
     TensorDescriptor outputDesc;
 
-    int64_t offset;
-    int64_t dim1;
-    int64_t dim2;
+    int64_t diagonal;
 };
 
-} // namespace diagembed
-
-} // namespace diagonal
+} // namespace diag
 
 } // namespace miopen

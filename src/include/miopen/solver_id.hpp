@@ -57,7 +57,7 @@ enum class Primitive
     Cat,
     Mha,
     Softmax,
-    Diagonal
+    Diag
 };
 
 struct MIOPEN_EXPORT Id

@@ -32,9 +32,9 @@
 #include <cstddef>
 #include <miopen/datatype.hpp>
 #include <miopen/kernel_build_params.hpp>
-#include <miopen/diagonal/diag/invoke_params.hpp>
-#include <miopen/diagonal/solvers.hpp>
-#include <miopen/diagonal.hpp>
+#include <miopen/diag/invoke_params.hpp>
+#include <miopen/diag/solvers.hpp>
+#include <miopen/diag.hpp>
 #include <miopen/target_properties.hpp>
 
 #define LOCAL_SIZE 256
@@ -43,12 +43,10 @@ namespace miopen {
 
 namespace solver {
 
-namespace diagonal {
-
 namespace diag {
 
 bool DiagForward::IsApplicable(const ExecutionContext& context,
-                               const miopen::diagonal::diag::FwdProblemDescription& problem) const
+                               const miopen::diag::FwdProblemDescription& problem) const
 {
     std::ignore    = context;
     auto inputDims = problem.GetInputDesc().GetLengths();
@@ -60,9 +58,8 @@ bool DiagForward::IsApplicable(const ExecutionContext& context,
     return true;
 }
 
-ConvSolution
-DiagForward::GetSolution(const ExecutionContext& context,
-                         const miopen::diagonal::diag::FwdProblemDescription& problem) const
+ConvSolution DiagForward::GetSolution(const ExecutionContext& context,
+                                      const miopen::diag::FwdProblemDescription& problem) const
 {
     std::ignore = context;
 
@@ -110,12 +107,11 @@ DiagForward::GetSolution(const ExecutionContext& context,
         result.invoker_factory = [](const std::vector<Kernel>& kernels) {
             return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
                 decltype(auto) kernel = handle_.Run(kernels.front());
-                decltype(auto) params =
-                    raw_params.CastTo<miopen::diagonal::diag::FwdInvokeParams>();
-                auto input_numel = params.inputDesc->GetElementSize();
-                auto output_tv   = get_inner_expanded_tv<2>(deref(params.outputDesc));
-                long offset      = (params.diagonal >= 0 ? params.diagonal * output_tv.stride[1]
-                                                         : -params.diagonal * output_tv.stride[0]);
+                decltype(auto) params = raw_params.CastTo<miopen::diag::FwdInvokeParams>();
+                auto input_numel      = params.inputDesc->GetElementSize();
+                auto output_tv        = get_inner_expanded_tv<2>(deref(params.outputDesc));
+                long offset = (params.diagonal >= 0 ? params.diagonal * output_tv.stride[1]
+                                                    : -params.diagonal * output_tv.stride[0]);
 
                 kernel(params.input, params.output, input_numel, offset, output_tv);
             };
@@ -148,12 +144,11 @@ DiagForward::GetSolution(const ExecutionContext& context,
         result.invoker_factory = [](const std::vector<Kernel>& kernels) {
             return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
                 decltype(auto) kernel = handle_.Run(kernels.front());
-                decltype(auto) params =
-                    raw_params.CastTo<miopen::diagonal::diag::FwdInvokeParams>();
-                auto output_numel = params.outputDesc->GetElementSize();
-                auto input_tv     = get_inner_expanded_tv<2>(deref(params.inputDesc));
-                long offset       = (params.diagonal >= 0 ? params.diagonal * input_tv.stride[1]
-                                                          : -params.diagonal * input_tv.stride[0]);
+                decltype(auto) params = raw_params.CastTo<miopen::diag::FwdInvokeParams>();
+                auto output_numel     = params.outputDesc->GetElementSize();
+                auto input_tv         = get_inner_expanded_tv<2>(deref(params.inputDesc));
+                long offset           = (params.diagonal >= 0 ? params.diagonal * input_tv.stride[1]
+                                                              : -params.diagonal * input_tv.stride[0]);
 
                 kernel(params.input, params.output, output_numel, offset, input_tv);
             };
@@ -164,8 +159,6 @@ DiagForward::GetSolution(const ExecutionContext& context,
 }
 
 } // namespace diag
-
-} // namespace diagonal
 
 } // namespace solver
 

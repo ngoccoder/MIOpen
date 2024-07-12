@@ -23,18 +23,34 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#include "registry_driver_maker.hpp"
-#include "diagflat_driver.hpp"
+#pragma once
 
-static Driver* makeDriver(const std::string& base_arg)
+#include <miopen/diag/problem_description.hpp>
+#include "miopen/execution_context.hpp"
+#include "miopen/tensor.hpp"
+#include <miopen/solver.hpp>
+#include <utility>
+
+namespace miopen {
+
+namespace solver {
+
+namespace diag {
+
+using DiagFwdSolver = NonTunableSolverBase<ExecutionContext, miopen::diag::FwdProblemDescription>;
+
+struct DiagForward final : DiagFwdSolver
 {
-    if(base_arg == "diagflat")
-        return new DiagFlatDriver<float, float>();
-    if(base_arg == "diagflatfp16")
-        return new DiagFlatDriver<float16, float>();
-    if(base_arg == "diagflatbfp16")
-        return new DiagFlatDriver<bfloat16, float>();
-    return nullptr;
-}
+    const std::string& SolverDbId() const override { return GetSolverDbId<DiagForward>(); }
 
-REGISTER_DRIVER_MAKER(makeDriver);
+    bool IsApplicable(const ExecutionContext& context,
+                      const miopen::diag::FwdProblemDescription& problem) const override;
+    ConvSolution GetSolution(const ExecutionContext& context,
+                             const miopen::diag::FwdProblemDescription& problem) const override;
+};
+
+} // namespace diag
+
+} // namespace solver
+
+} // namespace miopen
