@@ -180,25 +180,26 @@ protected:
         auto&& handle = get_handle();
 
         cpu_outer_backward<T>(input1, input2, outputGrad, ref_input1Grad, ref_input2Grad);
-        miopenStatus_t status;
+        miopenStatus_t status1, status2;
 
-        status = miopen::OuterBackwardGrad1(handle,
-                                            input2.desc,
-                                            input2_dev.get(),
-                                            input1Grad.desc,
-                                            input1Grad_dev.get(),
-                                            outputGrad.desc,
-                                            outputGrad_dev.get());
+        status1 = miopen::OuterBackwardGrad1(handle,
+                                             input2.desc,
+                                             input2_dev.get(),
+                                             input1Grad.desc,
+                                             input1Grad_dev.get(),
+                                             outputGrad.desc,
+                                             outputGrad_dev.get());
 
-        status = miopen::OuterBackwardGrad2(handle,
-                                            input1.desc,
-                                            input1_dev.get(),
-                                            input2Grad.desc,
-                                            input2Grad_dev.get(),
-                                            outputGrad.desc,
-                                            outputGrad_dev.get());
+        status2 = miopen::OuterBackwardGrad2(handle,
+                                             input1.desc,
+                                             input1_dev.get(),
+                                             input2Grad.desc,
+                                             input2Grad_dev.get(),
+                                             outputGrad.desc,
+                                             outputGrad_dev.get());
 
-        EXPECT_EQ(status, miopenStatusSuccess);
+        EXPECT_EQ(status1, miopenStatusSuccess);
+        EXPECT_EQ(status2, miopenStatusSuccess);
 
         input1Grad.data = handle.Read<T>(input1Grad_dev, input1Grad.data.size());
         input2Grad.data = handle.Read<T>(input2Grad_dev, input2Grad.data.size());

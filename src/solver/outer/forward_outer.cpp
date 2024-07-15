@@ -43,56 +43,18 @@ static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& probl
     auto dtype = problem.GetX1Desc().GetType();
     auto ydims = problem.GetYDesc().GetLengths();
 
-    if(dtype == miopenHalf)
-    {
-        if(ydims[0] <= 512)
-        {
-            return true;
-        }
-        else if(ydims[0] <= 2048 && ydims[1] <= 2048)
-        {
-            return true;
-        }
-        else if(2048 < ydims[0] && ydims[1] <= 128)
-        {
-            return true;
-        }
-    }
-    else if(dtype == miopenFloat)
-    {
-        if(ydims[0] <= 512)
-        {
-            return true;
-        }
-        else if(ydims[0] <= 2048 && ydims[1] <= 512)
-        {
-            return true;
-        }
-        else if(2048 < ydims[0] && ydims[1] <= 128)
-        {
-            return true;
-        }
-    }
-    else if(dtype == miopenBFloat16)
-    {
-        if(ydims[0] <= 512)
-        {
-            return true;
-        }
-        else if(ydims[0] <= 2048 && ydims[1] <= 2048)
-        {
-            return true;
-        }
-        else if(2048 < ydims[0] && ydims[1] <= 128)
-        {
-            return true;
-        }
-    }
-    return false;
+    if((ydims[0] <= 512) || (2048 < ydims[0] && ydims[1] <= 128) ||
+       ((ydims[0] <= 2048 && ydims[1] <= 2048) &&
+        (dtype == miopenHalf || dtype == miopenBFloat16)) ||
+       ((ydims[0] <= 2048 && ydims[1] <= 512) && dtype == miopenFloat))
+        return true;
+    else
+        return false;
 }
 
-bool OuterForward::IsApplicable([[maybe_unused]] const ExecutionContext& context,
-                                const miopen::outer::ProblemDescription& problem) const
+bool OuterForward::IsApplicable(
+    [[maybe_unused]] const ExecutionContext& context,
+    [[maybe_unused]] const miopen::outer::ProblemDescription& problem) const
 {
     if(!problem.IsAllPacked())
         return false;
@@ -101,7 +63,7 @@ bool OuterForward::IsApplicable([[maybe_unused]] const ExecutionContext& context
     return true;
 }
 
-ConvSolution OuterForward::GetSolution(const ExecutionContext& context,
+ConvSolution OuterForward::GetSolution([[maybe_unused]] const ExecutionContext& context,
                                        const miopen::outer::ProblemDescription& problem) const
 {
     static const size_t LOCAL_SIZE = 256;
@@ -168,8 +130,9 @@ ConvSolution OuterForward::GetSolution(const ExecutionContext& context,
     return result;
 }
 
-std::size_t OuterForward::GetWorkspaceSize(const ExecutionContext& context,
-                                           const miopen::outer::ProblemDescription& problem) const
+std::size_t OuterForward::GetWorkspaceSize(
+    [[maybe_unused]] const ExecutionContext& context,
+    [[maybe_unused]] const miopen::outer::ProblemDescription& problem) const
 {
     return 0;
 }

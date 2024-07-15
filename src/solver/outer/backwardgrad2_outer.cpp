@@ -42,13 +42,9 @@ static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& probl
 {
     auto ydims = problem.GetYDesc().GetLengths();
     if(ydims[0] <= 32 && ydims[1] <= 128)
-    {
         return true;
-    }
     else
-    {
         return false;
-    }
 }
 
 bool OuterBackwardGrad2::IsApplicable([[maybe_unused]] const ExecutionContext& context,
@@ -61,7 +57,7 @@ bool OuterBackwardGrad2::IsApplicable([[maybe_unused]] const ExecutionContext& c
     return true;
 }
 
-ConvSolution OuterBackwardGrad2::GetSolution(const ExecutionContext& context,
+ConvSolution OuterBackwardGrad2::GetSolution([[maybe_unused]] const ExecutionContext& context,
                                              const miopen::outer::ProblemDescription& problem) const
 {
     static const size_t LOCAL_SIZE = 256;
@@ -121,9 +117,9 @@ ConvSolution OuterBackwardGrad2::GetSolution(const ExecutionContext& context,
     return result;
 }
 
-std::size_t
-OuterBackwardGrad2::GetWorkspaceSize(const ExecutionContext& context,
-                                     const miopen::outer::ProblemDescription& problem) const
+std::size_t OuterBackwardGrad2::GetWorkspaceSize(
+    [[maybe_unused]] const ExecutionContext& context,
+    [[maybe_unused]] const miopen::outer::ProblemDescription& problem) const
 {
     return 0;
 }
