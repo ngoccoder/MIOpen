@@ -108,10 +108,9 @@ protected:
         std::cout << diag_config << std::endl;
         auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
 
-        diagonal = diag_config.diagonal;
-
-        auto in_dims  = diag_config.GetDims();
-        auto inStride = diag_config.ComputeStrides(in_dims);
+        diagonal        = diag_config.diagonal;
+        cd auto in_dims = diag_config.GetDims();
+        auto inStride   = diag_config.ComputeStrides(in_dims);
 
         input = tensor<T>{in_dims, inStride}.generate(gen_value);
 

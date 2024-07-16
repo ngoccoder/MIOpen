@@ -68,13 +68,15 @@ int32_t mloDiagForwardRunHost(miopenTensorDescriptor_t inputDesc,
     {
         auto output_numel = miopen::deref(outputDesc).GetElementSize();
         auto input_tv     = miopen::get_inner_expanded_tv<2>(miopen::deref(inputDesc));
+        auto output_tv    = miopen::get_inner_expanded_tv<1>(miopen::deref(outputDesc));
         auto offset =
             (diagonal >= 0) ? diagonal * input_tv.stride[1] : -diagonal * input_tv.stride[0];
 
         for(size_t i = 0; i < output_numel; i++)
         {
-            long inputIdx = i * (input_tv.stride[0] + input_tv.stride[1]) + offset;
-            outputHost[i] = input[inputIdx];
+            long inputIdx         = i * (input_tv.stride[0] + input_tv.stride[1]) + offset;
+            long outputIdx        = i * output_tv.stride[0];
+            outputHost[outputIdx] = input[inputIdx];
         }
     }
 
@@ -194,7 +196,9 @@ int DiagDriver<Tgpu, Tref>::GetandSetData()
     }
 
     if(isOutputRequired)
+    {
         SetTensorNd(outputTensor, out_len, data_type);
+    }
 
     return miopenStatusSuccess;
 }

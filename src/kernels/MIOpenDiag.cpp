@@ -32,8 +32,12 @@
 #include "tensor_view.hpp"
 
 template <typename TIO>
-__device__ void
-Diag2dForwardKernel(const TIO* input, TIO* output, long N, long offset, tensor_view_t<2> input_tv)
+__device__ void Diag2dForwardKernel(const TIO* input,
+                                    TIO* output,
+                                    long N,
+                                    long offset,
+                                    tensor_view_t<2> input_tv,
+                                    tensor_view_t<1> output_tv)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
     if(gid >= N)
@@ -42,12 +46,17 @@ Diag2dForwardKernel(const TIO* input, TIO* output, long N, long offset, tensor_v
     long input_stride_0 = input_tv.stride[0];
     long input_stride_1 = input_tv.stride[1];
 
-    long input_idx = gid * (input_stride_0 + input_stride_1) + offset;
-    output[gid]    = input[input_idx];
+    long input_idx     = gid * (input_stride_0 + input_stride_1) + offset;
+    long output_idx    = gid * output_tv.stride[0];
+    output[output_idx] = input[input_idx];
 }
 
-extern "C" __global__ void Diag2dForward(
-    const IN_OUT_TYPE* input, IN_OUT_TYPE* output, long N, long offset, tensor_view_t<2> input_tv)
+extern "C" __global__ void Diag2dForward(const IN_OUT_TYPE* input,
+                                         IN_OUT_TYPE* output,
+                                         long N,
+                                         long offset,
+                                         tensor_view_t<2> input_tv,
+                                         tensor_view_t<1> output_tv)
 {
-    Diag2dForwardKernel<IN_OUT_TYPE>(input, output, N, offset, input_tv);
+    Diag2dForwardKernel<IN_OUT_TYPE>(input, output, N, offset, input_tv, output_tv);
 }

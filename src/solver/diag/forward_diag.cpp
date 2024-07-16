@@ -24,7 +24,7 @@
  *
  *******************************************************************************/
 
-#include "miopen/tensor.hpp"
+#include <miopen/tensor.hpp>
 #include <miopen/tensor_view_utils.hpp>
 #include <miopen/datatype.hpp>
 #include <miopen/kernel_build_params.hpp>
@@ -104,9 +104,10 @@ ConvSolution DiagForward::GetSolution(const ExecutionContext& context,
             decltype(auto) kernel = handle_.Run(kernels.front());
             decltype(auto) params = raw_params.CastTo<miopen::diag::FwdInvokeParams>();
             auto input_tv         = get_inner_expanded_tv<2>(deref(params.inputDesc));
+            auto output_tv        = get_inner_expanded_tv<1>(deref(params.outputDesc));
             long offset           = (params.diagonal >= 0 ? params.diagonal * input_tv.stride[1]
                                                           : -params.diagonal * input_tv.stride[0]);
-            kernel(params.input, params.output, output_numel, offset, input_tv);
+            kernel(params.input, params.output, output_numel, offset, input_tv, output_tv);
         };
     };
 

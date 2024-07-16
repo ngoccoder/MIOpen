@@ -50,12 +50,6 @@ struct FwdProblemDescription : ProblemDescriptionBase
                          "Diag::FwdProblemDescription: Number of tensor dimension must be 1 or 2.");
         }
 
-        if(!IsAllPacked())
-        {
-            MIOPEN_THROW(miopenStatusBadParm,
-                         "Diag::FwdProblemDescription: All tensors must be packed.");
-        }
-
         if(!IsSameType())
         {
             MIOPEN_THROW(miopenStatusBadParm,
@@ -70,16 +64,6 @@ struct FwdProblemDescription : ProblemDescriptionBase
     bool IsSameType() const
     {
         if(inputDesc.GetType() != outputDesc.GetType())
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    bool IsAllPacked() const
-    {
-        if(!(inputDesc.IsPacked() && outputDesc.IsPacked()))
         {
             return false;
         }

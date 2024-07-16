@@ -51,12 +51,14 @@ void cpu_diag_forward(tensor<T> input, tensor<T>& ref_output, int64_t diagonal)
     {
         auto output_numel = ref_output.desc.GetElementSize();
         auto input_tv     = miopen::get_inner_expanded_tv<2>(input.desc);
+        auto output_tv    = miopen::get_inner_expanded_tv<1>(ref_output.desc);
         auto offset =
             (diagonal >= 0) ? diagonal * input_tv.stride[1] : -diagonal * input_tv.stride[0];
 
         par_ford(output_numel)([&](size_t o) {
-            long inputIdx = o * (input_tv.stride[0] + input_tv.stride[1]) + offset;
-            ref_output[o] = input[inputIdx];
+            long inputIdx         = o * (input_tv.stride[0] + input_tv.stride[1]) + offset;
+            long outputIdx        = o * output_tv.stride[0];
+            ref_output[outputIdx] = input[inputIdx];
         });
     }
 }
