@@ -43,7 +43,7 @@
 #include <../test/verify.hpp>
 
 template <typename Tgpu, typename Tcheck>
-int32_t mloSumForwardRunHost(miopenTensorDescriptor_t input1Desc,
+int32_t mloOuterForwardRunHost(miopenTensorDescriptor_t input1Desc,
                              miopenTensorDescriptor_t input2Desc,
                              miopenTensorDescriptor_t outputDesc,
                              Tgpu* input1,
@@ -72,7 +72,7 @@ int32_t mloSumForwardRunHost(miopenTensorDescriptor_t input1Desc,
 }
 
 template <typename Tgpu, typename Tcheck>
-int32_t mloSumBackwardRunHost(miopenTensorDescriptor_t input1Desc,
+int32_t mloOuterBackwardRunHost(miopenTensorDescriptor_t input1Desc,
                               miopenTensorDescriptor_t input2Desc,
                               miopenTensorDescriptor_t input1GradDesc,
                               miopenTensorDescriptor_t input2GradDesc,
@@ -363,7 +363,7 @@ int OuterDriver<Tgpu, Tref>::RunForwardGPU()
 template <typename Tgpu, typename Tref>
 int OuterDriver<Tgpu, Tref>::RunForwardCPU()
 {
-    mloSumForwardRunHost<Tgpu, Tref>(
+    mloOuterForwardRunHost<Tgpu, Tref>(
         input1Desc, input2Desc, outputDesc, in1.data(), in2.data(), outhost.data());
 
     return miopenStatusSuccess;
@@ -437,7 +437,7 @@ int OuterDriver<Tgpu, Tref>::RunBackwardGPU()
 template <typename Tgpu, typename Tref>
 int OuterDriver<Tgpu, Tref>::RunBackwardCPU()
 {
-    mloSumBackwardRunHost<Tgpu, Tref>(input1Desc,
+    mloOuterBackwardRunHost<Tgpu, Tref>(input1Desc,
                                       input2Desc,
                                       input1GradDesc,
                                       input2GradDesc,
