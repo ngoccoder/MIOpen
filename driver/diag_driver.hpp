@@ -30,6 +30,7 @@
 #include "driver.hpp"
 #include "tensor_driver.hpp"
 #include "random.hpp"
+#include "tensor_view.hpp"
 #include "timer.hpp"
 
 #include <../test/verify.hpp>
@@ -74,9 +75,9 @@ int32_t mloDiagForwardRunHost(miopenTensorDescriptor_t inputDesc,
 
         for(size_t i = 0; i < output_numel; i++)
         {
-            long inputIdx         = i * (input_tv.stride[0] + input_tv.stride[1]) + offset;
-            long outputIdx        = i * output_tv.stride[0];
-            outputHost[outputIdx] = input[inputIdx];
+            long inputIdx = i * (input_tv.stride[0] + input_tv.stride[1]) + offset;
+            Tcheck val    = static_cast<Tcheck>(get2DVal(input, input_tv, inputIdx));
+            set1DVal(outputHost, output_tv, i, val);
         }
     }
 

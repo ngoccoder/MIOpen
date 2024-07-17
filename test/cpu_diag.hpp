@@ -28,6 +28,7 @@
 
 #include "ford.hpp"
 #include "tensor_holder.hpp"
+#include "tensor_view.hpp"
 
 #include <miopen/diag/solvers.hpp>
 #include <miopen/tensor_view_utils.hpp>
@@ -56,9 +57,11 @@ void cpu_diag_forward(tensor<T> input, tensor<T>& ref_output, int64_t diagonal)
             (diagonal >= 0) ? diagonal * input_tv.stride[1] : -diagonal * input_tv.stride[0];
 
         par_ford(output_numel)([&](size_t o) {
-            long inputIdx         = o * (input_tv.stride[0] + input_tv.stride[1]) + offset;
-            long outputIdx        = o * output_tv.stride[0];
-            ref_output[outputIdx] = input[inputIdx];
+            long inputIdx = o * (input_tv.stride[0] + input_tv.stride[1]) + offset;
+            set1DVal(ref_output.data.data(),
+                     output_tv,
+                     o,
+                     get2DVal(input.data.data(), input_tv, inputIdx));
         });
     }
 }

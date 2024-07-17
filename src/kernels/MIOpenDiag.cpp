@@ -46,9 +46,8 @@ __device__ void Diag2dForwardKernel(const TIO* input,
     long input_stride_0 = input_tv.stride[0];
     long input_stride_1 = input_tv.stride[1];
 
-    long input_idx     = gid * (input_stride_0 + input_stride_1) + offset;
-    long output_idx    = gid * output_tv.stride[0];
-    output[output_idx] = input[input_idx];
+    long input_idx = gid * (input_stride_0 + input_stride_1) + offset;
+    set1DVal(output, output_tv, gid, get2DVal(input, input_tv, input_idx));
 }
 
 extern "C" __global__ void Diag2dForward(const IN_OUT_TYPE* input,
