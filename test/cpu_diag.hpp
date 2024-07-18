@@ -58,10 +58,10 @@ void cpu_diag_forward(tensor<T> input, tensor<T>& ref_output, int64_t diagonal)
 
         par_ford(output_numel)([&](size_t o) {
             long inputIdx = o * (input_tv.stride[0] + input_tv.stride[1]) + offset;
-            set1DVal(ref_output.data.data(),
+            setNDVal(ref_output.data.data(),
                      output_tv,
                      o,
-                     get2DVal(input.data.data(), input_tv, inputIdx));
+                     getNDVal(input.data.data(), input_tv, inputIdx));
         });
     }
 }

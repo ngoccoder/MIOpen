@@ -76,8 +76,8 @@ int32_t mloDiagForwardRunHost(miopenTensorDescriptor_t inputDesc,
         for(size_t i = 0; i < output_numel; i++)
         {
             long inputIdx = i * (input_tv.stride[0] + input_tv.stride[1]) + offset;
-            Tcheck val    = static_cast<Tcheck>(get2DVal(input, input_tv, inputIdx));
-            set1DVal(outputHost, output_tv, i, val);
+            Tcheck val    = static_cast<Tcheck>(getNDVal(input, input_tv, inputIdx));
+            setNDVal(outputHost, output_tv, i, val);
         }
     }
 

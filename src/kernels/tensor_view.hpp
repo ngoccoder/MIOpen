@@ -77,18 +77,18 @@ struct tensor_layout_t
     uint64_t layout[N];
 };
 
-template <typename T>
-__host__ __device__ T inline get2DVal(const T* x, tensor_view_t<2> x_tv, uint64_t idx)
+template <typename T, int N>
+__host__ __device__ T inline getNDVal(const T* x, tensor_view_t<N> x_tv, uint64_t idx)
 {
-    tensor_layout_t<2> layout = tensor_layout_t<2>(x_tv, idx);
+    tensor_layout_t<N> layout = tensor_layout_t<N>(x_tv, idx);
     uint64_t x_idx            = x_tv.get_tensor_view_idx(layout);
     return x[x_idx];
 }
 
-template <typename T>
-__host__ __device__ void inline set1DVal(T* x, tensor_view_t<1> x_tv, uint64_t idx, T val)
+template <typename T, int N>
+__host__ __device__ void inline setNDVal(T* x, tensor_view_t<N> x_tv, uint64_t idx, T val)
 {
-    tensor_layout_t<1> layout = tensor_layout_t<1>(x_tv, idx);
+    tensor_layout_t<N> layout = tensor_layout_t<N>(x_tv, idx);
     uint64_t x_idx            = x_tv.get_tensor_view_idx(layout);
     x[x_idx]                  = val;
 }
