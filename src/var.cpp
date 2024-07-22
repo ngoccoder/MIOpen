@@ -54,10 +54,31 @@ miopenStatus_t VarBackward(Handle& handle,
 {
     std::vector dims_vector(dims, dims + num_dims);
 
-    const auto problem = var::ProblemDescription{inputDesc, inputGradDesc, meanDesc, meanGradDesc, varGradDesc, dims_vector, keepdim, unbiased, divisor};
-    const auto invoke_params = var::InvokeParams{inputDesc, input, inputGradDesc, input_grad, meanDesc, mean, meanGradDesc, mean_grad, varGradDesc, var_grad, dims_vector, keepdim, unbiased, divisor};
-    const auto algo = AlgorithmName{"VarBackward"};
-    const auto solvers = solver::SolverContainer<solver::var::VarBackward>{};
+    const auto problem       = var::ProblemDescription{inputDesc,
+                                                 inputGradDesc,
+                                                 meanDesc,
+                                                 meanGradDesc,
+                                                 varGradDesc,
+                                                 dims_vector,
+                                                 keepdim,
+                                                 unbiased,
+                                                 divisor};
+    const auto invoke_params = var::InvokeParams{inputDesc,
+                                                 input,
+                                                 inputGradDesc,
+                                                 input_grad,
+                                                 meanDesc,
+                                                 mean,
+                                                 meanGradDesc,
+                                                 mean_grad,
+                                                 varGradDesc,
+                                                 var_grad,
+                                                 dims_vector,
+                                                 keepdim,
+                                                 unbiased,
+                                                 divisor};
+    const auto algo          = AlgorithmName{"VarBackward"};
+    const auto solvers       = solver::SolverContainer<solver::var::VarBackward>{};
 
     solver.ExecutePrimitive(handle, problem, alog, invoke_params);
 
