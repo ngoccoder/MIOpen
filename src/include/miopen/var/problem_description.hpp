@@ -99,6 +99,18 @@ struct ProblemDescription : ProblemDescriptionBase
         }
     }
 
+    bool IsApplicableSize() const
+    {
+        int input_grad_numel = std::accumulate(inputGradDesc.GetLengths().begin(),
+                                               inputGradDesc.GetLengths().end(),
+                                               1,
+                                               std::multiplies<int>());
+
+        if(input_grad_numel >= 1024 && input_grad_numel <= 1024 * 128)
+            return true;
+        return false;
+    }
+
     NetworkConfig MakeNetworkConfig() const override;
 
 private:
