@@ -69,6 +69,7 @@
  * @defgroup groupnorm
  * @defgroup cat
  * @defgroup SGD
+ * @defgroup var
  *
  */
 
@@ -7219,6 +7220,53 @@ miopenFusedAdamWithOutput(miopenHandle_t handle,
 
 /** @} */
 // CLOSEOUT SGD DOXYGEN GROUP
+#endif // MIOPEN_BETA_API
+
+#ifdef MIOPEN_BETA_API
+// VAR API
+/** @addtogroup VAR
+ *
+ *  @{
+ */
+/*!
+ * @brief Execute a variance backward layer
+ *
+ * @param handle          MIOpen handle (input)
+ * @param inputDesc       Tensor descriptor for the input tensor (input)
+ * @param input           Input tensor (input)
+ * @param inputGradDesc   Tensor descriptor for the input gradient tensor (input)
+ * @param input_grad      Input gradient tensor (output)
+ * @param meanDesc        Tensor descriptor for the mean tensor (input)
+ * @param mean            Mean tensor (input)
+ * @param meanGradDesc    Tensor descriptor for the mean gradient tensor (input)
+ * @param mean_grad       Mean gradient tensor (output)
+ * @param varGradDesc     Tensor descriptor for the variance gradient tensor (input)
+ * @param var_grad        Variance gradient tensor (input)
+ * @param dims            Array of integers containing the dimensions along which the variance is (input)
+ * @param num_dims        The length of the dims array (input)
+ * @param keepdim         Flag indicating whether to keep the reduced dimensions in the output (input)
+ * @param unbiased        Flag indicating whether to use the unbiased variance calculation (input)
+ * @param divisor         The divisor used in the variance calculation (input)
+ */
+MIOPEN_EXPORT miopenStatus_t miopenVarianceBackward(miopenHandle_t handle,
+                                                    const miopenTensorDescriptor_t inputDesc,
+                                                    const void* input,
+                                                    const miopenTensorDescriptor_t inputGradDesc,
+                                                    void* input_grad,
+                                                    const miopenTensorDescriptor_t meanDesc,
+                                                    const void* mean,
+                                                    const miopenTensorDescriptor_t meanGradDesc,
+                                                    const void* mean_grad,
+                                                    const miopenTensorDescriptor_t varGradDesc,
+                                                    const void* var_grad,
+                                                    const int* dims,
+                                                    const int num_dims,
+                                                    const bool keepdim,
+                                                    const bool unbiased,
+                                                    const int divisor);
+
+/** @} */
+// CLOSEOUT VAR DOXYGEN GROUP
 #endif // MIOPEN_BETA_API
 
 #ifdef __cplusplus
