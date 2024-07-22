@@ -7242,9 +7242,11 @@ miopenFusedAdamWithOutput(miopenHandle_t handle,
  * @param mean_grad       Mean gradient tensor (output)
  * @param varGradDesc     Tensor descriptor for the variance gradient tensor (input)
  * @param var_grad        Variance gradient tensor (input)
- * @param dims            Array of integers containing the dimensions along which the variance is (input)
+ * @param dims            Array of integers containing the dimensions along which the variance is
+ * (input)
  * @param num_dims        The length of the dims array (input)
- * @param keepdim         Flag indicating whether to keep the reduced dimensions in the output (input)
+ * @param keepdim         Flag indicating whether to keep the reduced dimensions in the output
+ * (input)
  * @param unbiased        Flag indicating whether to use the unbiased variance calculation (input)
  * @param divisor         The divisor used in the variance calculation (input)
  */
