@@ -7250,22 +7250,22 @@ miopenFusedAdamWithOutput(miopenHandle_t handle,
  * @param unbiased        Flag indicating whether to use the unbiased variance calculation (input)
  * @param divisor         The divisor used in the variance calculation (input)
  */
-MIOPEN_EXPORT miopenStatus_t miopenVarianceBackward(miopenHandle_t handle,
-                                                    const miopenTensorDescriptor_t inputDesc,
-                                                    const void* input,
-                                                    const miopenTensorDescriptor_t inputGradDesc,
-                                                    void* input_grad,
-                                                    const miopenTensorDescriptor_t meanDesc,
-                                                    const void* mean,
-                                                    const miopenTensorDescriptor_t meanGradDesc,
-                                                    const void* mean_grad,
-                                                    const miopenTensorDescriptor_t varGradDesc,
-                                                    const void* var_grad,
-                                                    const int* dims,
-                                                    const int num_dims,
-                                                    const bool keepdim,
-                                                    const bool unbiased,
-                                                    const int divisor);
+MIOPEN_EXPORT miopenStatus_t miopenVarBackward(miopenHandle_t handle,
+                                               const miopenTensorDescriptor_t inputDesc,
+                                               const void* input,
+                                               const miopenTensorDescriptor_t inputGradDesc,
+                                               void* input_grad,
+                                               const miopenTensorDescriptor_t meanDesc,
+                                               const void* mean,
+                                               const miopenTensorDescriptor_t meanGradDesc,
+                                               const void* mean_grad,
+                                               const miopenTensorDescriptor_t varGradDesc,
+                                               const void* var_grad,
+                                               const int* dims,
+                                               const int num_dims,
+                                               const bool keepdim,
+                                               const bool unbiased,
+                                               const int divisor);
 
 /** @} */
 // CLOSEOUT VAR DOXYGEN GROUP
