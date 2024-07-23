@@ -38,10 +38,55 @@ NetworkConfig ProblemDescription::MakeNetworkConfig() const
     std::ostringstream ss;
     ss << "varbwd-";
 
-    //todo: add more details
+    const auto& input_length      = inputDesc.GetLengths();
+    const auto& input_grad_length = inputGradDesc.GetLengths();
+    const auto& mean_length       = meanDesc.GetLengths();
+    const auto& mean_grad_length  = meanGradDesc.GetLengths();
+    const auto& var_grad_length   = varGradDesc.GetLengths();
+
+    ss << "input-";
+    for(auto len : input_length)
+    {
+        ss << len << "-";
+    }
+
+    ss << "input_grad-";
+    for(auto len : input_grad_length)
+    {
+        ss << len << "-";
+    }
+
+    ss << "mean-";
+    for(auto len : mean_length)
+    {
+        ss << len << "-";
+    }
+
+    ss << "mean_grad-";
+    for(auto len : mean_grad_length)
+    {
+        ss << len << "-";
+    }
+
+    ss << "var_grad-";
+    for(auto len : var_grad_length)
+    {
+        ss << len << "-";
+    }
+
+    ss << "dims-";
+    for(auto dim : dims)
+    {
+        ss << dim << "-";
+    }
+
+    ss << "keepdim-" << keepdim;
+    ss << "unbiased-" << unbiased;
+    ss << "divisor-" << divisor;
+
     return NetworkConfig{ss.str()};
 }
 
-}
+} // namespace var
 
 } // namespace miopen
