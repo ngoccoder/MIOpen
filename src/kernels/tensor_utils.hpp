@@ -35,8 +35,7 @@ struct dim_5d_t
     uint64_t x[5] = {0, 0, 0, 0, 0};
 };
 
-__device__ void
-GET_NCDHW(uint64_t ncdhw[5], uint64_t id, const uint64_t dimensions[5])
+__device__ void GET_NCDHW(uint64_t ncdhw[5], uint64_t id, const uint64_t dimensions[5])
 {
     uint64_t ncdh = (id) / dimensions[4];
     ncdhw[4]      = (id) % dimensions[4];
