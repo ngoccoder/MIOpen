@@ -111,6 +111,22 @@ struct ProblemDescription : ProblemDescriptionBase
         return false;
     }
 
+    bool IsContiguous(const TensorDescriptor& desc) const
+    {
+        auto lengths           = desc.GetLengths();
+        auto strides           = desc.GetStrides();
+        size_t expected_stride = 1;
+        for(size_t i = lengths.size(); i-- > 0;)
+        {
+            if(strides[i] != expected_stride)
+                return false;
+            expected_stride *= lengths[i];
+        }
+        return true;
+    }
+
+    bool IsAllContiguous() const { return IsContiguous(inputDesc) && IsContiguous(inputGradDesc); }
+
     NetworkConfig MakeNetworkConfig() const override;
 
 private:

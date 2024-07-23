@@ -59,7 +59,7 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& context,
     auto input_grad_dims = problem.GetInputGradDesc().GetLengths();
     auto input_grad_numel =
         std::accumulate(input_grad_dims.begin(), input_grad_dims.end(), 1, std::multiplies<int>{});
-    auto is_all_contiguous = false;
+    auto is_all_contiguous = problem.IsAllContiguous();
 
     {
         size_t xlocalsize = LOCAL_SIZE;
