@@ -31,7 +31,7 @@
 
 namespace miopen {
 
-struct handle;
+struct Handle;
 struct TensorDescriptor;
 
 MIOPEN_INTERNALS_EXPORT miopenStatus_t VarBackward(Handle& handle,

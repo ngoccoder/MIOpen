@@ -28,12 +28,12 @@ struct tensor_view
 {
     uint64_t dimensions[5] = {1, 1, 1, 1, 1};
     uint64_t strides[5]    = {1, 1, 1, 1, 1};
-}
+};
 
 struct dim_5d_t
 {
     uint64_t x[5] = {0, 0, 0, 0, 0};
-}
+};
 
 __device__ void
 GET_NCDHW(uint64_t ncdhw[5], uint64_t id, const uint64_t dimensions[5])

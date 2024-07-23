@@ -124,7 +124,7 @@ private:
     bool keepdim;
     bool unbiased;
     int divisor;
-}
+};
 
 } // namespace var
 

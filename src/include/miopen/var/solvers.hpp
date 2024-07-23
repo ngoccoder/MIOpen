@@ -38,14 +38,14 @@ using VarSolver = NonTunableSolverBase<ExecutionContext, miopen::var::ProblemDes
 
 struct VarBackward final : VarSolver
 {
-    const std::string SolverDbId() const override { return GetSolverDbId<VarBackward>(); }
+    const std::string& SolverDbId() const override { return GetSolverDbId<VarBackward>(); }
 
     bool IsApplicable(const ExecutionContext& context,
                       const miopen::var::ProblemDescription& problem) const override;
     ConvSolution GetSolution(const ExecutionContext& context,
                              const miopen::var::ProblemDescription& problem) const override;
     bool MayNeedWorkspace() const override { return false; }
-}
+};
 
 } // namespace var
 

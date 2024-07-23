@@ -56,28 +56,28 @@ static void LogCmdVarBackward(const miopenTensorDescriptor_t inputGradDesc,
 
         int32_t size = {0};
         miopenGetTensorDescriptorSize(inputGradDesc, &size);
-        ss << " -n " << miopen::dref(inputGradDesc).GetLengths()[0];
+        ss << " -n " << miopen::deref(inputGradDesc).GetLengths()[0];
         if(size == 5)
         {
-            ss << " -c " << miopen::dref(inputGradDesc).GetLengths()[1] << " -D "
-               << miopen::dref(inputGradDesc).GetLengths()[2] << " -H "
-               << miopen::dref(inputGradDesc).GetLengths()[3] << " -W "
-               << miopen::dref(inputGradDesc).GetLengths()[4];
+            ss << " -c " << miopen::deref(inputGradDesc).GetLengths()[1] << " -D "
+               << miopen::deref(inputGradDesc).GetLengths()[2] << " -H "
+               << miopen::deref(inputGradDesc).GetLengths()[3] << " -W "
+               << miopen::deref(inputGradDesc).GetLengths()[4];
         }
         else if(size == 4)
         {
-            ss << " -c " << miopen::dref(inputGradDesc).GetLengths()[1] << " -D "
-               << miopen::dref(inputGradDesc).GetLengths()[2] << " -H "
-               << miopen::dref(inputGradDesc).GetLengths()[3]
+            ss << " -c " << miopen::deref(inputGradDesc).GetLengths()[1] << " -D "
+               << miopen::deref(inputGradDesc).GetLengths()[2] << " -H "
+               << miopen::deref(inputGradDesc).GetLengths()[3];
         }
         else if(size == 3)
         {
-            ss << " -c " << miopen::dref(inputGradDesc).GetLengths()[1] << " -D "
-               << miopen::dref(inputGradDesc).GetLengths()[2];
+            ss << " -c " << miopen::deref(inputGradDesc).GetLengths()[1] << " -D "
+               << miopen::deref(inputGradDesc).GetLengths()[2];
         }
         else if(size == 2)
         {
-            ss << " -c " << miopen::dref(inputGradDesc).GetLengths()[1];
+            ss << " -c " << miopen::deref(inputGradDesc).GetLengths()[1];
         }
 
         ss << " -dims ";

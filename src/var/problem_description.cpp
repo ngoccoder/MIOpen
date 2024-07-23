@@ -39,6 +39,7 @@ NetworkConfig ProblemDescription::MakeNetworkConfig() const
     ss << "varbwd-";
 
     //todo: add more details
+    return NetworkConfig{ss.str()};
 }
 
 }

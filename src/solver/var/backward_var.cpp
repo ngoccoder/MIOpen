@@ -24,7 +24,7 @@
  *
  *******************************************************************************/
 
-#include <miopen/datayype.hpp>
+#include <miopen/datatype.hpp>
 #include <miopen/kernel_build_params.hpp>
 #include <miopen/var/invoke_params.hpp>
 #include <miopen/var/solvers.hpp>
@@ -89,7 +89,7 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& context,
             {"MIOPENUSE_BF16", static_cast<int>(dtype == miopenBFloat16)},
         };
 
-        kerenl.comp_options = build_params.GenerateFor(kbp::HIP{});
+        kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
         kernel.l_wk.push_back(xlocalsize);
         kernel.l_wk.push_back(ylocalsize);
@@ -102,7 +102,7 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& context,
         result.construction_params.push_back(kernel);
     }
 
-    result.invoke_factory = [](const std::vector<Kernel>& kernels) {
+    result.invoker_factory = [is_all_contiguous](const std::vector<Kernel>& kernels) {
         return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
             decltype(auto) kernel = handle_.Run(kernels.front());
             decltype(auto) params = raw_params.CastTo<miopen::var::InvokeParams>();
@@ -119,7 +119,7 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& context,
             auto mean_grad_strides  = params.meanGradDesc->GetStrides();
             auto var_grad_strides   = params.varGradDesc->GetStrides();
 
-            auto dims = params.dims;
+            auto dims = *(params.dims);
 
             auto N = std::accumulate(
                 input_grad_dims.begin(), input_grad_dims.end(), 1, std::multiplies<int>{});
@@ -199,8 +199,10 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& context,
                        mean_grad_tv,
                        var_grad_tv);
             }
-        }
-    }
+        };
+    };
+
+    return result;
 }
 
 } // namespace var

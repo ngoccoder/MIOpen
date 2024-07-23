@@ -80,7 +80,7 @@ miopenStatus_t VarBackward(Handle& handle,
     const auto algo          = AlgorithmName{"VarBackward"};
     const auto solvers       = solver::SolverContainer<solver::var::VarBackward>{};
 
-    solver.ExecutePrimitive(handle, problem, alog, invoke_params);
+    solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
 
     return miopenStatusSuccess;
 }

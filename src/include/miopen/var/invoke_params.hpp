@@ -48,28 +48,28 @@ struct InvokeParams : public miopen::InvokeParams
                  const bool keepdim_,
                  const bool unbiased_,
                  const int divisor_)
-        : inputDesc(inputDesc_),
+        : inputDesc(&inputDesc_),
+          inputGradDesc(&inputGradDesc_),
+          meanDesc(&meanDesc_),
+          meanGradDesc(&meanGradDesc_),
+          varGradDesc(&varGradDesc_),
           input(input_),
-          inputGradDesc(inputGradDesc_),
           input_grad(input_grad_),
-          meanDesc(meanDesc_),
           mean(mean_),
-          meanGradDesc(meanGradDesc_),
           mean_grad(mean_grad_),
-          varGradDesc(varGradDesc_),
           var_grad(var_grad_),
-          dims(dims_),
+          dims(&dims_),
           keepdim(keepdim_),
           unbiased(unbiased_),
           divisor(divisor_)
     {
     }
 
-    const TensorDescriptor& inputDesc     = nullptr;
-    const TensorDescriptor& inputGradDesc = nullptr;
-    const TensorDescriptor& meanDesc      = nullptr;
-    const TensorDescriptor& meanGradDesc  = nullptr;
-    const TensorDescriptor& varGradDesc   = nullptr;
+    const TensorDescriptor* inputDesc     = nullptr;
+    const TensorDescriptor* inputGradDesc = nullptr;
+    const TensorDescriptor* meanDesc      = nullptr;
+    const TensorDescriptor* meanGradDesc  = nullptr;
+    const TensorDescriptor* varGradDesc   = nullptr;
 
     ConstData_t input     = nullptr;
     Data_t input_grad     = nullptr;
@@ -77,14 +77,14 @@ struct InvokeParams : public miopen::InvokeParams
     ConstData_t mean_grad = nullptr;
     ConstData_t var_grad  = nullptr;
 
-    const std::vector<int>& dims = nullptr;
+    const std::vector<int>* dims = nullptr;
     const bool keepdim;
     const bool unbiased;
     const int divisor;
 
     std::size_t GetWorkspaceSize() const { return 0; }
     Data_t GetWorkspace() const { return nullptr; }
-}
+};
 
 } // namespace var
 
