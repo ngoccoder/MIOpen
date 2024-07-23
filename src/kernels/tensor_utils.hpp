@@ -32,7 +32,7 @@ struct tensor_view
 
 struct dim_5d_t
 {
-    uint64_t x[5];
+    uint64_t x[5] = {0, 0, 0, 0, 0};
 }
 
 __device__ void

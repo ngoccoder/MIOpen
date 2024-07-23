@@ -30,6 +30,7 @@
 #include <miopen/var/solvers.hpp>
 #include <miopen/var.hpp>
 #include <miopen/target_properties.hpp>
+#include "../../kernels/tensor_utils.hpp"
 
 #define LOCAL_SIZE 1024
 
@@ -47,6 +48,159 @@ bool VarBackward::IsApplicable(const ExecutionContext& context,
     if(!problem.IsApplicableSize())
         return false;
     return true;
+}
+
+ConvSolution VarBackward::GetSolution(const ExecutionContext& context,
+                                      const miopen::var::ProblemDescription& problem) const
+{
+    auto result = ConvSolution{miopenStatusSuccess};
+
+    auto dtype           = problem.GetInputDesc().GetType();
+    auto input_grad_dims = problem.GetInputGradDesc().GetLengths();
+    auto input_grad_numel =
+        std::accumulate(input_grad_dims.begin(), input_grad_dims.end(), 1, std::multiplies<int>{});
+    auto is_all_contiguous = false;
+
+    {
+        size_t xlocalsize = LOCAL_SIZE;
+        size_t xgridsize  = AlignUp(input_grad_numel, xlocalsize);
+        size_t ylocalsize = 1;
+        size_t ygridsize  = 1;
+        size_t zlocalsize = 1;
+        size_t zgridsize  = 1;
+
+        auto kernel = KernelInfo{};
+
+        if(is_all_contiguous)
+        {
+            kernel.kernel_file = "MIOpenVar.cpp";
+            kernel.kernel_name = "VarBackwardContiguous";
+        }
+        else
+        {
+            kernel.kernel_file = "MIOpenVar.cpp";
+            kernel.kernel_name = "VarBackward";
+        }
+
+        const auto build_params = KernelBuildParameters{
+            {"MIOPENUSE_FP16", static_cast<int>(dtype == miopenHalf)},
+            {"MIOPENUSE_FP32", static_cast<int>(dtype == miopenFloat)},
+            {"MIOPENUSE_FP64", static_cast<int>(dtype == miopenDouble)},
+            {"MIOPENUSE_BF16", static_cast<int>(dtype == miopenBFloat16)},
+        };
+
+        kerenl.comp_options = build_params.GenerateFor(kbp::HIP{});
+
+        kernel.l_wk.push_back(xlocalsize);
+        kernel.l_wk.push_back(ylocalsize);
+        kernel.l_wk.push_back(zlocalsize);
+
+        kernel.g_wk.push_back(xgridsize);
+        kernel.g_wk.push_back(ygridsize);
+        kernel.g_wk.push_back(zgridsize);
+
+        result.construction_params.push_back(kernel);
+    }
+
+    result.invoke_factory = [](const std::vector<Kernel>& kernels) {
+        return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
+            decltype(auto) kernel = handle_.Run(kernels.front());
+            decltype(auto) params = raw_params.CastTo<miopen::var::InvokeParams>();
+
+            auto input_dims      = params.inputDesc->GetLengths();
+            auto input_grad_dims = params.inputGradDesc->GetLengths();
+            auto mean_dims       = params.meanDesc->GetLengths();
+            auto mean_grad_dims  = params.meanGradDesc->GetLengths();
+            auto var_grad_dims   = params.varGradDesc->GetLengths();
+
+            auto input_strides      = params.inputDesc->GetStrides();
+            auto input_grad_strides = params.inputGradDesc->GetStrides();
+            auto mean_strides       = params.meanDesc->GetStrides();
+            auto mean_grad_strides  = params.meanGradDesc->GetStrides();
+            auto var_grad_strides   = params.varGradDesc->GetStrides();
+
+            auto dims = params.dims;
+
+            auto N = std::accumulate(
+                input_grad_dims.begin(), input_grad_dims.end(), 1, std::multiplies<int>{});
+
+            dim_5d_t dims_onehot;
+            for(auto dim : dims)
+            {
+                dims_onehot.x[dim] = 1;
+            }
+
+            tensor_view input_tv;
+            tensor_view input_grad_tv;
+            tensor_view mean_tv;
+            tensor_view mean_grad_tv;
+            tensor_view var_grad_tv;
+
+            for(int i = 0; i < input_dims.size(); i++)
+            {
+                input_tv.dimensions[i] = input_dims[i];
+                input_tv.strides[i]    = input_strides[i];
+            }
+
+            for(int i = 0; i < input_grad_dims.size(); i++)
+            {
+                input_grad_tv.dimensions[i] = input_grad_dims[i];
+                input_grad_tv.strides[i]    = input_grad_strides[i];
+            }
+
+            for(int i = 0; i < mean_dims.size(); i++)
+            {
+                mean_tv.dimensions[i] = mean_dims[i];
+                mean_tv.strides[i]    = mean_strides[i];
+            }
+
+            for(int i = 0; i < mean_grad_dims.size(); i++)
+            {
+                mean_grad_tv.dimensions[i] = mean_grad_dims[i];
+                mean_grad_tv.strides[i]    = mean_grad_strides[i];
+            }
+
+            for(int i = 0; i < var_grad_dims.size(); i++)
+            {
+                var_grad_tv.dimensions[i] = var_grad_dims[i];
+                var_grad_tv.strides[i]    = var_grad_strides[i];
+            }
+
+            if(is_all_contiguous)
+            {
+                kernel(params.input,
+                       params.input_grad,
+                       params.mean,
+                       params.mean_grad,
+                       params.var_grad,
+                       N,
+                       dims_onehot,
+                       params.unbiased,
+                       params.divisor,
+                       input_grad_tv,
+                       mean_tv,
+                       mean_grad_tv,
+                       var_grad_tv);
+            }
+            else
+            {
+                kernel(params.input,
+                       params.input_grad,
+                       params.mean,
+                       params.mean_grad,
+                       params.var_grad,
+                       N,
+                       dims_onehot,
+                       params.unbiased,
+                       params.divisor,
+                       input_tv,
+                       input_grad_tv,
+                       mean_tv,
+                       mean_grad_tv,
+                       var_grad_tv);
+            }
+        }
+    }
 }
 
 } // namespace var
