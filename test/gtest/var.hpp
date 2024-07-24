@@ -92,7 +92,7 @@ struct VarTestCase
             std::vector<int32_t> adjusted_dims;
             for(int i = 0; i < num_dims; i++)
             {
-                adjusted_dims.push_back(dims[i]);   
+                adjusted_dims.push_back(dims[i]);
             }
             return adjusted_dims;
         }
@@ -102,11 +102,11 @@ struct VarTestCase
             for(int i = 0; i < num_dims; i++)
             {
                 int32_t dim = dims[i];
-                if (dim == 3 || dim == 4)
+                if(dim == 3 || dim == 4)
                 {
                     adjusted_dims.push_back(dim - 1);
                 }
-                else if (dim == 2)
+                else if(dim == 2)
                 {
                     std::cout << "Incorrect Dims\n" << std::endl;
                     return std::vector<int32_t>({0});
@@ -124,11 +124,11 @@ struct VarTestCase
             for(int i = 0; i < num_dims; i++)
             {
                 int32_t dim = dims[i];
-                if (dim == 4)
+                if(dim == 4)
                 {
                     adjusted_dims.push_back(dim - 2);
                 }
-                else if (dim == 3 || dim == 2)
+                else if(dim == 3 || dim == 2)
                 {
                     std::cout << "Incorrect Dims\n" << std::endl;
                     return std::vector<int32_t>({0});
@@ -138,7 +138,7 @@ struct VarTestCase
                     adjusted_dims.push_back(dim);
                 }
             }
-            return adjusted_dims;   
+            return adjusted_dims;
         }
         else if((N != 0) && (C != 0))
         {
@@ -146,7 +146,7 @@ struct VarTestCase
             for(int i = 0; i < num_dims; i++)
             {
                 int32_t dim = dims[i];
-                if (dim == 2 || dim == 3 || dim == 4)
+                if(dim == 2 || dim == 3 || dim == 4)
                 {
                     std::cout << "Incorrect Dims\n" << std::endl;
                     return std::vector<int32_t>({0});
@@ -164,7 +164,7 @@ struct VarTestCase
             for(int i = 0; i < num_dims; i++)
             {
                 int32_t dim = dims[i];
-                if (dim == 1 || dim == 2 || dim == 3 || dim == 4)
+                if(dim == 1 || dim == 2 || dim == 3 || dim == 4)
                 {
                     std::cout << "Incorrect Dims\n" << std::endl;
                     return std::vector<int32_t>({0});
@@ -235,7 +235,7 @@ protected:
         dims     = var_config.dims;
         num_dims = var_config.num_dims;
 
-        for (int i = 0; i < var_config.num_dims; i++)
+        for(int i = 0; i < var_config.num_dims; i++)
         {
             dims[i] = dims_vector[i];
         }
