@@ -46,8 +46,8 @@ bool VarBackward::IsApplicable(const ExecutionContext& context,
 {
     if(!problem.IsSameType())
         return false;
-    // if(!problem.IsApplicableSize())
-    //     return false;
+    if(!problem.IsApplicableSize())
+        return false;
     return true;
 }
 
