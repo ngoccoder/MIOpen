@@ -77,15 +77,20 @@ void cpu_var_backward(tensor<T> input,
         int64_t mean_idx    = 0;
         int64_t mean_stride = 1;
 
-        for(int i = mean_dims.size() - 1; i >= 0; --i)
+        for(int i = reduced_idx.size() - 1; i >= 0; --i)
         {
             mean_idx += reduced_idx[i] * mean_stride;
             mean_stride *= mean_dims[i];
         }
 
-        T mean_v = mean[mean_idx];
+        T mean_v = static_cast<T>(0.0);
 
-        T input_grad_v = 0;
+        if(mean.data.size() > 0)
+        {
+            mean_v = mean[mean_idx];
+        }
+
+        T input_grad_v = static_cast<T>(0.0);
 
         int64_t var_grad_idx    = 0;
         int64_t var_grad_stride = 1;
@@ -99,8 +104,10 @@ void cpu_var_backward(tensor<T> input,
         if(var_grad.data.size() > 0)
         {
             T var_grad_v = var_grad[var_grad_idx];
-            T res        = var_grad_v * (input_v - mean_v) * 2;
-            input_grad_v += unbiased ? res / (divisor - 1) : res / divisor;
+            T res        = static_cast<T>(
+                var_grad_v * (static_cast<float>(input_v) - static_cast<float>(mean_v)) * 2.0f);
+            input_grad_v +=
+                unbiased ? res / static_cast<T>(divisor - 1) : res / static_cast<T>(divisor);
         }
 
         int64_t mean_grad_idx    = 0;
@@ -115,7 +122,7 @@ void cpu_var_backward(tensor<T> input,
         if(mean_grad.data.size() > 0)
         {
             T mean_grad_v = mean_grad[mean_grad_idx];
-            input_grad_v += mean_grad_v / divisor;
+            input_grad_v += mean_grad_v / static_cast<T>(divisor);
         }
 
         input_grad[gid] = input_grad_v;
@@ -166,7 +173,7 @@ void cpu_mean(tensor<T> input, tensor<T>& mean, int32_t* dims, int32_t num_dims,
         std::accumulate(mean_dims.begin(), mean_dims.end(), 1LL, std::multiplies<int64_t>());
     for(size_t i = 0; i < mean_numel; ++i)
     {
-        mean[i] /= divisor;
+        mean[i] /= static_cast<T>(divisor);
     }
 }
 

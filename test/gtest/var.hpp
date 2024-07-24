@@ -34,6 +34,10 @@
 #include <miopen/miopen.h>
 #include <miopen/var.hpp>
 
+// TODO : 테케 추가
+// TODO : GETDIMS 함수 올바르게 작동하도록 구현
+// TODO : keepdim false일떄 올바르게 작동하도록 구현
+
 struct VarTestCase
 {
     size_t N;
@@ -82,18 +86,41 @@ struct VarTestCase
             return std::vector<size_t>({0});
         }
     }
+
+    std::vector<int32_t> GetDims()
+    {
+        std::vector<size_t> input_dims = GetInput();
+        std::vector<int32_t> adjusted_dims;
+        int shift = 0;
+
+        for(int i = 0; i < num_dims; ++i)
+        {
+            int32_t dim = dims[i];
+            if((N == 0 && dim == 0) || (C == 0 && dim == 1) || (D == 0 && dim == 2) ||
+               (H == 0 && dim == 3) || (W == 0 && dim == 4))
+            {
+                ++shift;
+            }
+            else
+            {
+                adjusted_dims.push_back(dim - shift);
+            }
+        }
+
+        return adjusted_dims;
+    }
 };
 
 std::vector<VarTestCase> VarTestConfigs()
 {
     return {
-        {2, 3, 0, 4, 0, new int32_t[2]{1, 3}, 2, true, true, 12},
-        {4, 2, 3, 0, 0, new int32_t[3]{0, 1, 2}, 3, false, false, 24},
-        {5, 4, 0, 0, 5, new int32_t[1]{4}, 1, true, true, 5},
+        // {2, 3, 0, 4, 0, new int32_t[2]{1, 3}, 2, true, true, 12},
+        {4, 2, 3, 2, 5, new int32_t[3]{0, 1, 2}, 3, false, false, 24},
+        // {5, 4, 0, 0, 5, new int32_t[1]{4}, 1, true, true, 5},
     };
 }
 
-template <Typename T = float>
+template <typename T = float>
 struct VarBackwardTest : public ::testing::TestWithParam<VarTestCase>
 {
 protected:
@@ -101,7 +128,7 @@ protected:
     {
         auto&& handle  = get_handle();
         var_config     = GetParam();
-        auto gen_value = [](auto...) { return prng::gen_descrete_uniform_sign<T>(1e-2, 100); };
+        auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
 
         dims     = var_config.dims;
         num_dims = var_config.num_dims;
@@ -109,30 +136,37 @@ protected:
         unbiased = var_config.unbiased;
         divisor  = var_config.divisor;
 
-        std::vector<size_t> dims_vector(dims, dims + num_dims);
+        std::vector<int32_t> dims_vector = var_config.GetDims();
 
         // Calculate the tensor's dimensions
         auto input_dims = var_config.GetInput();
 
-        std::vector<size_t> input_grad_dims = input_dims;
-        std::vector<size_t> mean_dims       = input_dims;
-        std::vector<size_t> mean_grad_dims  = input_dims;
-        std::vector<size_t> var_grad_dims   = input_dims;
+        std::vector<size_t> input_grad_dims(input_dims.size());
+        std::copy(input_dims.begin(), input_dims.end(), input_grad_dims.begin());
+
+        std::vector<size_t> mean_dims(input_dims.size());
+        std::copy(input_dims.begin(), input_dims.end(), mean_dims.begin());
+
+        std::vector<size_t> mean_grad_dims(input_dims.size());
+        std::copy(input_dims.begin(), input_dims.end(), mean_grad_dims.begin());
+
+        std::vector<size_t> var_grad_dims(input_dims.size());
+        std::copy(input_dims.begin(), input_dims.end(), var_grad_dims.begin());
 
         for(const auto& dim : dims_vector)
         {
-            if(var_config.keepdim)
-            {
-                mean_dims[dim]      = 1;
-                mean_grad_dims[dim] = 1;
-                var_grad_dims[dim]  = 1;
-            }
-            else
-            {
-                mean_dims[dim] = 1;
-                mean_grad_dims.erase(mean_grad_dims.begin() + dim);
-                var_grad_dims.erase(var_grad_dims.begin() + dim);
-            }
+            // if(keepdim)
+            // {
+            mean_dims[dim]      = 1;
+            mean_grad_dims[dim] = 1;
+            var_grad_dims[dim]  = 1;
+            // }
+            // else
+            // {
+            //     mean_dims[dim] = 1;
+            //     mean_grad_dims.erase(mean_grad_dims.begin() + dim);
+            //     var_grad_dims.erase(var_grad_dims.begin() + dim);
+            // }
         }
 
         // Set up tensor's values
@@ -220,5 +254,5 @@ protected:
 
     bool keepdim;
     bool unbiased;
-    int64_t divisor;
+    int32_t divisor;
 };

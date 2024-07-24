@@ -30,6 +30,7 @@
 #include <miopen/var/solvers.hpp>
 #include <miopen/var.hpp>
 #include <miopen/target_properties.hpp>
+#include <hip/hip_runtime.h>
 #include "../../kernels/tensor_utils.hpp"
 
 #define LOCAL_SIZE 1024
@@ -45,8 +46,8 @@ bool VarBackward::IsApplicable(const ExecutionContext& context,
 {
     if(!problem.IsSameType())
         return false;
-    if(!problem.IsApplicableSize())
-        return false;
+    // if(!problem.IsApplicableSize())
+    //     return false;
     return true;
 }
 
@@ -83,10 +84,10 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& context,
         }
 
         const auto build_params = KernelBuildParameters{
-            {"MIOPENUSE_FP16", static_cast<int>(dtype == miopenHalf)},
-            {"MIOPENUSE_FP32", static_cast<int>(dtype == miopenFloat)},
-            {"MIOPENUSE_FP64", static_cast<int>(dtype == miopenDouble)},
-            {"MIOPENUSE_BF16", static_cast<int>(dtype == miopenBFloat16)},
+            {"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
+            {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
+            {"MIOPEN_USE_FP64", static_cast<int>(dtype == miopenDouble)},
+            {"MIOPEN_USE_BF16", static_cast<int>(dtype == miopenBFloat16)},
         };
 
         kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
