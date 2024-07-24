@@ -130,7 +130,7 @@ void cpu_var_backward(tensor<T> input,
 }
 
 template <class T>
-void cpu_mean(tensor<T> input, tensor<T>& mean, int32_t* dims, int32_t num_dims, int32_t divisor)
+void cpu_mean(tensor<T> input, tensor<T>& mean, std::vector<int32_t>& dims_vector, int32_t divisor)
 {
     auto input_dims = input.desc.GetLengths();
     auto mean_dims  = mean.desc.GetLengths();
@@ -151,7 +151,7 @@ void cpu_mean(tensor<T> input, tensor<T>& mean, int32_t* dims, int32_t num_dims,
         std::vector<int64_t> reduced_idx(input_dims.size(), 0);
         for(int i = 0; i < input_dims.size(); ++i)
         {
-            if(std::find(dims, dims + num_dims, i) == dims + num_dims)
+            if(std::find(dims_vector.begin(), dims_vector.end(), i) == dims_vector.end())
             {
                 reduced_idx[i] = input_idx[i];
             }

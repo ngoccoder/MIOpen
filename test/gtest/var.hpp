@@ -35,8 +35,6 @@
 #include <miopen/var.hpp>
 
 // TODO : 테케 추가
-// TODO : GETDIMS 함수 올바르게 작동하도록 구현
-// TODO : keepdim false일떄 올바르게 작동하도록 구현
 
 struct VarTestCase
 {
@@ -89,34 +87,109 @@ struct VarTestCase
 
     std::vector<int32_t> GetDims()
     {
-        std::vector<size_t> input_dims = GetInput();
-        std::vector<int32_t> adjusted_dims;
-        int shift = 0;
-
-        for(int i = 0; i < num_dims; ++i)
+        if((N != 0) && (C != 0) && (D != 0) && (H != 0) && (W != 0))
         {
-            int32_t dim = dims[i];
-            if((N == 0 && dim == 0) || (C == 0 && dim == 1) || (D == 0 && dim == 2) ||
-               (H == 0 && dim == 3) || (W == 0 && dim == 4))
+            std::vector<int32_t> adjusted_dims;
+            for(int i = 0; i < num_dims; i++)
             {
-                ++shift;
+                adjusted_dims.push_back(dims[i]);   
             }
-            else
-            {
-                adjusted_dims.push_back(dim - shift);
-            }
+            return adjusted_dims;
         }
-
-        return adjusted_dims;
+        else if((N != 0) && (C != 0) && (H != 0) && (W != 0))
+        {
+            std::vector<int32_t> adjusted_dims;
+            for(int i = 0; i < num_dims; i++)
+            {
+                int32_t dim = dims[i];
+                if (dim == 3 || dim == 4)
+                {
+                    adjusted_dims.push_back(dim - 1);
+                }
+                else if (dim == 2)
+                {
+                    std::cout << "Incorrect Dims\n" << std::endl;
+                    return std::vector<int32_t>({0});
+                }
+                else
+                {
+                    adjusted_dims.push_back(dim);
+                }
+            }
+            return adjusted_dims;
+        }
+        else if((N != 0) && (C != 0) && (W != 0))
+        {
+            std::vector<int32_t> adjusted_dims;
+            for(int i = 0; i < num_dims; i++)
+            {
+                int32_t dim = dims[i];
+                if (dim == 4)
+                {
+                    adjusted_dims.push_back(dim - 2);
+                }
+                else if (dim == 3 || dim == 2)
+                {
+                    std::cout << "Incorrect Dims\n" << std::endl;
+                    return std::vector<int32_t>({0});
+                }
+                else
+                {
+                    adjusted_dims.push_back(dim);
+                }
+            }
+            return adjusted_dims;   
+        }
+        else if((N != 0) && (C != 0))
+        {
+            std::vector<int32_t> adjusted_dims;
+            for(int i = 0; i < num_dims; i++)
+            {
+                int32_t dim = dims[i];
+                if (dim == 2 || dim == 3 || dim == 4)
+                {
+                    std::cout << "Incorrect Dims\n" << std::endl;
+                    return std::vector<int32_t>({0});
+                }
+                else
+                {
+                    adjusted_dims.push_back(dim);
+                }
+            }
+            return adjusted_dims;
+        }
+        else if((N != 0))
+        {
+            std::vector<int32_t> adjusted_dims;
+            for(int i = 0; i < num_dims; i++)
+            {
+                int32_t dim = dims[i];
+                if (dim == 1 || dim == 2 || dim == 3 || dim == 4)
+                {
+                    std::cout << "Incorrect Dims\n" << std::endl;
+                    return std::vector<int32_t>({0});
+                }
+                else
+                {
+                    adjusted_dims.push_back(dim);
+                }
+            }
+            return adjusted_dims;
+        }
+        else
+        {
+            std::cout << "Incorrect Dims\n" << std::endl;
+            return std::vector<int32_t>({0});
+        }
     }
 };
 
 std::vector<VarTestCase> VarTestConfigs()
 {
     return {
-        // {2, 3, 0, 4, 0, new int32_t[2]{1, 3}, 2, true, true, 12},
+        {2, 3, 0, 0, 4, new int32_t[2]{1, 4}, 2, true, true, 12},
         {4, 2, 3, 2, 5, new int32_t[3]{0, 1, 2}, 3, false, false, 24},
-        // {5, 4, 0, 0, 5, new int32_t[1]{4}, 1, true, true, 5},
+        {5, 4, 0, 0, 5, new int32_t[1]{4}, 1, true, true, 5},
     };
 }
 
@@ -130,13 +203,19 @@ protected:
         var_config     = GetParam();
         auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
 
+        std::vector<int32_t> dims_vector = var_config.GetDims();
+
         dims     = var_config.dims;
         num_dims = var_config.num_dims;
+
+        for (int i = 0; i < var_config.num_dims; i++)
+        {
+            dims[i] = dims_vector[i];
+        }
+
         keepdim  = var_config.keepdim;
         unbiased = var_config.unbiased;
         divisor  = var_config.divisor;
-
-        std::vector<int32_t> dims_vector = var_config.GetDims();
 
         // Calculate the tensor's dimensions
         auto input_dims = var_config.GetInput();
@@ -155,24 +234,15 @@ protected:
 
         for(const auto& dim : dims_vector)
         {
-            // if(keepdim)
-            // {
             mean_dims[dim]      = 1;
             mean_grad_dims[dim] = 1;
             var_grad_dims[dim]  = 1;
-            // }
-            // else
-            // {
-            //     mean_dims[dim] = 1;
-            //     mean_grad_dims.erase(mean_grad_dims.begin() + dim);
-            //     var_grad_dims.erase(var_grad_dims.begin() + dim);
-            // }
         }
 
         // Set up tensor's values
         input = tensor<T>{input_dims}.generate(gen_value);
         mean  = tensor<T>{mean_dims};
-        cpu_mean(input, mean, dims, num_dims, divisor);
+        cpu_mean(input, mean, dims_vector, divisor);
         mean_grad = tensor<T>{mean_grad_dims}.generate(gen_value);
         var_grad  = tensor<T>{var_grad_dims}.generate(gen_value);
 
