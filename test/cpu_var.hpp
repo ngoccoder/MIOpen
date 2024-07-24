@@ -42,13 +42,14 @@ void cpu_var_backward(tensor<T> input,
                       bool unbiased,
                       int32_t divisor)
 {
-    auto input_dims = input.desc.GetLengths();
+    auto input_dims      = input.desc.GetLengths();
     auto input_grad_dims = input_grad.desc.GetLengths();
-    auto mean_dims = mean.desc.GetLengths();
-    auto mean_grad_dims = mean_grad.desc.GetLengths();
-    auto var_grad_dims = var_grad.desc.GetLengths();
+    auto mean_dims       = mean.desc.GetLengths();
+    auto mean_grad_dims  = mean_grad.desc.GetLengths();
+    auto var_grad_dims   = var_grad.desc.GetLengths();
 
-    auto input_grad_numel = std::accumulate(input_grad_dims.begin(), input_grad_dims.end(), 1LL, std::multiplies<int64_t>());
+    auto input_grad_numel = std::accumulate(
+        input_grad_dims.begin(), input_grad_dims.end(), 1LL, std::multiplies<int64_t>());
 
     std::fill(input_grad.data.begin(), input_grad.data.end(), 0);
 
@@ -73,7 +74,7 @@ void cpu_var_backward(tensor<T> input,
 
         T input_v = input[gid];
 
-        int64_t mean_idx = 0;
+        int64_t mean_idx    = 0;
         int64_t mean_stride = 1;
 
         for(int i = mean_dims.size() - 1; i >= 0; --i)
@@ -86,7 +87,7 @@ void cpu_var_backward(tensor<T> input,
 
         T input_grad_v = 0;
 
-        int64_t var_grad_idx = 0;
+        int64_t var_grad_idx    = 0;
         int64_t var_grad_stride = 1;
 
         for(int i = var_grad_dims.size() - 1; i >= 0; --i)
@@ -98,11 +99,11 @@ void cpu_var_backward(tensor<T> input,
         if(var_grad.data.size() > 0)
         {
             T var_grad_v = var_grad[var_grad_idx];
-            T res = var_grad_v * (input_v - mean_v) * 2;
+            T res        = var_grad_v * (input_v - mean_v) * 2;
             input_grad_v += unbiased ? res / (divisor - 1) : res / divisor;
         }
 
-        int64_t mean_grad_idx = 0;
+        int64_t mean_grad_idx    = 0;
         int64_t mean_grad_stride = 1;
 
         for(int i = mean_grad_dims.size() - 1; i >= 0; --i)
@@ -125,9 +126,10 @@ template <class T>
 void cpu_mean(tensor<T> input, tensor<T>& mean, int32_t* dims, int32_t num_dims, int32_t divisor)
 {
     auto input_dims = input.desc.GetLengths();
-    auto mean_dims = mean.desc.GetLengths();
+    auto mean_dims  = mean.desc.GetLengths();
 
-    auto input_numel = std::accumulate(input_dims.begin(), input_dims.end(), 1LL, std::multiplies<int64_t>());
+    auto input_numel =
+        std::accumulate(input_dims.begin(), input_dims.end(), 1LL, std::multiplies<int64_t>());
 
     par_ford(input_numel)([&](size_t gid) {
         std::vector<int64_t> input_idx(input_dims.size(), 0);
@@ -148,7 +150,7 @@ void cpu_mean(tensor<T> input, tensor<T>& mean, int32_t* dims, int32_t num_dims,
             }
         }
 
-        int64_t mean_idx = 0;
+        int64_t mean_idx    = 0;
         int64_t mean_stride = 1;
 
         for(int i = mean_dims.size() - 1; i >= 0; --i)
@@ -160,7 +162,8 @@ void cpu_mean(tensor<T> input, tensor<T>& mean, int32_t* dims, int32_t num_dims,
         mean[mean_idx] += input[gid];
     });
 
-    auto mean_numel = std::accumulate(mean_dims.begin(), mean_dims.end(), 1LL, std::multiplies<int64_t>());
+    auto mean_numel =
+        std::accumulate(mean_dims.begin(), mean_dims.end(), 1LL, std::multiplies<int64_t>());
     for(size_t i = 0; i < mean_numel; ++i)
     {
         mean[i] /= divisor;

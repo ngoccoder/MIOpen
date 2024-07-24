@@ -146,7 +146,8 @@ protected:
         std::fill(input_grad.begin(), input_grad.end(), std::numeric_limits<T>::quiet_NaN());
 
         ref_input_grad = tensor<T>{input_grad_dims};
-        std::fill(ref_input_grad.begin(), ref_input_grad.end(), std::numeric_limits<T>::quiet_NaN());
+        std::fill(
+            ref_input_grad.begin(), ref_input_grad.end(), std::numeric_limits<T>::quiet_NaN());
 
         input_dev      = handle.Write(input.data);
         input_grad_dev = handle.Write(input_grad.data);
