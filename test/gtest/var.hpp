@@ -34,8 +34,6 @@
 #include <miopen/miopen.h>
 #include <miopen/var.hpp>
 
-// TODO : 테케 추가
-
 struct VarTestCase
 {
     size_t N;
