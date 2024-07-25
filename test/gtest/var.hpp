@@ -209,7 +209,7 @@ std::vector<VarTestCase> VarTestConfigs()
         {30, 10, 5, 10, 2, new int32_t[1]{0}, 1, false, false, 30},
         {30, 5, 20, 5, 4, new int32_t[1]{3}, 1, true, false, 5},
         {20, 10, 3, 12, 4, new int32_t[2]{0, 2}, 2, false, true, 60},
-        {20, 5, 10, 5, 10, new int32_t[2]{0, 3}, 2, true, true, 50},
+        {20, 5, 10, 5, 10, new int32_t[2]{0, 3}, 2, true, true, 100},
         {40, 20, 3, 2, 5, new int32_t[3]{0, 1, 2}, 3, false, false, 2400},
         {15, 3, 5, 20, 12, new int32_t[3]{1, 2, 3}, 3, true, false, 300},
         {12, 12, 4, 8, 10, new int32_t[4]{1, 2, 3, 4}, 4, true, true, 3840},
