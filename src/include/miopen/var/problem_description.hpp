@@ -106,7 +106,7 @@ struct ProblemDescription : ProblemDescriptionBase
                                                1,
                                                std::multiplies<int>());
 
-        if(input_grad_numel >= 1024 && input_grad_numel <= 1024 * 128)
+        if(input_grad_numel >= 1024 && input_grad_numel <= 1024 * 1024 * 2)
             return true;
         return false;
     }
