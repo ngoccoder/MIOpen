@@ -39,10 +39,8 @@ NetworkConfig ProblemDescription::MakeNetworkConfig() const
     ss << "varbwd-";
 
     const auto& input_length      = inputDesc.GetLengths();
-    const auto& input_grad_length = inputGradDesc.GetLengths();
+    const auto& dtype             = inputDesc.GetType();
     const auto& mean_length       = meanDesc.GetLengths();
-    const auto& mean_grad_length  = meanGradDesc.GetLengths();
-    const auto& var_grad_length   = varGradDesc.GetLengths();
     const auto& is_all_contiguous = IsAllContiguous();
 
     ss << "input-";
@@ -57,17 +55,13 @@ NetworkConfig ProblemDescription::MakeNetworkConfig() const
         ss << len << "-";
     }
 
-    ss << "var_grad-";
-    for(auto len : var_grad_length)
-    {
-        ss << len << "-";
-    }
-
     ss << "dims-";
     for(auto dim : dims)
     {
         ss << dim << "-";
     }
+
+    ss << "dtype-" << dtype << "-";
 
     ss << "keepdim-" << keepdim << "-";
     ss << "unbiased-" << unbiased << "-";
