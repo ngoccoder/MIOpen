@@ -51,20 +51,8 @@ NetworkConfig ProblemDescription::MakeNetworkConfig() const
         ss << len << "-";
     }
 
-    ss << "input_grad-";
-    for(auto len : input_grad_length)
-    {
-        ss << len << "-";
-    }
-
-    ss << "mean-";
+    ss << "mean&var-";
     for(auto len : mean_length)
-    {
-        ss << len << "-";
-    }
-
-    ss << "mean_grad-";
-    for(auto len : mean_grad_length)
     {
         ss << len << "-";
     }
