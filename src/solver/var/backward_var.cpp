@@ -171,15 +171,15 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& context,
             bool is_contiguous = true;
             for(int i = input_dims.size() - 2; i >= 0; --i)
             {
-                if(input_strides[i] != input_strides[i+1] * input_dims[i+1] ||
-                input_grad_strides[i] != input_grad_strides[i+1] * input_grad_dims[i+1])
+                if(input_strides[i] != input_strides[i + 1] * input_dims[i + 1] ||
+                   input_grad_strides[i] != input_grad_strides[i + 1] * input_grad_dims[i + 1])
                 {
                     is_contiguous = false;
                     break;
                 }
             }
 
-            if (is_contiguous)
+            if(is_contiguous)
             {
                 kernel(params.input,
                        params.input_grad,
