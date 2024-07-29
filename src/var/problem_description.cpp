@@ -43,6 +43,7 @@ NetworkConfig ProblemDescription::MakeNetworkConfig() const
     const auto& mean_length       = meanDesc.GetLengths();
     const auto& mean_grad_length  = meanGradDesc.GetLengths();
     const auto& var_grad_length   = varGradDesc.GetLengths();
+    const auto& is_all_contiguous = IsAllContiguous();
 
     ss << "input-";
     for(auto len : input_length)
@@ -80,9 +81,10 @@ NetworkConfig ProblemDescription::MakeNetworkConfig() const
         ss << dim << "-";
     }
 
-    ss << "keepdim-" << keepdim;
-    ss << "unbiased-" << unbiased;
-    ss << "divisor-" << divisor;
+    ss << "keepdim-" << keepdim << "-";
+    ss << "unbiased-" << unbiased << "-";
+    ss << "divisor-" << divisor << "-";
+    ss << "all_contiguous-" << is_all_contiguous;
 
     return NetworkConfig{ss.str()};
 }
