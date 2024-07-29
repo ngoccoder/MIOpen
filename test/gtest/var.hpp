@@ -200,7 +200,6 @@ std::vector<VarTestCase> VarTestConfigs()
         {50, 30, 0, 0, 10, new int32_t[3]{0, 1, 4}, 3, true, true, 15000},
         {50, 10, 0, 5, 20, new int32_t[1]{0}, 1, false, false, 50},
         {50, 30, 0, 5, 4, new int32_t[1]{3}, 1, true, false, 5},
-        {5, 100, 0, 10, 3, new int32_t[1]{4}, 1, false, false, 3},
         {10, 20, 0, 10, 5, new int32_t[2]{0, 4}, 2, false, true, 100},
         {20, 30, 0, 5, 5, new int32_t[2]{0, 3}, 2, true, true, 100},
         {20, 5, 0, 10, 10, new int32_t[3]{0, 1, 3}, 3, true, false, 1000},

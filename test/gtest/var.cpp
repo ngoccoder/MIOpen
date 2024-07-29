@@ -59,7 +59,7 @@ using namespace var;
 
 TEST_P(VarBackwardTestFloat, VarTestBw)
 {
-    if(env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--float"))
+    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--float")))
     {
         RunTest();
         Verify();
@@ -72,7 +72,7 @@ TEST_P(VarBackwardTestFloat, VarTestBw)
 
 TEST_P(VarBackwardTestHalf, VarTestBw)
 {
-    if(env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--half"))
+    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--half")))
     {
         RunTest();
         Verify();
@@ -85,7 +85,7 @@ TEST_P(VarBackwardTestHalf, VarTestBw)
 
 TEST_P(VarBackwardTestBFloat16, VarTestBw)
 {
-    if(env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--bfloat16"))
+    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--bfloat16")))
     {
         RunTest();
         Verify();
