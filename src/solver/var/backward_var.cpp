@@ -103,7 +103,7 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& context,
         result.construction_params.push_back(kernel);
     }
 
-    result.invoker_factory = [is_all_contiguous](const std::vector<Kernel>& kernels) {
+    result.invoker_factory = [](const std::vector<Kernel>& kernels) {
         return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
             decltype(auto) kernel = handle_.Run(kernels.front());
             decltype(auto) params = raw_params.CastTo<miopen::var::InvokeParams>();
@@ -167,7 +167,19 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& context,
                 var_grad_tv.strides[i]    = var_grad_strides[i];
             }
 
-            if(is_all_contiguous)
+            // Check if input and input_grad tensors are contiguous
+            bool is_contiguous = true;
+            for(int i = input_dims.size() - 2; i >= 0; --i)
+            {
+                if(input_strides[i] != input_strides[i+1] * input_dims[i+1] ||
+                input_grad_strides[i] != input_grad_strides[i+1] * input_grad_dims[i+1])
+                {
+                    is_contiguous = false;
+                    break;
+                }
+            }
+
+            if (is_contiguous)
             {
                 kernel(params.input,
                        params.input_grad,
