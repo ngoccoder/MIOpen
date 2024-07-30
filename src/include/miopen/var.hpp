@@ -46,10 +46,10 @@ MIOPEN_INTERNALS_EXPORT miopenStatus_t VarBackward(Handle& handle,
                                                    const TensorDescriptor& varianceGradDesc,
                                                    ConstData_t variance_grad,
                                                    const int* dims,
-                                                   const int num_dims,
-                                                   const bool keepdim,
-                                                   const bool unbiased,
-                                                   const int divisor);
+                                                   int num_dims,
+                                                   bool keepdim,
+                                                   bool unbiased,
+                                                   int divisor);
 
 } // namespace miopen
 #endif

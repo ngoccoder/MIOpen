@@ -35,7 +35,7 @@ struct dim_5d_t
     uint64_t x[5] = {0, 0, 0, 0, 0};
 };
 
-__device__ void GET_NCDHW(uint64_t ncdhw[5], uint64_t id, const uint64_t dimensions[5])
+__device__ void inline GET_NCDHW(uint64_t ncdhw[5], uint64_t id, const uint64_t dimensions[5])
 {
     uint64_t ncdh = (id) / dimensions[4];
     ncdhw[4]      = (id) % dimensions[4];
@@ -48,7 +48,7 @@ __device__ void GET_NCDHW(uint64_t ncdhw[5], uint64_t id, const uint64_t dimensi
     ncdhw[0]      = n;
 }
 
-__device__ uint64_t GET_STRIDED_INDEX(const uint64_t indices[5], const uint64_t strides[5])
+__device__ uint64_t inline GET_STRIDED_INDEX(const uint64_t indices[5], const uint64_t strides[5])
 {
     return indices[0] * strides[0] + indices[1] * strides[1] + indices[2] * strides[2] +
            indices[3] * strides[3] + indices[4] * strides[4];

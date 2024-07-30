@@ -41,7 +41,7 @@ namespace solver {
 
 namespace var {
 
-bool VarBackward::IsApplicable(const ExecutionContext& context,
+bool VarBackward::IsApplicable([[maybe_unused]] const ExecutionContext& context,
                                const miopen::var::ProblemDescription& problem) const
 {
     if(!problem.IsSameType())
@@ -51,7 +51,7 @@ bool VarBackward::IsApplicable(const ExecutionContext& context,
     return true;
 }
 
-ConvSolution VarBackward::GetSolution(const ExecutionContext& context,
+ConvSolution VarBackward::GetSolution([[maybe_unused]] const ExecutionContext& context,
                                       const miopen::var::ProblemDescription& problem) const
 {
     auto result = ConvSolution{miopenStatusSuccess};

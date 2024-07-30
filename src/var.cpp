@@ -47,10 +47,10 @@ miopenStatus_t VarBackward(Handle& handle,
                            const TensorDescriptor& varGradDesc,
                            ConstData_t var_grad,
                            const int* dims,
-                           const int num_dims,
-                           const bool keepdim,
-                           const bool unbiased,
-                           const int divisor)
+                           int num_dims,
+                           bool keepdim,
+                           bool unbiased,
+                           int divisor)
 {
     std::vector dims_vector(dims, dims + num_dims);
 
