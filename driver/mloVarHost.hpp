@@ -124,7 +124,10 @@ int32_t mloVarBackwardRunHost(miopenTensorDescriptor_t inputDesc,
             input_grad_v += mean_grad_v / static_cast<Tgpu>(divisor);
         }
 
-        input_grad[std::inner_product(input_idx.begin(), input_idx.end(), input_grad_strides.begin(), static_cast<int64_t>(0))] = input_grad_v;
+        input_grad[std::inner_product(input_idx.begin(),
+                                      input_idx.end(),
+                                      input_grad_strides.begin(),
+                                      static_cast<int64_t>(0))] = input_grad_v;
     }
 
     return 0;

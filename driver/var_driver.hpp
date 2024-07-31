@@ -161,7 +161,7 @@ int VarDriver<Tgpu, Tref>::GetandSetData()
         var_grad_len[dim]  = 1;
     }
 
-    if (GetIsContiguousFromCmdLine() == 0)
+    if(GetIsContiguousFromCmdLine() == 0)
     {
         for(auto& dim : dims)
         {
