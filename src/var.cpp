@@ -54,7 +54,7 @@ miopenStatus_t VarBackward(Handle& handle,
 {
     std::vector dims_vector(dims, dims + num_dims);
 
-    const auto problem       = var::ProblemDescription{inputDesc,
+    const auto problem = var::ProblemDescription{inputDesc,
                                                  inputGradDesc,
                                                  meanDesc,
                                                  meanGradDesc,
@@ -63,22 +63,29 @@ miopenStatus_t VarBackward(Handle& handle,
                                                  keepdim,
                                                  unbiased,
                                                  divisor};
-    const auto invoke_params = var::InvokeParams{inputDesc,
-                                                 input,
-                                                 inputGradDesc,
-                                                 input_grad,
-                                                 meanDesc,
-                                                 mean,
-                                                 meanGradDesc,
-                                                 mean_grad,
-                                                 varGradDesc,
-                                                 var_grad,
-                                                 dims_vector,
-                                                 keepdim,
-                                                 unbiased,
-                                                 divisor};
-    const auto algo          = AlgorithmName{"VarBackward"};
-    const auto solvers       = solver::SolverContainer<solver::var::VarBackward>{};
+
+    const auto invoke_params = [&]() {
+        auto tmp          = var::InvokeParams{};
+        tmp.type          = InvokeType::Run;
+        tmp.inputDesc     = &inputDesc;
+        tmp.inputGradDesc = &inputGradDesc;
+        tmp.meanDesc      = &meanDesc;
+        tmp.meanGradDesc  = &meanGradDesc;
+        tmp.varGradDesc   = &varGradDesc;
+        tmp.input         = input;
+        tmp.input_grad    = input_grad;
+        tmp.mean          = mean;
+        tmp.mean_grad     = mean_grad;
+        tmp.var_grad      = var_grad;
+        tmp.dims          = &dims_vector;
+        tmp.keepdim       = keepdim;
+        tmp.unbiased      = unbiased;
+        tmp.divisor       = divisor;
+        return tmp;
+    }();
+
+    const auto algo    = AlgorithmName{"VarBackward"};
+    const auto solvers = solver::SolverContainer<solver::var::VarBackward>{};
 
     solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
 

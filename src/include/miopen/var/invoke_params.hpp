@@ -34,36 +34,7 @@ namespace var {
 
 struct InvokeParams : public miopen::InvokeParams
 {
-    InvokeParams(const TensorDescriptor& inputDesc_,
-                 ConstData_t input_,
-                 const TensorDescriptor& inputGradDesc_,
-                 Data_t input_grad_,
-                 const TensorDescriptor& meanDesc_,
-                 ConstData_t mean_,
-                 const TensorDescriptor& meanGradDesc_,
-                 ConstData_t mean_grad_,
-                 const TensorDescriptor& varGradDesc_,
-                 ConstData_t var_grad_,
-                 const std::vector<int>& dims_,
-                 const bool keepdim_,
-                 const bool unbiased_,
-                 const int divisor_)
-        : inputDesc(&inputDesc_),
-          inputGradDesc(&inputGradDesc_),
-          meanDesc(&meanDesc_),
-          meanGradDesc(&meanGradDesc_),
-          varGradDesc(&varGradDesc_),
-          input(input_),
-          input_grad(input_grad_),
-          mean(mean_),
-          mean_grad(mean_grad_),
-          var_grad(var_grad_),
-          dims(&dims_),
-          keepdim(keepdim_),
-          unbiased(unbiased_),
-          divisor(divisor_)
-    {
-    }
+    InvokeParams() = default;
 
     const TensorDescriptor* inputDesc     = nullptr;
     const TensorDescriptor* inputGradDesc = nullptr;
@@ -78,9 +49,9 @@ struct InvokeParams : public miopen::InvokeParams
     ConstData_t var_grad  = nullptr;
 
     const std::vector<int>* dims = nullptr;
-    const bool keepdim;
-    const bool unbiased;
-    const int divisor;
+    bool keepdim;
+    bool unbiased;
+    int divisor;
 
     std::size_t GetWorkspaceSize() const { return 0; }
     Data_t GetWorkspace() const { return nullptr; }
