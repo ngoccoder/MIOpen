@@ -68,6 +68,7 @@ public:
     bool GetKeepDimFromCmdLine();
     bool GetUnbiasedFromCmdLine();
     int GetDivisorFromCmdLine();
+    int GetIsContiguousFromCmdLine();
 
     int AllocateBuffersAndCopy() override;
 
@@ -160,11 +161,65 @@ int VarDriver<Tgpu, Tref>::GetandSetData()
         var_grad_len[dim]  = 1;
     }
 
-    SetTensorNd(inputDesc, input_len, data_type);
-    SetTensorNd(inputGradDesc, input_grad_len, data_type);
-    SetTensorNd(meanDesc, mean_len, data_type);
-    SetTensorNd(meanGradDesc, mean_grad_len, data_type);
-    SetTensorNd(varGradDesc, var_grad_len, data_type);
+    if (GetIsContiguousFromCmdLine() == 0)
+    {
+        for(auto& dim : dims)
+        {
+            if(dim == 0)
+                dim = input_len.size() - 1;
+            else if(dim == input_len.size() - 1)
+                dim = 0;
+        }
+
+        std::vector<int> input_strides(input_len.size());
+        input_strides.back() = 1;
+        for(int i = input_len.size() - 2; i >= 0; i--)
+            input_strides[i] = input_strides[i + 1] * input_len[i + 1];
+        std::swap(input_strides.front(), input_strides.back());
+        std::swap(input_len.front(), input_len.back());
+
+        std::vector<int> input_grad_strides(input_grad_len.size());
+        input_grad_strides.back() = 1;
+        for(int i = input_grad_len.size() - 2; i >= 0; i--)
+            input_grad_strides[i] = input_grad_strides[i + 1] * input_grad_len[i + 1];
+        std::swap(input_grad_strides.front(), input_grad_strides.back());
+        std::swap(input_grad_len.front(), input_grad_len.back());
+
+        std::vector<int> mean_strides(mean_len.size());
+        mean_strides.back() = 1;
+        for(int i = mean_len.size() - 2; i >= 0; i--)
+            mean_strides[i] = mean_strides[i + 1] * mean_len[i + 1];
+        std::swap(mean_strides.front(), mean_strides.back());
+        std::swap(mean_len.front(), mean_len.back());
+
+        std::vector<int> mean_grad_strides(mean_grad_len.size());
+        mean_grad_strides.back() = 1;
+        for(int i = mean_grad_len.size() - 2; i >= 0; i--)
+            mean_grad_strides[i] = mean_grad_strides[i + 1] * mean_grad_len[i + 1];
+        std::swap(mean_grad_strides.front(), mean_grad_strides.back());
+        std::swap(mean_grad_len.front(), mean_grad_len.back());
+
+        std::vector<int> var_grad_strides(var_grad_len.size());
+        var_grad_strides.back() = 1;
+        for(int i = var_grad_len.size() - 2; i >= 0; i--)
+            var_grad_strides[i] = var_grad_strides[i + 1] * var_grad_len[i + 1];
+        std::swap(var_grad_strides.front(), var_grad_strides.back());
+        std::swap(var_grad_len.front(), var_grad_len.back());
+
+        SetTensorNd(inputDesc, input_len, input_strides, data_type);
+        SetTensorNd(inputGradDesc, input_grad_len, input_grad_strides, data_type);
+        SetTensorNd(meanDesc, mean_len, mean_strides, data_type);
+        SetTensorNd(meanGradDesc, mean_grad_len, mean_grad_strides, data_type);
+        SetTensorNd(varGradDesc, var_grad_len, var_grad_strides, data_type);
+    }
+    else
+    {
+        SetTensorNd(inputDesc, input_len, data_type);
+        SetTensorNd(inputGradDesc, input_grad_len, data_type);
+        SetTensorNd(meanDesc, mean_len, data_type);
+        SetTensorNd(meanGradDesc, mean_grad_len, data_type);
+        SetTensorNd(varGradDesc, var_grad_len, data_type);
+    }
 
     return miopenStatusSuccess;
 }
@@ -187,6 +242,7 @@ int VarDriver<Tgpu, Tref>::AddCmdLineArgs()
     inflags.AddInputFlag("time", 't', "0", "Time Each Layer (Default=0)", "int");
     inflags.AddInputFlag(
         "wall", 'w', "0", "Wall-clock Time Each Layer, Requires time flag (Default=0)", "int");
+    inflags.AddInputFlag("contiguous", 'c', "1", "Use contiguous memory (Default=1)", "int");
 
     return miopenStatusSuccess;
 }
@@ -271,6 +327,12 @@ template <typename Tgpu, typename Tref>
 int VarDriver<Tgpu, Tref>::GetDivisorFromCmdLine()
 {
     return (inflags.GetValueInt("Divisor"));
+}
+
+template <typename Tgpu, typename Tref>
+int VarDriver<Tgpu, Tref>::GetIsContiguousFromCmdLine()
+{
+    return (inflags.GetValueInt("contiguous"));
 }
 
 template <typename Tgpu, typename Tref>

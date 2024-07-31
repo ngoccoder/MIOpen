@@ -48,11 +48,16 @@ int32_t mloVarBackwardRunHost(miopenTensorDescriptor_t inputDesc,
                               bool unbiased,
                               int32_t divisor)
 {
-    auto input_dims      = miopen::deref(inputDesc).GetLengths();
-    auto input_grad_dims = miopen::deref(inputGradDesc).GetLengths();
-    auto mean_dims       = miopen::deref(meanDesc).GetLengths();
-    auto mean_grad_dims  = miopen::deref(meanGradDesc).GetLengths();
-    auto var_grad_dims   = miopen::deref(varGradDesc).GetLengths();
+    auto input_dims         = miopen::deref(inputDesc).GetLengths();
+    auto input_strides      = miopen::deref(inputDesc).GetStrides();
+    auto input_grad_dims    = miopen::deref(inputGradDesc).GetLengths();
+    auto input_grad_strides = miopen::deref(inputGradDesc).GetStrides();
+    auto mean_dims          = miopen::deref(meanDesc).GetLengths();
+    auto mean_strides       = miopen::deref(meanDesc).GetStrides();
+    auto mean_grad_dims     = miopen::deref(meanGradDesc).GetLengths();
+    auto mean_grad_strides  = miopen::deref(meanGradDesc).GetStrides();
+    auto var_grad_dims      = miopen::deref(varGradDesc).GetLengths();
+    auto var_grad_strides   = miopen::deref(varGradDesc).GetStrides();
 
     auto input_grad_numel = std::accumulate(
         input_grad_dims.begin(), input_grad_dims.end(), 1LL, std::multiplies<int64_t>());
@@ -79,16 +84,11 @@ int32_t mloVarBackwardRunHost(miopenTensorDescriptor_t inputDesc,
             }
         }
 
-        Tgpu input_v = input[gid];
+        Tgpu input_v = input[std::inner_product(
+            input_idx.begin(), input_idx.end(), input_strides.begin(), static_cast<int64_t>(0))];
 
-        int64_t mean_idx    = 0;
-        int64_t mean_stride = 1;
-
-        for(int i = reduced_idx.size() - 1; i >= 0; --i)
-        {
-            mean_idx += reduced_idx[i] * mean_stride;
-            mean_stride *= mean_dims[i];
-        }
+        int64_t mean_idx = std::inner_product(
+            reduced_idx.begin(), reduced_idx.end(), mean_strides.begin(), static_cast<int64_t>(0));
 
         Tgpu mean_v = static_cast<Tgpu>(0.0);
 
@@ -99,14 +99,10 @@ int32_t mloVarBackwardRunHost(miopenTensorDescriptor_t inputDesc,
 
         Tgpu input_grad_v = static_cast<Tgpu>(0.0);
 
-        int64_t var_grad_idx    = 0;
-        int64_t var_grad_stride = 1;
-
-        for(int i = var_grad_dims.size() - 1; i >= 0; --i)
-        {
-            var_grad_idx += reduced_idx[i] * var_grad_stride;
-            var_grad_stride *= var_grad_dims[i];
-        }
+        int64_t var_grad_idx = std::inner_product(reduced_idx.begin(),
+                                                  reduced_idx.end(),
+                                                  var_grad_strides.begin(),
+                                                  static_cast<int64_t>(0));
 
         if(var_grad != nullptr)
         {
@@ -117,14 +113,10 @@ int32_t mloVarBackwardRunHost(miopenTensorDescriptor_t inputDesc,
                 unbiased ? res / static_cast<Tgpu>(divisor - 1) : res / static_cast<Tgpu>(divisor);
         }
 
-        int64_t mean_grad_idx    = 0;
-        int64_t mean_grad_stride = 1;
-
-        for(int i = mean_grad_dims.size() - 1; i >= 0; --i)
-        {
-            mean_grad_idx += reduced_idx[i] * mean_grad_stride;
-            mean_grad_stride *= mean_grad_dims[i];
-        }
+        int64_t mean_grad_idx = std::inner_product(reduced_idx.begin(),
+                                                   reduced_idx.end(),
+                                                   mean_grad_strides.begin(),
+                                                   static_cast<int64_t>(0));
 
         if(mean_grad != nullptr)
         {
@@ -132,7 +124,7 @@ int32_t mloVarBackwardRunHost(miopenTensorDescriptor_t inputDesc,
             input_grad_v += mean_grad_v / static_cast<Tgpu>(divisor);
         }
 
-        input_grad[gid] = input_grad_v;
+        input_grad[std::inner_product(input_idx.begin(), input_idx.end(), input_grad_strides.begin(), static_cast<int64_t>(0))] = input_grad_v;
     }
 
     return 0;
@@ -146,8 +138,10 @@ int32_t mloMeanForwardRunHost(miopenTensorDescriptor_t inputDesc,
                               std::vector<int32_t>& dims_vector,
                               int32_t divisor)
 {
-    auto input_dims = miopen::deref(inputDesc).GetLengths();
-    auto mean_dims  = miopen::deref(meanDesc).GetLengths();
+    auto input_dims    = miopen::deref(inputDesc).GetLengths();
+    auto input_strides = miopen::deref(inputDesc).GetStrides();
+    auto mean_dims     = miopen::deref(meanDesc).GetLengths();
+    auto mean_strides  = miopen::deref(meanDesc).GetStrides();
 
     auto input_numel =
         std::accumulate(input_dims.begin(), input_dims.end(), 1LL, std::multiplies<int64_t>());
@@ -172,16 +166,11 @@ int32_t mloMeanForwardRunHost(miopenTensorDescriptor_t inputDesc,
             }
         }
 
-        int64_t mean_idx    = 0;
-        int64_t mean_stride = 1;
+        int64_t mean_idx = std::inner_product(
+            reduced_idx.begin(), reduced_idx.end(), mean_strides.begin(), static_cast<int64_t>(0));
 
-        for(int i = mean_dims.size() - 1; i >= 0; --i)
-        {
-            mean_idx += reduced_idx[i] * mean_stride;
-            mean_stride *= mean_dims[i];
-        }
-
-        mean[mean_idx] += input[gid];
+        mean[mean_idx] += input[std::inner_product(
+            input_idx.begin(), input_idx.end(), input_strides.begin(), static_cast<int64_t>(0))];
     }
 
     auto mean_numel =
