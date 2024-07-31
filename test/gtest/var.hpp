@@ -218,7 +218,7 @@ std::vector<VarTestCase> VarTestConfigs()
 }
 
 template <typename T = float>
-struct VarBackwardTest : public ::testing::TestWithParam<VarTestCase>
+struct VarBackwardTestContiguous : public ::testing::TestWithParam<VarTestCase>
 {
 protected:
     void SetUp() override
@@ -292,6 +292,191 @@ protected:
             input, ref_input_grad, mean, mean_grad, var_grad, dims, num_dims, unbiased, divisor);
         miopenStatus_t status;
 
+        status = miopen::VarBackward(handle,
+                                     input.desc,
+                                     input_dev.get(),
+                                     input_grad.desc,
+                                     input_grad_dev.get(),
+                                     mean.desc,
+                                     mean_dev.get(),
+                                     mean_grad.desc,
+                                     mean_grad_dev.get(),
+                                     var_grad.desc,
+                                     var_grad_dev.get(),
+                                     dims,
+                                     num_dims,
+                                     keepdim,
+                                     unbiased,
+                                     divisor);
+
+        EXPECT_EQ(status, miopenStatusSuccess);
+
+        input_grad.data = handle.Read<T>(input_grad_dev, input_grad.data.size());
+    }
+
+    void Verify()
+    {
+        auto threshold = std::is_same<T, float>::value ? 1.5e-5 : 8.2e-2;
+
+        if(std::is_same<T, bfloat16>::value)
+            threshold *= 8.0;
+        auto error = miopen::rms_range(ref_input_grad, input_grad);
+
+        EXPECT_TRUE(miopen::range_distance(ref_input_grad) == miopen::range_distance(input_grad));
+        EXPECT_TRUE(error < threshold)
+            << "Error output beyond tolerance Error:" << error << ",    Threshold " << threshold;
+    }
+
+    VarTestCase var_config;
+
+    tensor<T> input;
+    tensor<T> input_grad;
+    tensor<T> mean;
+    tensor<T> mean_grad;
+    tensor<T> var_grad;
+
+    tensor<T> ref_input_grad;
+
+    miopen::Allocator::ManageDataPtr input_dev;
+    miopen::Allocator::ManageDataPtr input_grad_dev;
+    miopen::Allocator::ManageDataPtr mean_dev;
+    miopen::Allocator::ManageDataPtr mean_grad_dev;
+    miopen::Allocator::ManageDataPtr var_grad_dev;
+
+    int32_t* dims;
+    int32_t num_dims;
+
+    bool keepdim;
+    bool unbiased;
+    int32_t divisor;
+};
+
+template <typename T = float>
+struct VarBackwardTestNonContiguous : public ::testing::TestWithParam<VarTestCase>
+{
+protected:
+    void SetUp() override
+    {
+        auto&& handle  = get_handle();
+        var_config     = GetParam();
+        auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
+
+        std::vector<int32_t> dims_vector = var_config.GetDims();
+
+        dims     = var_config.dims;
+        num_dims = var_config.num_dims;
+
+        for(int i = 0; i < var_config.num_dims; i++)
+        {
+            dims[i] = dims_vector[i];
+        }
+
+        keepdim  = var_config.keepdim;
+        unbiased = var_config.unbiased;
+        divisor  = var_config.divisor;
+
+        // Calculate the tensor's dimensions
+        auto input_dims = var_config.GetInput();
+
+        std::vector<size_t> input_grad_dims(input_dims.size());
+        std::copy(input_dims.begin(), input_dims.end(), input_grad_dims.begin());
+
+        std::vector<size_t> mean_dims(input_dims.size());
+        std::copy(input_dims.begin(), input_dims.end(), mean_dims.begin());
+
+        std::vector<size_t> mean_grad_dims(input_dims.size());
+        std::copy(input_dims.begin(), input_dims.end(), mean_grad_dims.begin());
+
+        std::vector<size_t> var_grad_dims(input_dims.size());
+        std::copy(input_dims.begin(), input_dims.end(), var_grad_dims.begin());
+
+        for(const auto& dim : dims_vector)
+        {
+            mean_dims[dim]      = 1;
+            mean_grad_dims[dim] = 1;
+            var_grad_dims[dim]  = 1;
+        }
+
+        for(auto& dim : dims_vector)
+        {
+            if(dim == 0)
+            dim = input_dims.size() - 1;
+            else if(dim == input_dims.size() - 1)
+            dim = 0;
+        }
+
+        for(int i = 0; i < var_config.num_dims; i++)
+        {
+            if(dims[i] == 0)
+                dims[i] = input_dims.size() - 1;
+            else if(dims[i] == input_dims.size() - 1)
+                dims[i] = 0;
+        }
+
+        // Define non-contiguous strides
+        std::vector<size_t> input_strides(input_dims.size());
+        input_strides.back() = 1;
+        for(int i = input_dims.size() - 2; i >= 0; --i)
+            input_strides[i] = input_strides[i + 1] * input_dims[i + 1];
+        std::swap(input_strides.front(), input_strides.back());
+        std::swap(input_dims.front(), input_dims.back());
+
+        std::vector<size_t> input_grad_strides(input_grad_dims.size());
+        input_grad_strides.back() = 1;
+        for(int i = input_grad_dims.size() - 2; i >= 0; --i)
+            input_grad_strides[i] = input_grad_strides[i + 1] * input_grad_dims[i + 1];
+        std::swap(input_grad_strides.front(), input_grad_strides.back());
+        std::swap(input_grad_dims.front(), input_grad_dims.back());
+
+        std::vector<size_t> mean_strides(mean_dims.size());
+        mean_strides.back() = 1;
+        for(int i = mean_dims.size() - 2; i >= 0; --i)
+            mean_strides[i] = mean_strides[i + 1] * mean_dims[i + 1];
+        std::swap(mean_strides.front(), mean_strides.back());
+        std::swap(mean_dims.front(), mean_dims.back());
+
+        std::vector<size_t> mean_grad_strides(mean_grad_dims.size());
+        mean_grad_strides.back() = 1;
+        for(int i = mean_grad_dims.size() - 2; i >= 0; --i)
+            mean_grad_strides[i] = mean_grad_strides[i + 1] * mean_grad_dims[i + 1];
+        std::swap(mean_grad_strides.front(), mean_grad_strides.back());
+        std::swap(mean_grad_dims.front(), mean_grad_dims.back());
+
+        std::vector<size_t> var_grad_strides(var_grad_dims.size());
+        var_grad_strides.back() = 1;
+        for(int i = var_grad_dims.size() - 2; i >= 0; --i)
+            var_grad_strides[i] = var_grad_strides[i + 1] * var_grad_dims[i + 1];
+        std::swap(var_grad_strides.front(), var_grad_strides.back());
+        std::swap(var_grad_dims.front(), var_grad_dims.back());
+
+        // Set up tensor's values
+        input = tensor<T>{input_dims, input_strides}.generate(gen_value);
+        mean  = tensor<T>{mean_dims, mean_strides};
+        cpu_mean(input, mean, dims_vector, divisor);
+        mean_grad = tensor<T>{mean_grad_dims, mean_grad_strides}.generate(gen_value);
+        var_grad  = tensor<T>{var_grad_dims, var_grad_strides}.generate(gen_value);
+
+        input_grad = tensor<T>{input_grad_dims, input_grad_strides};
+        std::fill(input_grad.begin(), input_grad.end(), std::numeric_limits<T>::quiet_NaN());
+
+        ref_input_grad = tensor<T>{input_grad_dims, input_grad_strides};
+        std::fill(ref_input_grad.begin(), ref_input_grad.end(), std::numeric_limits<T>::quiet_NaN());
+        
+        input_dev      = handle.Write(input.data);
+        input_grad_dev = handle.Write(input_grad.data);
+        mean_dev       = handle.Write(mean.data);
+        mean_grad_dev  = handle.Write(mean_grad.data);
+        var_grad_dev   = handle.Write(var_grad.data);
+    }
+
+    void RunTest()
+    {
+        auto&& handle = get_handle();
+    
+        cpu_var_backward(
+            input, ref_input_grad, mean, mean_grad, var_grad, dims, num_dims, unbiased, divisor);
+        miopenStatus_t status;
+        
         status = miopen::VarBackward(handle,
                                      input.desc,
                                      input_dev.get(),

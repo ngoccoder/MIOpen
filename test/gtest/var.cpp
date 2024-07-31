@@ -42,22 +42,34 @@ std::string GetFloatArg()
     return tmp;
 }
 
-struct VarBackwardTestFloat : VarBackwardTest<float>
+struct VarBackwardTestContiguousFloat : VarBackwardTestContiguous<float>
 {
 };
 
-struct VarBackwardTestHalf : VarBackwardTest<half_float::half>
+struct VarBackwardTestContiguousHalf : VarBackwardTestContiguous<half_float::half>
 {
 };
 
-struct VarBackwardTestBFloat16 : VarBackwardTest<bfloat16>
+struct VarBackwardTestContiguousBFloat16 : VarBackwardTestContiguous<bfloat16>
+{
+};
+
+struct VarBackwardTestNonContiguousFloat : VarBackwardTestNonContiguous<float>
+{
+};
+
+struct VarBackwardTestNonContiguousHalf : VarBackwardTestNonContiguous<half_float::half>
+{
+};
+
+struct VarBackwardTestNonContiguousBFloat16 : VarBackwardTestNonContiguous<bfloat16>
 {
 };
 
 } // namespace var
 using namespace var;
 
-TEST_P(VarBackwardTestFloat, VarTestBw)
+TEST_P(VarBackwardTestContiguousFloat, VarTestBw)
 {
     if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--float")))
     {
@@ -70,7 +82,7 @@ TEST_P(VarBackwardTestFloat, VarTestBw)
     }
 }
 
-TEST_P(VarBackwardTestHalf, VarTestBw)
+TEST_P(VarBackwardTestContiguousHalf, VarTestBw)
 {
     if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--half")))
     {
@@ -83,7 +95,7 @@ TEST_P(VarBackwardTestHalf, VarTestBw)
     }
 }
 
-TEST_P(VarBackwardTestBFloat16, VarTestBw)
+TEST_P(VarBackwardTestContiguousBFloat16, VarTestBw)
 {
     if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--bfloat16")))
     {
@@ -96,6 +108,48 @@ TEST_P(VarBackwardTestBFloat16, VarTestBw)
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestFloat, testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestHalf, testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestBFloat16, testing::ValuesIn(VarTestConfigs()));
+TEST_P(VarBackwardTestNonContiguousFloat, VarTestBw)
+{
+    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--float")))
+    {
+        RunTest();
+        Verify();
+    }
+    else
+    {
+        GTEST_SKIP();
+    }
+}
+
+TEST_P(VarBackwardTestNonContiguousHalf, VarTestBw)
+{
+    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--half")))
+    {
+        RunTest();
+        Verify();
+    }
+    else
+    {
+        GTEST_SKIP();
+    }
+}
+
+TEST_P(VarBackwardTestNonContiguousBFloat16, VarTestBw)
+{
+    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--bfloat16")))
+    {
+        RunTest();
+        Verify();
+    }
+    else
+    {
+        GTEST_SKIP();
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestContiguousFloat, testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestContiguousHalf, testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestContiguousBFloat16, testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestNonContiguousFloat, testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestNonContiguousHalf, testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestNonContiguousBFloat16, testing::ValuesIn(VarTestConfigs()));
