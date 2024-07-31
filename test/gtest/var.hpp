@@ -400,9 +400,9 @@ protected:
         for(auto& dim : dims_vector)
         {
             if(dim == 0)
-            dim = input_dims.size() - 1;
+                dim = input_dims.size() - 1;
             else if(dim == input_dims.size() - 1)
-            dim = 0;
+                dim = 0;
         }
 
         for(int i = 0; i < var_config.num_dims; i++)
@@ -460,8 +460,9 @@ protected:
         std::fill(input_grad.begin(), input_grad.end(), std::numeric_limits<T>::quiet_NaN());
 
         ref_input_grad = tensor<T>{input_grad_dims, input_grad_strides};
-        std::fill(ref_input_grad.begin(), ref_input_grad.end(), std::numeric_limits<T>::quiet_NaN());
-        
+        std::fill(
+            ref_input_grad.begin(), ref_input_grad.end(), std::numeric_limits<T>::quiet_NaN());
+
         input_dev      = handle.Write(input.data);
         input_grad_dev = handle.Write(input_grad.data);
         mean_dev       = handle.Write(mean.data);
@@ -472,11 +473,11 @@ protected:
     void RunTest()
     {
         auto&& handle = get_handle();
-    
+
         cpu_var_backward(
             input, ref_input_grad, mean, mean_grad, var_grad, dims, num_dims, unbiased, divisor);
         miopenStatus_t status;
-        
+
         status = miopen::VarBackward(handle,
                                      input.desc,
                                      input_dev.get(),

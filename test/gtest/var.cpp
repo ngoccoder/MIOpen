@@ -147,9 +147,21 @@ TEST_P(VarBackwardTestNonContiguousBFloat16, VarTestBw)
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestContiguousFloat, testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestContiguousHalf, testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestContiguousBFloat16, testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestNonContiguousFloat, testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestNonContiguousHalf, testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet, VarBackwardTestNonContiguousBFloat16, testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(VarTestSet,
+                         VarBackwardTestContiguousFloat,
+                         testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(VarTestSet,
+                         VarBackwardTestContiguousHalf,
+                         testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(VarTestSet,
+                         VarBackwardTestContiguousBFloat16,
+                         testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(VarTestSet,
+                         VarBackwardTestNonContiguousFloat,
+                         testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(VarTestSet,
+                         VarBackwardTestNonContiguousHalf,
+                         testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(VarTestSet,
+                         VarBackwardTestNonContiguousBFloat16,
+                         testing::ValuesIn(VarTestConfigs()));

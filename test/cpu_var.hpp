@@ -42,16 +42,16 @@ void cpu_var_backward(tensor<T> input,
                       bool unbiased,
                       int32_t divisor)
 {
-    auto input_dims      = input.desc.GetLengths();
-    auto input_strides   = input.desc.GetStrides();
-    auto input_grad_dims = input_grad.desc.GetLengths();
+    auto input_dims         = input.desc.GetLengths();
+    auto input_strides      = input.desc.GetStrides();
+    auto input_grad_dims    = input_grad.desc.GetLengths();
     auto input_grad_strides = input_grad.desc.GetStrides();
-    auto mean_dims       = mean.desc.GetLengths();
-    auto mean_strides    = mean.desc.GetStrides();
-    auto mean_grad_dims  = mean_grad.desc.GetLengths();
-    auto mean_grad_strides = mean_grad.desc.GetStrides();
-    auto var_grad_dims   = var_grad.desc.GetLengths();
-    auto var_grad_strides = var_grad.desc.GetStrides();
+    auto mean_dims          = mean.desc.GetLengths();
+    auto mean_strides       = mean.desc.GetStrides();
+    auto mean_grad_dims     = mean_grad.desc.GetLengths();
+    auto mean_grad_strides  = mean_grad.desc.GetStrides();
+    auto var_grad_dims      = var_grad.desc.GetLengths();
+    auto var_grad_strides   = var_grad.desc.GetStrides();
 
     auto input_grad_numel = std::accumulate(
         input_grad_dims.begin(), input_grad_dims.end(), 1LL, std::multiplies<int64_t>());
@@ -77,33 +77,46 @@ void cpu_var_backward(tensor<T> input,
             }
         }
 
-        T input_v = input[std::inner_product(input_idx.begin(), input_idx.end(), input_strides.begin(), static_cast<size_t>(0))];
+        T input_v = input[std::inner_product(
+            input_idx.begin(), input_idx.end(), input_strides.begin(), static_cast<size_t>(0))];
 
-        int64_t mean_idx = std::inner_product(reduced_idx.begin(), reduced_idx.end(), mean_strides.begin(), static_cast<size_t>(0));
+        int64_t mean_idx = std::inner_product(
+            reduced_idx.begin(), reduced_idx.end(), mean_strides.begin(), static_cast<size_t>(0));
         T mean_v = mean[mean_idx];
 
         T input_grad_v = static_cast<T>(0.0);
 
-        int64_t var_grad_idx = std::inner_product(reduced_idx.begin(), reduced_idx.end(), var_grad_strides.begin(), static_cast<size_t>(0));
-        T var_grad_v = var_grad[var_grad_idx];
-        T res = static_cast<T>(var_grad_v * (static_cast<float>(input_v) - static_cast<float>(mean_v)) * 2.0f);
-        input_grad_v += unbiased ? res / static_cast<T>(divisor - 1) : res / static_cast<T>(divisor);
+        int64_t var_grad_idx = std::inner_product(reduced_idx.begin(),
+                                                  reduced_idx.end(),
+                                                  var_grad_strides.begin(),
+                                                  static_cast<size_t>(0));
+        T var_grad_v         = var_grad[var_grad_idx];
+        T res                = static_cast<T>(var_grad_v *
+                               (static_cast<float>(input_v) - static_cast<float>(mean_v)) * 2.0f);
+        input_grad_v +=
+            unbiased ? res / static_cast<T>(divisor - 1) : res / static_cast<T>(divisor);
 
-        int64_t mean_grad_idx = std::inner_product(reduced_idx.begin(), reduced_idx.end(), mean_grad_strides.begin(), static_cast<size_t>(0));
-        T mean_grad_v = mean_grad[mean_grad_idx];
+        int64_t mean_grad_idx = std::inner_product(reduced_idx.begin(),
+                                                   reduced_idx.end(),
+                                                   mean_grad_strides.begin(),
+                                                   static_cast<size_t>(0));
+        T mean_grad_v         = mean_grad[mean_grad_idx];
         input_grad_v += mean_grad_v / static_cast<T>(divisor);
 
-        input_grad[std::inner_product(input_idx.begin(), input_idx.end(), input_grad_strides.begin(), static_cast<size_t>(0))] = input_grad_v;
+        input_grad[std::inner_product(input_idx.begin(),
+                                      input_idx.end(),
+                                      input_grad_strides.begin(),
+                                      static_cast<size_t>(0))] = input_grad_v;
     });
 }
 
 template <class T>
 void cpu_mean(tensor<T> input, tensor<T>& mean, std::vector<int32_t>& dims_vector, int32_t divisor)
 {
-    auto input_dims = input.desc.GetLengths();
+    auto input_dims    = input.desc.GetLengths();
     auto input_strides = input.desc.GetStrides();
-    auto mean_dims  = mean.desc.GetLengths();
-    auto mean_strides = mean.desc.GetStrides();
+    auto mean_dims     = mean.desc.GetLengths();
+    auto mean_strides  = mean.desc.GetStrides();
 
     auto input_numel =
         std::accumulate(input_dims.begin(), input_dims.end(), 1LL, std::multiplies<int64_t>());
@@ -127,8 +140,10 @@ void cpu_mean(tensor<T> input, tensor<T>& mean, std::vector<int32_t>& dims_vecto
             }
         }
 
-        int64_t mean_idx = std::inner_product(reduced_idx.begin(), reduced_idx.end(), mean_strides.begin(), static_cast<size_t>(0));
-        mean[mean_idx] += input[std::inner_product(input_idx.begin(), input_idx.end(), input_strides.begin(), static_cast<size_t>(0))];
+        int64_t mean_idx = std::inner_product(
+            reduced_idx.begin(), reduced_idx.end(), mean_strides.begin(), static_cast<size_t>(0));
+        mean[mean_idx] += input[std::inner_product(
+            input_idx.begin(), input_idx.end(), input_strides.begin(), static_cast<size_t>(0))];
     });
 
     auto mean_numel =
@@ -138,6 +153,5 @@ void cpu_mean(tensor<T> input, tensor<T>& mean, std::vector<int32_t>& dims_vecto
         mean[i] /= static_cast<T>(divisor);
     }
 }
-
 
 #endif
