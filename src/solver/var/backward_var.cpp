@@ -56,10 +56,10 @@ ConvSolution VarBackward::GetSolution([[maybe_unused]] const ExecutionContext& c
 {
     auto result = ConvSolution{miopenStatusSuccess};
 
-    auto dtype           = problem.GetInputDesc().GetType();
-    auto input_grad_dims = problem.GetInputGradDesc().GetLengths();
-    auto input_grad_numel =
-        std::accumulate(input_grad_dims.begin(), input_grad_dims.end(), 1, std::multiplies<int>{});
+    auto dtype            = problem.GetInputDesc().GetType();
+    auto input_grad_dims  = problem.GetInputGradDesc().GetLengths();
+    auto input_grad_numel = std::accumulate(
+        input_grad_dims.begin(), input_grad_dims.end(), 1ULL, std::multiplies<size_t>{});
     auto is_all_contiguous = problem.IsAllContiguous();
 
     {
