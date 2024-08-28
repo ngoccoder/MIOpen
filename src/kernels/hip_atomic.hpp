@@ -93,3 +93,17 @@ __device__ inline void atomic_add_g(__half* addr, const __half val)
 }
 
 __device__ inline void atomic_add_g(float* addr, const float val) { atomicAdd(addr, val); }
+
+// TODO: understand and adapt this function for bfloat16 and fp16
+
+__device__ inline void atomic_add_g_safe(float* addr, const float val)
+{
+    uint next, expected, current;
+    current = __float_as_uint(*addr);
+    do
+    {
+        expected = current;
+        next     = __float_as_uint((float)((double)__uint_as_float(expected) + val));
+        current  = atomicCAS(reinterpret_cast<uint*>(const_cast<float*>(addr)), expected, next);
+    } while(current != expected);
+}

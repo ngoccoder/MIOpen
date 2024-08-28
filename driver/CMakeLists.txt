@@ -42,6 +42,7 @@ add_executable(MIOpenDriver
     dm_convint8.cpp
     dm_dropout.cpp
     dm_fusion.cpp
+    dm_gatherv2.cpp
     dm_gemm.cpp
     dm_getitem.cpp
     dm_groupnorm.cpp
