@@ -26,6 +26,7 @@
 #ifndef MIOPEN_GUARD_MIOPEN_H_
 #define MIOPEN_GUARD_MIOPEN_H_
 
+#include <cstdint>
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wextern-c-compat"
@@ -72,6 +73,7 @@
  * @defgroup ReduceCalculation
  * @defgroup RotaryPositionalEmbeddings
  * @defgroup ReLU
+ * @defgroup gatherv2
  *
  */
 
@@ -7730,6 +7732,42 @@ MIOPEN_EXPORT miopenStatus_t miopenPReLUBackward(miopenHandle_t handle,
 
 /** @} */
 // CLOSEOUT RELU DOXYGEN GROUP
+#endif // MIOPEN_BETA_API
+
+#ifdef MIOPEN_BETA_API
+
+// GatherV2 APIs
+/** @addtogroup gatherv2
+ *
+ *  @{
+ */
+
+/*! @brief Execute GatherV2 backward layer
+ *
+ * @param handle               MIOpen handle (input)
+ * @param outputGradDesc       Tensor descriptor for output gradient tensor (input)
+ * @param output               Output gradient tensor (input)
+ * @param indicesDesc          Tensor descriptor for indices tensor (input)
+ * @param indices              Indices tensor (input)
+ * @param paramGradDesc        Tensor descriptor for parameter gradient tensor (input)
+ * @param paramGrad            Parameter gradient tensor (output)
+ * @param axis                 The axis in params to gather indices from (default to the first
+ * dimension) (input)
+ * @param batch_dims           Number of batch dimensions (default to 0) (input)
+ * @return                     miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenGatherV2Backward(miopenHandle_t handle,
+                                                    const miopenTensorDescriptor_t outputGradDesc,
+                                                    const void* outputGrad,
+                                                    const miopenTensorDescriptor_t indicesDesc,
+                                                    const void* indices,
+                                                    const miopenTensorDescriptor_t paramGradDesc,
+                                                    void* paramGrad,
+                                                    int64_t axis,
+                                                    int batch_dims);
+
+/** @} */
+// CLOSEOUT gatherv2 DOXYGEN GROUP
 #endif // MIOPEN_BETA_API
 
 #ifdef __cplusplus

@@ -125,6 +125,9 @@ set( MIOpen_Source
     fused_api.cpp
     fusion.cpp
     fusion/problem_description.cpp
+    gatherv2.cpp
+    gatherv2_api.cpp
+    gatherv2/problem_description.cpp
     generic_search.cpp
     getitem_api.cpp
     graphapi/convolution.cpp
@@ -289,6 +292,7 @@ set( MIOpen_Source
     solver/conv_ck_igemm_fwd_bias_res_add_activ_fused.cpp
     solver/conv_ocl_dir2Dfwd_fused.cpp
     solver/conv_winoRxS_fused.cpp
+    solver/gatherv2/backward_gatherv2.cpp
     solver/groupnorm/forward_groupnorm.cpp
     solver/getitem/backward_getitem.cpp
     solver/layernorm/backward_t5layernorm.cpp
@@ -524,6 +528,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenConv1x1S.cl
         kernels/MIOpenConv1x1J1.cl
         kernels/MIOpenConv1x1J1_stride.cl
+        kernels/MIOpenGatherV2.cpp
         kernels/MIOpenReduceCalculation.cpp
         kernels/MIOpenReduceExtreme.cpp
         kernels/MIOpenRoPE.cpp

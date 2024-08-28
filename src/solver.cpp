@@ -24,6 +24,7 @@
  *
  *******************************************************************************/
 
+#include "miopen/gatherv2/solvers.hpp"
 #include <miopen/solver.hpp>
 
 #include <miopen/activ/solvers.hpp>
@@ -679,6 +680,7 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
     Register(registry, ++id, Primitive::RoPE, rope::RoPEBackward{}.SolverDbId());
     Register(registry, ++id, Primitive::ReLU, prelu::MultiWeightsBackward{}.SolverDbId());
     Register(registry, ++id, Primitive::ReLU, prelu::SingleWeightBackward{}.SolverDbId());
+    Register(registry, ++id, Primitive::GatherV2, gatherv2::GatherV2Backward{}.SolverDbId());
 
     // IMPORTANT: New solvers should be added to the end of the function!
 }
