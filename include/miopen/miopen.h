@@ -7751,8 +7751,7 @@ MIOPEN_EXPORT miopenStatus_t miopenPReLUBackward(miopenHandle_t handle,
  * @param indices              Indices tensor (input)
  * @param paramGradDesc        Tensor descriptor for parameter gradient tensor (input)
  * @param paramGrad            Parameter gradient tensor (output)
- * @param axis                 The axis in params to gather indices from (default to the first
- * dimension) (input)
+ * @param axis                 The axis in params to gather indices from (default to 0) (input)
  * @param batch_dims           Number of batch dimensions (default to 0) (input)
  * @return                     miopenStatus_t
  */

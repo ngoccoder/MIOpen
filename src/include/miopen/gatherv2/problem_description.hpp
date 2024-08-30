@@ -29,12 +29,16 @@
 #include "miopen/errors.hpp"
 #include <miopen/tensor.hpp>
 #include <miopen/problem_description_base.hpp>
+#include "../src/kernels/tensor_view.hpp"
 
 namespace miopen {
 
 struct NetworkConfig;
 
 namespace gatherv2 {
+
+template <int M>
+tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<int64_t>& shape);
 
 struct BwdProblemDescription : ProblemDescriptionBase
 {
