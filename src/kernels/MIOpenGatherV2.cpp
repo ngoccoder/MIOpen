@@ -24,23 +24,22 @@
  *
  *******************************************************************************/
 #ifndef MIOPEN_DONT_USE_HIP_RUNTIME_HEADERS
+#include "tensor_view.hpp"
 #include "hip_atomic.hpp"
 #include <hip/hip_fp16.h>
 #include <hip/hip_runtime.h>
 #endif
 
-#include "float_types.h"
-
 template <typename TIO, typename TINDEX>
 __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
                                        const TINDEX* indices,
                                        TIO* paramGrad,
+                                       tensor_view_t<3> outputGrad_tv,
                                        long gather_dim_size,
-                                       long out_size,
                                        long indices_size,
                                        long slice_size,
-                                       bool is_axis_zero,
-                                       ulong param_grad_off)
+                                       long out_size,
+                                       bool is_axis_zero)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
     if(gid >= out_size)
@@ -62,49 +61,48 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
         slice_i              = gid - batch_indices_i * slice_size;
     }
 
-    // TINDEX is int ?
-    size_t gather_i = GET_VAL(indices, indices_i);
+    size_t gather_i = indices[indices_i];
 
     if(gather_i < gather_dim_size)
     {
         long param_i = (batch_i * gather_dim_size + gather_i) * slice_size + slice_i;
-        atomic_add_g_safe(paramGrad + param_i + param_grad_off, GET_VAL(outputGrad, gid));
+        atomic_add_g_safe(paramGrad + param_i, getNDVal(outputGrad, outputGrad_tv, gid));
     }
 }
 
-extern "C" __global__ void GatherV2Backward(const IN_OUT_TYPE* outputGrad,
+extern "C" __global__ void GatherV2Backward(const IO_TYPE* outputGrad,
                                             const INDEX_TYPE* indices,
-                                            IN_OUT_TYPE* paramGrad,
+                                            IO_TYPE* paramGrad,
+                                            tensor_view_t<3> outputGrad_tv,
                                             long gather_dim_size,
-                                            long out_size,
                                             long indices_size,
                                             long slice_size,
-                                            bool is_axis_zero,
-                                            ulong param_grad_off)
+                                            long out_size,
+                                            bool is_axis_zero)
 {
-    Diag2dForwardKernel<IN_OUT_TYPE, INDEX_TYPE>(outputGrad,
-                                                 indices,
-                                                 paramGrad,
-                                                 gather_dim_size,
-                                                 out_size,
-                                                 indices_size,
-                                                 slice_size,
-                                                 is_axis_zero,
-                                                 param_grad_off);
+    GatherV2BackwardKernel<IO_TYPE, INDEX_TYPE>(outputGrad,
+                                                indices,
+                                                paramGrad,
+                                                outputGrad_tv,
+                                                gather_dim_size,
+                                                indices_size,
+                                                slice_size,
+                                                out_size,
+                                                is_axis_zero);
 }
 
 template <typename TIO, typename TINDEX>
 __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
                                               const TINDEX* indices,
                                               TIO* paramGrad,
+                                              tensor_view_t<4> outputGrad_tv,
                                               long outer_size,
                                               long gather_dim_size,
                                               long indices_size,
                                               long slice_size,
                                               long out_size,
                                               bool is_axis_zero,
-                                              bool is_batch_dim_zero,
-                                              ulong param_grad_off)
+                                              bool is_batch_dim_zero)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
     if(gid >= out_size)
@@ -144,36 +142,36 @@ __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
     }
     slice_i = gid - slices_count * slice_size;
 
-    size_t gather_i = GET_VAL(indices, batch_i * indices_size + indices_i);
+    size_t gather_i = indices[batch_i * indices_size + indices_i];
 
     if(gather_i < gather_dim_size)
     {
         long param_i = ((batch_i * outer_size + outer_i) * gather_dim_size) * slice_size + slice_i;
-        atomic_add_g_safe(paramGrad + param_i + param_grad_off, GET_VAl(outputGrad, gid));
+        atomic_add_g_safe(paramGrad + param_i, getNDVal(outputGrad, outputGrad_tv, gid));
     }
 }
 
-extern "C" __global__ void BatchedGatherV2Backward(const IN_OUT_TYPE* outputGrad,
+extern "C" __global__ void BatchedGatherV2Backward(const IO_TYPE* outputGrad,
                                                    const INDEX_TYPE* indices,
-                                                   IN_OUT_TYPE* paramGrad,
+                                                   IO_TYPE* paramGrad,
+                                                   tensor_view_t<4> outputGrad_tv,
                                                    long outer_size,
                                                    long gather_dim_size,
                                                    long indices_size,
                                                    long slice_size,
                                                    long out_size,
                                                    bool is_axis_zero,
-                                                   bool is_batch_dim_zero,
-                                                   ulong param_grad_off)
+                                                   bool is_batch_dim_zero)
 {
-    BatchedGatherV2BackwardKernel<IN_OUT_TYPE, INDEX_TYPE>(outputGrad,
-                                                           indices,
-                                                           paramGrad,
-                                                           outer_size,
-                                                           gather_dim_size,
-                                                           indices_size,
-                                                           slice_size,
-                                                           out_size,
-                                                           is_axis_zero,
-                                                           is_batch_dim_zero,
-                                                           param_grad_off);
+    BatchedGatherV2BackwardKernel<IO_TYPE, INDEX_TYPE>(outputGrad,
+                                                       indices,
+                                                       paramGrad,
+                                                       outputGrad_tv,
+                                                       outer_size,
+                                                       gather_dim_size,
+                                                       indices_size,
+                                                       slice_size,
+                                                       out_size,
+                                                       is_axis_zero,
+                                                       is_batch_dim_zero);
 }
