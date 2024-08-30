@@ -46,6 +46,17 @@ struct tensor_view_t
         }
         return idx;
     }
+
+    void get_contiguous_stride()
+    {
+        int64_t stride_val = 1L;
+        for(int i = N - 1; i >= 0; --i)
+        {
+            stride[i] = stride_val;
+            stride_val *= size[i];
+        }
+    }
+
     uint64_t stride[N];
     uint64_t size[N];
 };

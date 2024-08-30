@@ -76,6 +76,14 @@ inline void slice_tv(tensor_view_t<N>& tensor_view, int32_t sliceCount, const in
     }
 }
 
+inline tensor_view_t<1> flatten(const TensorDescriptor& desc)
+{
+    tensor_view_t<1> res;
+    res.size[0]   = desc.GetElementSize();
+    res.stride[0] = 1;
+    return res;
+}
+
 } // namespace miopen
 
 #endif // MIOPEN_TENSOR_REORDER_UTIL_HPP_
