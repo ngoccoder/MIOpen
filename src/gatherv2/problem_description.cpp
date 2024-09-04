@@ -38,6 +38,10 @@ namespace gatherv2 {
 template <int M>
 tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<int64_t>& shape)
 {
+    for(auto i = 0; i < M; i++)
+    {
+        printf("shape[%d] = %ld\n", i, shape[i]);
+    }
     // check contiguous
     auto tensor   = tensorDes.GetLengths();
     int64_t numel = std::accumulate(tensor.begin(), tensor.end(), 1L, std::multiplies<int64_t>());
@@ -59,18 +63,24 @@ tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<in
         {
             if(dim <= 0)
             {
+                printf("shape[%ld] = %ld\n", i, dim);
                 throw std::runtime_error("dimension must be positive");
             }
             new_numel *= dim;
         }
     }
+
     if(numel < new_numel)
     {
         throw std::runtime_error("invalid shape size");
     }
 
     tensor_view_t<M> new_tv;
-    std::copy(shape.begin(), shape.end(), new_tv.size.begin());
+    for(size_t i = 0; i < M; i++)
+    {
+        new_tv.size[i] = shape[i];
+    }
+    // std::copy(shape.begin(), shape.end(), new_tv.size.begin());
     if(inferred_dim != -1)
     {
         if(numel % new_numel != 0)
@@ -91,6 +101,12 @@ tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<in
 
     return new_tv;
 }
+
+template tensor_view_t<3> reshape(const TensorDescriptor& tensorDes,
+                                  const std::vector<int64_t>& shape);
+
+template tensor_view_t<4> reshape(const TensorDescriptor& tensorDes,
+                                  const std::vector<int64_t>& shape);
 
 NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
 {

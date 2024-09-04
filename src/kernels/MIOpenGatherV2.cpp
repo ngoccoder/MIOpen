@@ -24,11 +24,12 @@
  *
  *******************************************************************************/
 #ifndef MIOPEN_DONT_USE_HIP_RUNTIME_HEADERS
-#include "tensor_view.hpp"
-#include "hip_atomic.hpp"
 #include <hip/hip_fp16.h>
 #include <hip/hip_runtime.h>
 #endif
+
+#include "tensor_view.hpp"
+#include "hip_atomic.hpp"
 
 template <typename TIO, typename TINDEX>
 __device__ void GatherV2BackwardKernel(const TIO* outputGrad,

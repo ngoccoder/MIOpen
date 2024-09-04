@@ -40,6 +40,12 @@ namespace gatherv2 {
 template <int M>
 tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<int64_t>& shape);
 
+extern template tensor_view_t<3> reshape<3>(const TensorDescriptor& tensorDes,
+                                            const std::vector<int64_t>& shape);
+
+extern template tensor_view_t<4> reshape<4>(const TensorDescriptor& tensorDes,
+                                            const std::vector<int64_t>& shape);
+
 struct BwdProblemDescription : ProblemDescriptionBase
 {
     // Backward constructor

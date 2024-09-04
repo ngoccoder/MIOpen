@@ -95,7 +95,9 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
     }
     for(int i = axis + 1; i < paramGrad.size(); ++i)
     {
+        printf("paramGrad[%d] = %ld\n", i, paramGrad[i]);
         inner_size *= paramGrad[i];
+        printf("inner_size = %ld\n", inner_size);
     }
 
     int64_t gather_dim_size = paramGrad[axis];
@@ -119,7 +121,7 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
 
         auto outputGrad_tv = miopen::gatherv2::reshape<4>(
             problem.GetOutputGradDesc(),
-            {batch_size, outer_size, outGrad_numel / batch_size, inner_size});
+            {batch_size, outer_size, indices_numel / batch_size, inner_size});
         auto paramGrad_tv = miopen::gatherv2::reshape<4>(
             problem.GetParamGradDesc(), {batch_size, outer_size, gather_dim_size, inner_size});
 
@@ -158,8 +160,8 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
 
         auto paramGrad_tv  = miopen::gatherv2::reshape<3>(problem.GetParamGradDesc(),
                                                          {outer_size, gather_dim_size, inner_size});
-        auto outputGrad_tv = miopen::gatherv2::reshape<3>(problem.GetOutputGradDesc(),
-                                                          {outer_size, N / batch_size, inner_size});
+        auto outputGrad_tv = miopen::gatherv2::reshape<3>(
+            problem.GetOutputGradDesc(), {outer_size, indices_numel / batch_size, inner_size});
 
         result.construction_params.push_back(kernel);
         result.invoker_factory = [&outputGrad_tv, &paramGrad_tv, indices_numel, outGrad_numel](
