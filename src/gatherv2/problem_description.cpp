@@ -38,10 +38,6 @@ namespace gatherv2 {
 template <int M>
 tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<int64_t>& shape)
 {
-    for(auto i = 0; i < M; i++)
-    {
-        printf("shape[%d] = %ld\n", i, shape[i]);
-    }
     // check contiguous
     auto tensor   = tensorDes.GetLengths();
     int64_t numel = std::accumulate(tensor.begin(), tensor.end(), 1L, std::multiplies<int64_t>());

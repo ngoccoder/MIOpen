@@ -36,6 +36,7 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
                                        const TINDEX* indices,
                                        TIO* paramGrad,
                                        tensor_view_t<3> outputGrad_tv,
+                                       long paramGrad_numel,
                                        long gather_dim_size,
                                        long indices_size,
                                        long slice_size,
@@ -46,9 +47,16 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
     if(gid >= out_size)
         return;
 
-    long batch_i   = 0;
+    // Fill zero for paramGrad
+    for(auto i = gid; i < paramGrad_numel; i += out_size)
+    {
+        paramGrad[i] = 0;
+    }
+
+    long outer_i   = 0;
     long indices_i = 0;
     long slice_i   = 0;
+
     if(is_axis_zero)
     {
         indices_i = gid / slice_size;
@@ -57,17 +65,22 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
     else
     {
         long batch_indices_i = gid / slice_size;
-        batch_i              = batch_indices_i / indices_size;
-        indices_i            = batch_indices_i - batch_i * indices_size;
+        outer_i              = batch_indices_i / indices_size;
+        indices_i            = batch_indices_i - outer_i * indices_size;
         slice_i              = gid - batch_indices_i * slice_size;
     }
 
     size_t gather_i = indices[indices_i];
 
+    printf("[kernel] gid after accessing indices: %ld\n", gid);
+
     if(gather_i < gather_dim_size)
     {
-        long param_i = (batch_i * gather_dim_size + gather_i) * slice_size + slice_i;
-        atomic_add_g_safe(paramGrad + param_i, getNDVal(outputGrad, outputGrad_tv, gid));
+        long param_i = (outer_i * gather_dim_size + gather_i) * slice_size + slice_i;
+        printf("[kernel] paramGrad[%ld] = %f\n", param_i, paramGrad[param_i]);
+        // printf("[kernel] outputGrad[%ld] = %f\n", gid, getNDVal(outputGrad, outputGrad_tv, gid));
+        // atomic_add_g(paramGrad + param_i, getNDVal(outputGrad, outputGrad_tv, gid));
+        // atomic_add_g(paramGrad + param_i, outputGrad[gid]);
     }
 }
 
@@ -75,6 +88,7 @@ extern "C" __global__ void GatherV2Backward(const IO_TYPE* outputGrad,
                                             const INDEX_TYPE* indices,
                                             IO_TYPE* paramGrad,
                                             tensor_view_t<3> outputGrad_tv,
+                                            long paramGrad_numel,
                                             long gather_dim_size,
                                             long indices_size,
                                             long slice_size,
@@ -85,6 +99,7 @@ extern "C" __global__ void GatherV2Backward(const IO_TYPE* outputGrad,
                                                 indices,
                                                 paramGrad,
                                                 outputGrad_tv,
+                                                paramGrad_numel,
                                                 gather_dim_size,
                                                 indices_size,
                                                 slice_size,
@@ -148,7 +163,7 @@ __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
     if(gather_i < gather_dim_size)
     {
         long param_i = ((batch_i * outer_size + outer_i) * gather_dim_size) * slice_size + slice_i;
-        atomic_add_g_safe(paramGrad + param_i, getNDVal(outputGrad, outputGrad_tv, gid));
+        atomic_add_g(paramGrad + param_i, getNDVal(outputGrad, outputGrad_tv, gid));
     }
 }
 

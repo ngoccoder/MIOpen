@@ -60,15 +60,16 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
     std::ignore = context;
     auto result = ConvSolution{miopenStatusSuccess};
 
-    auto dtype         = problem.GetParamGradDesc().GetType();
-    auto in_out_dtype  = miopen::GetDataType(dtype);
-    auto indices_type  = miopen::GetDataType(problem.GetIndicesDesc().GetType());
-    auto batch_dims    = problem.GetBatchDims();
-    auto paramGrad     = problem.GetParamGradDesc().GetLengths();
-    auto outGrad_numel = problem.GetOutputGradDesc().GetElementSize();
-    auto indices_numel = problem.GetIndicesDesc().GetElementSize();
-    auto axis          = problem.GetAxis();
-    auto kernel        = KernelInfo{};
+    auto dtype           = problem.GetParamGradDesc().GetType();
+    auto in_out_dtype    = miopen::GetDataType(dtype);
+    auto indices_type    = miopen::GetDataType(problem.GetIndicesDesc().GetType());
+    auto batch_dims      = problem.GetBatchDims();
+    auto paramGrad       = problem.GetParamGradDesc().GetLengths();
+    auto outGrad_numel   = problem.GetOutputGradDesc().GetElementSize();
+    auto indices_numel   = problem.GetIndicesDesc().GetElementSize();
+    auto paramGrad_numel = problem.GetParamGradDesc().GetElementSize();
+    auto axis            = problem.GetAxis();
+    auto kernel          = KernelInfo{};
 
     const auto build_params = KernelBuildParameters{
         {"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
@@ -95,9 +96,7 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
     }
     for(int i = axis + 1; i < paramGrad.size(); ++i)
     {
-        printf("paramGrad[%d] = %ld\n", i, paramGrad[i]);
         inner_size *= paramGrad[i];
-        printf("inner_size = %ld\n", inner_size);
     }
 
     int64_t gather_dim_size = paramGrad[axis];
@@ -164,26 +163,28 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
             problem.GetOutputGradDesc(), {outer_size, indices_numel / batch_size, inner_size});
 
         result.construction_params.push_back(kernel);
-        result.invoker_factory = [&outputGrad_tv, &paramGrad_tv, indices_numel, outGrad_numel](
-                                     const std::vector<Kernel>& kernels) {
-            return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
-                decltype(auto) kernel = handle_.Run(kernels.front());
-                decltype(auto) params = raw_params.CastTo<miopen::gatherv2::BwdInvokeParams>();
+        result.invoker_factory =
+            [&outputGrad_tv, &paramGrad_tv, indices_numel, outGrad_numel, paramGrad_numel](
+                const std::vector<Kernel>& kernels) {
+                return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
+                    decltype(auto) kernel = handle_.Run(kernels.front());
+                    decltype(auto) params = raw_params.CastTo<miopen::gatherv2::BwdInvokeParams>();
 
-                auto gather_dim_size    = paramGrad_tv.size[1];
-                auto slice_size         = paramGrad_tv.size[2];
-                const bool is_axis_zero = (paramGrad_tv.size[0] == 1);
-                kernel(params.outputGrad,
-                       params.indices,
-                       params.paramGrad,
-                       outputGrad_tv,
-                       gather_dim_size,
-                       indices_numel,
-                       slice_size,
-                       outGrad_numel,
-                       is_axis_zero);
+                    auto gather_dim_size    = paramGrad_tv.size[1];
+                    auto slice_size         = paramGrad_tv.size[2];
+                    const bool is_axis_zero = (paramGrad_tv.size[0] == 1);
+                    kernel(params.outputGrad,
+                           params.indices,
+                           params.paramGrad,
+                           outputGrad_tv,
+                           paramGrad_numel,
+                           gather_dim_size,
+                           indices_numel,
+                           slice_size,
+                           outGrad_numel,
+                           is_axis_zero);
+                };
             };
-        };
     }
 
     return result;
