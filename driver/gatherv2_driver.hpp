@@ -67,15 +67,15 @@ int32_t mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
 
     for(int i = 0; i < batch_dims; i++)
     {
-        batch_size *= paramGrad[i];
+        batch_size *= paramGrad_lens[i];
     }
     for(int i = batch_dims; i < axis; i++)
     {
-        outer_size *= paramGrad[i];
+        outer_size *= paramGrad_lens[i];
     }
     for(int i = axis + 1; i < paramGrad_num_dim; i++)
     {
-        inner_size *= paramGrad[i];
+        inner_size *= paramGrad_lens[i];
     }
 
     int64_t gather_dim_size = paramGrad_lens[axis];
@@ -141,8 +141,6 @@ int32_t mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
     {
         auto outputGrad_tv = miopen::gatherv2::reshape<3>(miopen::deref(outputGradDesc),
                                                           {outer_size, indices_numel, inner_size});
-        auto paramGrad_tv  = miopen::gatherv2::reshape<3>(miopen::deref(paramGradDesc),
-                                                         {outer_size, gather_dim_size, inner_size});
         bool is_axis_zero  = (outer_size == 1);
 
         for(long i = 0; i < outGrad_numel; i++)
