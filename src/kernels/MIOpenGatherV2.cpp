@@ -23,6 +23,7 @@
  * SOFTWARE.
  *
  *******************************************************************************/
+#include "float_types.h"
 #ifndef MIOPEN_DONT_USE_HIP_RUNTIME_HEADERS
 #include <hip/hip_fp16.h>
 #include <hip/hip_runtime.h>
@@ -53,9 +54,6 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
         paramGrad[i] = 0;
     }
 
-    // printf("[kernel] inner_size %ld, out_size %ld, paramGrad_numel %ld\n", inner_size, out_size,
-    // paramGrad_numel);
-
     long outer_i   = 0;
     long indices_i = 0;
     long inner_i   = 0;
@@ -64,8 +62,6 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
     {
         indices_i = gid / inner_size;
         inner_i   = gid - indices_i * inner_size;
-        // printf("at is axis zero, gid %ld, outer_i %ld, indices_i %ld, inner_i %ld\n", gid,
-        // outer_i, indices_i, inner_i);
     }
     else
     {
@@ -73,21 +69,17 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
         outer_i              = outer_indices_i / indices_size;
         indices_i            = outer_indices_i - outer_i * indices_size;
         inner_i              = gid - outer_indices_i * inner_size;
-        // printf("at is not axis zero, gid %ld, outer_i %ld, indices_i %ld, inner_i %ld\n", gid,
-        // outer_i, indices_i, inner_i);
     }
 
     size_t gather_i = indices[indices_i];
 
     if(gather_i < gather_dim_size)
     {
-        // printf("[kernel] at gid %ld, outer_i %ld, gather_i %ld, inner_i %ld\n", gid, outer_i,
-        // gather_i, inner_i);
         long param_i = (outer_i * gather_dim_size + gather_i) * inner_size + inner_i;
         // printf("[kernel] paramGrad[%ld] = %f\n", param_i, paramGrad[param_i]);
-        atomic_add_g(paramGrad + param_i,
-                     getNDVal(outputGrad, outputGrad_tv, static_cast<uint64_t>(gid)));
-        // atomic_add_g(paramGrad + param_i, outputGrad[gid]);
+        FLOAT_ACCUM val =
+            CVT_FLOAT2ACCUM(getNDVal(outputGrad, outputGrad_tv, static_cast<uint64_t>(gid)));
+        atomic_add_g(paramGrad + param_i, val);
         // printf("[kernel] param_i at gid %ld = %ld\n", gid, param_i);
     }
 }
