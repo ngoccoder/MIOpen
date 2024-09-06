@@ -145,28 +145,30 @@ int32_t mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
 
         for(long i = 0; i < outGrad_numel; i++)
         {
-            long batch_i   = 0;
+            long outer_i   = 0;
             long indices_i = 0;
-            long slice_i   = 0;
+            long inner_i   = 0;
             if(is_axis_zero)
             {
                 indices_i = i / inner_size;
-                slice_i   = i - indices_i * inner_size;
+                inner_i   = i - indices_i * inner_size;
             }
             else
             {
                 long batch_indices_i = i / inner_size;
-                batch_i              = batch_indices_i / indices_numel;
-                indices_i            = batch_indices_i - batch_i * indices_numel;
-                slice_i              = i - batch_indices_i * inner_size;
+                outer_i              = batch_indices_i / indices_numel;
+                indices_i            = batch_indices_i - outer_i * indices_numel;
+                inner_i              = i - batch_indices_i * inner_size;
             }
 
             size_t gather_i = indices[indices_i];
 
             if(gather_i < gather_dim_size)
             {
-                long param_i = (batch_i * gather_dim_size + gather_i) * inner_size + slice_i;
+                long param_i = (outer_i * gather_dim_size + gather_i) * inner_size + inner_i;
                 paramGrad[param_i] += getNDVal(outputGrad, outputGrad_tv, i);
+                // paramGrad[outer_i][gather_i][inner_i] += outputGrad[i];
+                // paramGrad[param_i] += outputGrad[i];
             }
         }
     }
@@ -231,6 +233,7 @@ private:
     std::vector<Tgpu> outGrad;
     std::vector<Tindex> indices;
     std::vector<Tgpu> paramGrad;
+
     std::vector<Tref> paramGradHost;
 
     int64_t axis;
@@ -296,7 +299,7 @@ int GatherV2Driver<Tgpu, Tref, Tindex>::AddCmdLineArgs()
                          "Run only Forward (1) or Run both Forward and Backward (0) (Default = 0)",
                          "int");
     inflags.AddTensorFlag("paramGrad-shape", 'P', "2x4", "The shape of the param gradient tensor");
-    inflags.AddTensorFlag("indices-shape", '4', "1", "The shape of the indices tensor");
+    inflags.AddTensorFlag("indices-shape", '4', "3", "The shape of the indices tensor");
     inflags.AddInputFlag(
         "axis", 'A', "0", "The axis in params to gather indices from (Default=0)", "int");
     inflags.AddInputFlag(
@@ -337,6 +340,12 @@ int GatherV2Driver<Tgpu, Tref, Tindex>::AllocateBuffersAndCopy()
         for(int i = 0; i < outGrad_sz; i++)
         {
             outGrad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+        }
+
+        for(int i = 0; i < indices_sz; i++)
+        {
+            // indices[i] = prng::gen_A_to_B(static_cast<Tindex>(0), static_cast<Tindex>(1));
+            indices[i] = 0;
         }
 
         if(indices_dev->ToGPU(GetStream(), indices.data()) != 0)

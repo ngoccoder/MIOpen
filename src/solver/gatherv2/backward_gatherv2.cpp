@@ -121,70 +121,70 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
         auto outputGrad_tv = miopen::gatherv2::reshape<4>(
             problem.GetOutputGradDesc(),
             {batch_size, outer_size, indices_numel / batch_size, inner_size});
-        auto paramGrad_tv = miopen::gatherv2::reshape<4>(
-            problem.GetParamGradDesc(), {batch_size, outer_size, gather_dim_size, inner_size});
 
         result.construction_params.push_back(kernel);
-        result.invoker_factory =
-            [&outputGrad_tv, &paramGrad_tv, outGrad_numel](const std::vector<Kernel>& kernels) {
-                return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
-                    decltype(auto) kernel = handle_.Run(kernels.front());
-                    decltype(auto) params = raw_params.CastTo<miopen::gatherv2::BwdInvokeParams>();
+        result.invoker_factory = [outputGrad_tv,
+                                  outGrad_numel,
+                                  batch_size,
+                                  outer_size,
+                                  gather_dim_size,
+                                  indices_numel,
+                                  inner_size](const std::vector<Kernel>& kernels) {
+            return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
+                decltype(auto) kernel = handle_.Run(kernels.front());
+                decltype(auto) params = raw_params.CastTo<miopen::gatherv2::BwdInvokeParams>();
 
-                    auto outer_size               = paramGrad_tv.size[1];
-                    auto gather_dim_size          = paramGrad_tv.size[2];
-                    auto indices_size             = paramGrad_tv.size[2];
-                    auto slice_size               = paramGrad_tv.size[3];
-                    const bool is_batch_dims_zero = paramGrad_tv.size[0] == 1;
-                    const bool is_axis_zero       = paramGrad_tv.size[1] == 1;
+                const bool is_batch_dims_zero = (batch_size == 1);
+                const bool is_axis_zero       = (outer_size == 1);
 
-                    kernel(params.outputGrad,
-                           params.indices,
-                           params.paramGrad,
-                           outputGrad_tv,
-                           outer_size,
-                           gather_dim_size,
-                           indices_size,
-                           slice_size,
-                           outGrad_numel,
-                           is_axis_zero,
-                           is_batch_dims_zero);
-                };
+                kernel(params.outputGrad,
+                       params.indices,
+                       params.paramGrad,
+                       outputGrad_tv,
+                       outer_size,
+                       gather_dim_size,
+                       indices_numel,
+                       inner_size,
+                       outGrad_numel,
+                       is_axis_zero,
+                       is_batch_dims_zero);
             };
+        };
     }
     else
     {
         // Gather Backward
         kernel.kernel_name = "GatherV2Backward";
 
-        auto paramGrad_tv  = miopen::gatherv2::reshape<3>(problem.GetParamGradDesc(),
-                                                         {outer_size, gather_dim_size, inner_size});
-        auto outputGrad_tv = miopen::gatherv2::reshape<3>(
-            problem.GetOutputGradDesc(), {outer_size, indices_numel / batch_size, inner_size});
+        auto outputGrad_tv = miopen::gatherv2::reshape<3>(problem.GetOutputGradDesc(),
+                                                          {outer_size, indices_numel, inner_size});
 
         result.construction_params.push_back(kernel);
-        result.invoker_factory =
-            [&outputGrad_tv, &paramGrad_tv, indices_numel, outGrad_numel, paramGrad_numel](
-                const std::vector<Kernel>& kernels) {
-                return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
-                    decltype(auto) kernel = handle_.Run(kernels.front());
-                    decltype(auto) params = raw_params.CastTo<miopen::gatherv2::BwdInvokeParams>();
+        result.invoker_factory = [outputGrad_tv,
+                                  indices_numel,
+                                  outGrad_numel,
+                                  paramGrad_numel,
+                                  outer_size,
+                                  inner_size,
+                                  gather_dim_size](const std::vector<Kernel>& kernels) {
+            return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
+                decltype(auto) kernel = handle_.Run(kernels.front());
+                decltype(auto) params = raw_params.CastTo<miopen::gatherv2::BwdInvokeParams>();
 
-                    auto gather_dim_size    = paramGrad_tv.size[1];
-                    auto slice_size         = paramGrad_tv.size[2];
-                    const bool is_axis_zero = (paramGrad_tv.size[0] == 1);
-                    kernel(params.outputGrad,
-                           params.indices,
-                           params.paramGrad,
-                           outputGrad_tv,
-                           paramGrad_numel,
-                           gather_dim_size,
-                           indices_numel,
-                           slice_size,
-                           outGrad_numel,
-                           is_axis_zero);
-                };
+                const bool is_axis_zero = (outer_size == 1);
+
+                kernel(params.outputGrad,
+                       params.indices,
+                       params.paramGrad,
+                       outputGrad_tv,
+                       paramGrad_numel,
+                       gather_dim_size,
+                       indices_numel,
+                       inner_size,
+                       outGrad_numel,
+                       is_axis_zero);
             };
+        };
     }
 
     return result;

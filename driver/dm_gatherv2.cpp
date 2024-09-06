@@ -30,9 +30,9 @@ static Driver* makeDriver(const std::string& base_arg)
 {
     if(base_arg == "gatherv2")
         return new GatherV2Driver<float, float, int>();
-    if(base_arg == "diagfp16")
+    if(base_arg == "gatherv2fp16")
         return new GatherV2Driver<float16, float, int>();
-    if(base_arg == "diagbfp16")
+    if(base_arg == "gatherv2bfp16")
         return new GatherV2Driver<bfloat16, float, int>();
     return nullptr;
 }

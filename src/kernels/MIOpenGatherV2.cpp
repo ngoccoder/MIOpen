@@ -39,7 +39,7 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
                                        long paramGrad_numel,
                                        long gather_dim_size,
                                        long indices_size,
-                                       long slice_size,
+                                       long inner_size,
                                        long out_size,
                                        bool is_axis_zero)
 {
@@ -53,34 +53,42 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
         paramGrad[i] = 0;
     }
 
+    // printf("[kernel] inner_size %ld, out_size %ld, paramGrad_numel %ld\n", inner_size, out_size,
+    // paramGrad_numel);
+
     long outer_i   = 0;
     long indices_i = 0;
-    long slice_i   = 0;
+    long inner_i   = 0;
 
     if(is_axis_zero)
     {
-        indices_i = gid / slice_size;
-        slice_i   = gid - indices_i * slice_size;
+        indices_i = gid / inner_size;
+        inner_i   = gid - indices_i * inner_size;
+        // printf("at is axis zero, gid %ld, outer_i %ld, indices_i %ld, inner_i %ld\n", gid,
+        // outer_i, indices_i, inner_i);
     }
     else
     {
-        long batch_indices_i = gid / slice_size;
-        outer_i              = batch_indices_i / indices_size;
-        indices_i            = batch_indices_i - outer_i * indices_size;
-        slice_i              = gid - batch_indices_i * slice_size;
+        long outer_indices_i = gid / inner_size;
+        outer_i              = outer_indices_i / indices_size;
+        indices_i            = outer_indices_i - outer_i * indices_size;
+        inner_i              = gid - outer_indices_i * inner_size;
+        // printf("at is not axis zero, gid %ld, outer_i %ld, indices_i %ld, inner_i %ld\n", gid,
+        // outer_i, indices_i, inner_i);
     }
 
     size_t gather_i = indices[indices_i];
 
-    printf("[kernel] gid after accessing indices: %ld\n", gid);
-
     if(gather_i < gather_dim_size)
     {
-        long param_i = (outer_i * gather_dim_size + gather_i) * slice_size + slice_i;
-        printf("[kernel] paramGrad[%ld] = %f\n", param_i, paramGrad[param_i]);
-        // printf("[kernel] outputGrad[%ld] = %f\n", gid, getNDVal(outputGrad, outputGrad_tv, gid));
-        // atomic_add_g(paramGrad + param_i, getNDVal(outputGrad, outputGrad_tv, gid));
+        // printf("[kernel] at gid %ld, outer_i %ld, gather_i %ld, inner_i %ld\n", gid, outer_i,
+        // gather_i, inner_i);
+        long param_i = (outer_i * gather_dim_size + gather_i) * inner_size + inner_i;
+        // printf("[kernel] paramGrad[%ld] = %f\n", param_i, paramGrad[param_i]);
+        atomic_add_g(paramGrad + param_i,
+                     getNDVal(outputGrad, outputGrad_tv, static_cast<uint64_t>(gid)));
         // atomic_add_g(paramGrad + param_i, outputGrad[gid]);
+        // printf("[kernel] param_i at gid %ld = %ld\n", gid, param_i);
     }
 }
 
@@ -91,7 +99,7 @@ extern "C" __global__ void GatherV2Backward(const IO_TYPE* outputGrad,
                                             long paramGrad_numel,
                                             long gather_dim_size,
                                             long indices_size,
-                                            long slice_size,
+                                            long inner_size,
                                             long out_size,
                                             bool is_axis_zero)
 {
@@ -102,7 +110,7 @@ extern "C" __global__ void GatherV2Backward(const IO_TYPE* outputGrad,
                                                 paramGrad_numel,
                                                 gather_dim_size,
                                                 indices_size,
-                                                slice_size,
+                                                inner_size,
                                                 out_size,
                                                 is_axis_zero);
 }
@@ -127,7 +135,7 @@ __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
     long batch_i   = 0;
     long outer_i   = 0;
     long indices_i = 0;
-    long slice_i   = 0;
+    long inner_i   = 0;
 
     const long slices_count = gid / slice_size;
     if(is_batch_dim_zero)
@@ -156,14 +164,16 @@ __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
         }
         indices_i = slices_count - entries_count * slice_size;
     }
-    slice_i = gid - slices_count * slice_size;
+    inner_i = gid - slices_count * slice_size;
 
     size_t gather_i = indices[batch_i * indices_size + indices_i];
 
     if(gather_i < gather_dim_size)
     {
-        long param_i = ((batch_i * outer_size + outer_i) * gather_dim_size) * slice_size + slice_i;
-        atomic_add_g(paramGrad + param_i, getNDVal(outputGrad, outputGrad_tv, gid));
+        long param_i = ((batch_i * outer_size + outer_i) * gather_dim_size) * slice_size + inner_i;
+        atomic_add_g(paramGrad + param_i,
+                     getNDVal(outputGrad, outputGrad_tv, static_cast<uint64_t>(gid)));
+        // atomic_add_g(paramGrad + param_i, outputGrad[gid]);
     }
 }
 
