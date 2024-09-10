@@ -59,7 +59,6 @@ tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<in
         {
             if(dim <= 0)
             {
-                printf("shape[%ld] = %ld\n", i, dim);
                 throw std::runtime_error("dimension must be positive");
             }
             new_numel *= dim;

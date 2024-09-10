@@ -23,12 +23,12 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#include "float_types.h"
 #ifndef MIOPEN_DONT_USE_HIP_RUNTIME_HEADERS
 #include <hip/hip_fp16.h>
 #include <hip/hip_runtime.h>
 #endif
 
+#include "float_types.h"
 #include "tensor_view.hpp"
 #include "hip_atomic.hpp"
 
@@ -37,7 +37,6 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
                                        const TINDEX* indices,
                                        TIO* paramGrad,
                                        tensor_view_t<3> outputGrad_tv,
-                                       long paramGrad_numel,
                                        long gather_dim_size,
                                        long indices_size,
                                        long inner_size,
@@ -47,12 +46,6 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
     if(gid >= out_size)
         return;
-
-    // Fill zero for paramGrad
-    for(auto i = gid; i < paramGrad_numel; i += out_size)
-    {
-        paramGrad[i] = 0;
-    }
 
     long outer_i   = 0;
     long indices_i = 0;
@@ -76,11 +69,9 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
     if(gather_i < gather_dim_size)
     {
         long param_i = (outer_i * gather_dim_size + gather_i) * inner_size + inner_i;
-        // printf("[kernel] paramGrad[%ld] = %f\n", param_i, paramGrad[param_i]);
         FLOAT_ACCUM val =
             CVT_FLOAT2ACCUM(getNDVal(outputGrad, outputGrad_tv, static_cast<uint64_t>(gid)));
         atomic_add_g(paramGrad + param_i, val);
-        // printf("[kernel] param_i at gid %ld = %ld\n", gid, param_i);
     }
 }
 
@@ -88,7 +79,6 @@ extern "C" __global__ void GatherV2Backward(const IO_TYPE* outputGrad,
                                             const INDEX_TYPE* indices,
                                             IO_TYPE* paramGrad,
                                             tensor_view_t<3> outputGrad_tv,
-                                            long paramGrad_numel,
                                             long gather_dim_size,
                                             long indices_size,
                                             long inner_size,
@@ -99,7 +89,6 @@ extern "C" __global__ void GatherV2Backward(const IO_TYPE* outputGrad,
                                                 indices,
                                                 paramGrad,
                                                 outputGrad_tv,
-                                                paramGrad_numel,
                                                 gather_dim_size,
                                                 indices_size,
                                                 inner_size,
@@ -163,9 +152,9 @@ __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
     if(gather_i < gather_dim_size)
     {
         long param_i = ((batch_i * outer_size + outer_i) * gather_dim_size) * slice_size + inner_i;
-        atomic_add_g(paramGrad + param_i,
-                     getNDVal(outputGrad, outputGrad_tv, static_cast<uint64_t>(gid)));
-        // atomic_add_g(paramGrad + param_i, outputGrad[gid]);
+        FLOAT_ACCUM val =
+            CVT_FLOAT2ACCUM(getNDVal(outputGrad, outputGrad_tv, static_cast<uint64_t>(gid)));
+        atomic_add_g(paramGrad + param_i, val);
     }
 }
 

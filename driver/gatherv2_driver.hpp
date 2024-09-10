@@ -82,11 +82,11 @@ int32_t mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
 
     if(batch_dims > 0)
     {
+        printf("indices numel: %ld\n", indices_numel);
+        printf("batch_size: %ld\n", batch_size);
         auto outGrad_tv = miopen::gatherv2::reshape<4>(
             miopen::deref(outputGradDesc),
             {batch_size, outer_size, indices_numel / batch_size, inner_size});
-        auto paramGrad_tv = miopen::gatherv2::reshape<4>(
-            miopen::deref(paramGradDesc), {batch_size, outer_size, gather_dim_size, inner_size});
 
         const bool is_batch_dims_zero = (batch_size == 1);
         const bool is_axis_zero       = (outer_size == 1);
@@ -299,7 +299,7 @@ int GatherV2Driver<Tgpu, Tref, Tindex>::AddCmdLineArgs()
                          "Run only Forward (1) or Run both Forward and Backward (0) (Default = 0)",
                          "int");
     inflags.AddTensorFlag("paramGrad-shape", 'P', "2x4", "The shape of the param gradient tensor");
-    inflags.AddTensorFlag("indices-shape", '4', "3", "The shape of the indices tensor");
+    inflags.AddTensorFlag("indices-shape", 'I', "3", "The shape of the indices tensor");
     inflags.AddInputFlag(
         "axis", 'A', "0", "The axis in params to gather indices from (Default=0)", "int");
     inflags.AddInputFlag(
