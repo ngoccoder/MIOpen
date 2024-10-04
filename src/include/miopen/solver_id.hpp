@@ -63,7 +63,7 @@ enum class Primitive
     RoPE,
     ReLU,
     Kthvalue,
-    GatherV2
+    Indexing
 };
 
 struct MIOPEN_INTERNALS_EXPORT Id

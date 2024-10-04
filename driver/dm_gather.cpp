@@ -24,16 +24,16 @@
  *
  *******************************************************************************/
 #include "registry_driver_maker.hpp"
-#include "gatherv2_driver.hpp"
+#include "gather_driver.hpp"
 
 static Driver* makeDriver(const std::string& base_arg)
 {
-    if(base_arg == "gatherv2")
-        return new GatherV2Driver<float, float, int>();
-    if(base_arg == "gatherv2fp16")
-        return new GatherV2Driver<float16, float, int>();
-    if(base_arg == "gatherv2bfp16")
-        return new GatherV2Driver<bfloat16, float, int>();
+    if(base_arg == "gather")
+        return new GatherDriver<float, float, int>();
+    if(base_arg == "gatherfp16")
+        return new GatherDriver<float16, float, int>();
+    if(base_arg == "gatherbfp16")
+        return new GatherDriver<bfloat16, float, int>();
     return nullptr;
 }
 

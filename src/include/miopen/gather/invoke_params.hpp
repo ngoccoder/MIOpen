@@ -31,7 +31,7 @@
 
 namespace miopen {
 
-namespace gatherv2 {
+namespace gather {
 
 struct BwdInvokeParams : public miopen::InvokeParams
 {
@@ -45,13 +45,13 @@ struct BwdInvokeParams : public miopen::InvokeParams
     ConstData_t indices    = nullptr;
     Data_t paramGrad       = nullptr;
 
-    int64_t axis   = 0;
-    int batch_dims = 0;
+    uint32_t dim        = 0;
+    uint32_t batch_dims = 0;
 
     std::size_t GetWorkspaceSize() const { return 0; }
     Data_t GetWorkspace() const { return nullptr; }
 };
 
-} // namespace gatherv2
+} // namespace gather
 
 } // namespace miopen

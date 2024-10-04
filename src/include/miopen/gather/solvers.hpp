@@ -26,29 +26,29 @@
  *******************************************************************************/
 #pragma once
 
-#include <miopen/gatherv2/problem_description.hpp>
+#include <miopen/gather/problem_description.hpp>
 #include <miopen/solver.hpp>
 
 namespace miopen {
 
 namespace solver {
 
-namespace gatherv2 {
+namespace gather {
 
-using GatherV2BwdSolver =
-    NonTunableSolverBase<ExecutionContext, miopen::gatherv2::BwdProblemDescription>;
+using GatherBwdSolver =
+    NonTunableSolverBase<ExecutionContext, miopen::gather::BwdProblemDescription>;
 
-struct GatherV2Backward final : GatherV2BwdSolver
+struct GatherV2Backward final : GatherBwdSolver
 {
     const std::string& SolverDbId() const override { return GetSolverDbId<GatherV2Backward>(); }
 
     bool IsApplicable(const ExecutionContext& context,
-                      const miopen::gatherv2::BwdProblemDescription& problem) const override;
+                      const miopen::gather::BwdProblemDescription& problem) const override;
     ConvSolution GetSolution(const ExecutionContext& context,
-                             const miopen::gatherv2::BwdProblemDescription& problem) const override;
+                             const miopen::gather::BwdProblemDescription& problem) const override;
 };
 
-} // namespace gatherv2
+} // namespace gather
 
 } // namespace solver
 

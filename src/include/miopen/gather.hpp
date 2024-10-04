@@ -23,25 +23,46 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#ifndef MIOPEN_GATHERV2_HPP_
-#define MIOPEN_GATHERV2_HPP_
+#pragma once
 
 #include <miopen/common.hpp>
+#include <miopen/export_internals.h>
+#include <miopen/miopen.h>
+#include <miopen/handle.hpp>
+#include "miopen/object.hpp"
+#include <ostream>
 
 namespace miopen {
 
 struct Handle;
 struct TensorDescriptor;
 
-miopenStatus_t GatherV2Backward(Handle& handle,
-                                const TensorDescriptor& outputGradDesc,
-                                ConstData_t outputgrad,
-                                const TensorDescriptor& indiceDesc,
-                                ConstData_t indices,
-                                const TensorDescriptor& paramGradDesc,
-                                Data_t paramGrad,
-                                int64_t axis,
-                                int batch_dims);
+struct MIOPEN_INTERNALS_EXPORT GatherDescriptor : miopenGatherDescriptor
+{
+    GatherDescriptor();
+    GatherDescriptor(miopenGatherMode_t m, uint32_t dim, uint32_t batch_dims);
+
+    miopenGatherMode_t getMode() const { return mode; }
+    uint32_t getDim() const { return dim; }
+    uint32_t getBatchDims() const { return batch_dims; }
+
+    miopenStatus_t Backward(Handle& handle,
+                            const TensorDescriptor& outputGradDesc,
+                            ConstData_t outputgrad,
+                            const TensorDescriptor& indiceDesc,
+                            ConstData_t indices,
+                            const TensorDescriptor& paramGradDesc,
+                            Data_t paramGrad,
+                            const void* dim,
+                            const void* batch_dim) const;
+
+    friend std::ostream& operator<<(std::ostream& stream, const GatherDescriptor& x);
+
+private:
+    miopenGatherMode_t mode = MIOPEN_GATHER_V2;
+    uint32_t dim;
+    uint32_t batch_dims;
+};
 
 } // namespace miopen
-#endif // _MIOPEN_GATHERV2_HPP_
+MIOPEN_DEFINE_OBJECT(miopenGatherDescriptor, miopen::GatherDescriptor);

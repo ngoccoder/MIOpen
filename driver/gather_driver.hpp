@@ -23,12 +23,12 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#ifndef GUARD_MIOPEN_GATHERV2_DRIVER_HPP
-#define GUARD_MIOPEN_GATHERV2_DRIVER_HPP
+
+#pragma once
 
 #include "InputFlags.hpp"
 #include "driver.hpp"
-#include "miopen/gatherv2/problem_description.hpp"
+#include "miopen/gather/problem_description.hpp"
 #include "tensor_driver.hpp"
 #include "random.hpp"
 #include "tensor_view.hpp"
@@ -42,9 +42,6 @@
 #include <miopen/miopen.h>
 
 #include <vector>
-
-#ifndef MLO_GATHERV2HOST_H_
-#define MLO_GATHERV2HOST_H_
 
 template <typename Tgpu, typename Tcheck, typename Tindex>
 int32_t mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
@@ -84,7 +81,7 @@ int32_t mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
     {
         printf("indices numel: %ld\n", indices_numel);
         printf("batch_size: %ld\n", batch_size);
-        auto outGrad_tv = miopen::gatherv2::reshape<4>(
+        auto outGrad_tv = miopen::gather::reshape<4>(
             miopen::deref(outputGradDesc),
             {batch_size, outer_size, indices_numel / batch_size, inner_size});
 
@@ -139,8 +136,8 @@ int32_t mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
     }
     else
     {
-        auto outputGrad_tv = miopen::gatherv2::reshape<3>(miopen::deref(outputGradDesc),
-                                                          {outer_size, indices_numel, inner_size});
+        auto outputGrad_tv = miopen::gather::reshape<3>(miopen::deref(outputGradDesc),
+                                                        {outer_size, indices_numel, inner_size});
         bool is_axis_zero  = (outer_size == 1);
 
         for(long i = 0; i < outGrad_numel; i++)
@@ -176,13 +173,11 @@ int32_t mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
     return 0;
 }
 
-#endif
-
 template <typename Tgpu, typename Tref, typename Tindex>
-class GatherV2Driver : public Driver
+class GatherDriver : public Driver
 {
 public:
-    GatherV2Driver() : Driver()
+    GatherDriver() : Driver()
     {
         miopenCreateTensorDescriptor(&outputGradTensor);
         miopenCreateTensorDescriptor(&indicesTensor);
@@ -209,7 +204,7 @@ public:
     Tref GetTolerance();
     int VerifyBackward() override;
     int VerifyForward() override;
-    ~GatherV2Driver() override
+    ~GatherDriver() override
     {
         miopenDestroyTensorDescriptor(outputGradTensor);
         miopenDestroyTensorDescriptor(indicesTensor);
@@ -217,10 +212,11 @@ public:
     }
 
 private:
+    int forw;
+
     InputFlags inflags;
     miopenDataType_t index_data_type;
-
-    int forw;
+    miopenGatherDescriptor_t gatherDesc;
 
     miopenTensorDescriptor_t outputGradTensor;
     miopenTensorDescriptor_t indicesTensor;
@@ -236,41 +232,60 @@ private:
 
     std::vector<Tref> paramGradHost;
 
-    int64_t axis;
-    int batch_dims;
+    miopenGatherMode_t mode;
+    uint32_t dim;
+    uint32_t batch_dims;
 };
 
 template <typename Tgpu, typename Tref, typename Tindex>
-int GatherV2Driver<Tgpu, Tref, Tindex>::ParseCmdLineArgs(int argc, char* argv[])
+int GatherDriver<Tgpu, Tref, Tindex>::ParseCmdLineArgs(int argc, char* argv[])
 {
     inflags.Parse(argc, argv);
-    axis       = inflags.GetValueInt("axis");
-    batch_dims = inflags.GetValueInt("batch-dims");
-    forw       = inflags.GetValueInt("forw");
-    if(forw != 0)
-    {
-        printf("Incorrect Forward Mode\n");
-        exit(EXIT_FAILURE); // NOLINT (concurrency-mt-unsafe)
-    }
+
+    forw = inflags.GetValueInt("forw");
+    MIOPEN_THROW_IF(forw != 0, "Incorrect Forward Mode");
 
     if(inflags.GetValueInt("time") == 1)
     {
         miopenEnableProfiling(GetHandle(), true);
     }
+
+    dim        = inflags.GetValueInt("dim");
+    batch_dims = inflags.GetValueInt("batch_dims");
+    if(inflags.GetValueStr("mode") == "gather")
+    {
+        mode = MIOPEN_GATHER;
+    }
+    else if(inflags.GetValueStr("mode") == "gatherv2")
+    {
+        mode = MIOPEN_GATHER_V2;
+    }
+    else if(inflags.GetValueStr("mode") == "gathernd")
+    {
+        mode = MIOPEN_GATHER_ND;
+    }
+    else
+    {
+        MIOPEN_THROW("Incorrect Gather Mode");
+    }
+
+    miopenCreateGatherDescriptor(&gatherDesc);
+    miopenSetGatherDescriptor(gatherDesc, mode, dim, batch_dims);
+
     return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
-int GatherV2Driver<Tgpu, Tref, Tindex>::GetandSetData()
+int GatherDriver<Tgpu, Tref, Tindex>::GetandSetData()
 {
-    std::vector<int> paramGrad_len = inflags.GetValueTensor("paramGrad-shape").lengths;
+    std::vector<int> paramGrad_len = inflags.GetValueTensor("param_grad_shape").lengths;
     SetTensorNd(paramGradTensor, paramGrad_len, data_type);
 
-    std::vector<int> indices_len = inflags.GetValueTensor("indices-shape").lengths;
+    std::vector<int> indices_len = inflags.GetValueTensor("indices_shape").lengths;
     SetTensorNd(indicesTensor, indices_len, index_data_type);
 
     std::vector<int> outGrad_len;
-    for(int i = 0; i < axis; i++)
+    for(int i = 0; i < dim; i++)
     {
         outGrad_len.push_back(paramGrad_len[i]);
     }
@@ -280,7 +295,7 @@ int GatherV2Driver<Tgpu, Tref, Tindex>::GetandSetData()
         outGrad_len.push_back(indices_len[i]);
     }
 
-    for(int i = axis + 1; i < paramGrad_len.size(); i++)
+    for(int i = dim + 1; i < paramGrad_len.size(); i++)
     {
         outGrad_len.push_back(paramGrad_len[i]);
     }
@@ -291,19 +306,24 @@ int GatherV2Driver<Tgpu, Tref, Tindex>::GetandSetData()
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
-int GatherV2Driver<Tgpu, Tref, Tindex>::AddCmdLineArgs()
+int GatherDriver<Tgpu, Tref, Tindex>::AddCmdLineArgs()
 {
     inflags.AddInputFlag("forw",
                          'F',
                          "0",
                          "Run only Forward (1) or Run both Forward and Backward (0) (Default = 0)",
                          "int");
-    inflags.AddTensorFlag("paramGrad-shape", 'P', "2x4", "The shape of the param gradient tensor");
-    inflags.AddTensorFlag("indices-shape", 'I', "3", "The shape of the indices tensor");
+    inflags.AddTensorFlag("param_grad_shape", 'P', "2x4", "The shape of the param gradient tensor");
+    inflags.AddTensorFlag("indices_shape", 'I', "3", "The shape of the indices tensor");
+    inflags.AddInputFlag("mode",
+                         'm',
+                         "gatherv2",
+                         "Gather Mode (gather, gatherv2, gathernd) (Default=gatherv2)",
+                         "str");
     inflags.AddInputFlag(
-        "axis", 'A', "0", "The axis in params to gather indices from (Default=0)", "int");
+        "dim", 'D', "0", "The dimension in params to gather indices from (Default=0)", "int");
     inflags.AddInputFlag(
-        "batch-dims", 'B', "0", "The number of batch dimensions (Default=0)", "int");
+        "batch_dims", 'B', "0", "The number of batch dimensions (Default=0)", "int");
     inflags.AddInputFlag("iter", 'i', "10", "Number of Iterations (Default=10)", "int");
     inflags.AddInputFlag("verify", 'V', "1", "Verify Each Layer (Default=1)", "int");
     inflags.AddInputFlag("time", 't', "0", "Time Each Layer (Default=0)", "int");
@@ -314,7 +334,7 @@ int GatherV2Driver<Tgpu, Tref, Tindex>::AddCmdLineArgs()
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
-int GatherV2Driver<Tgpu, Tref, Tindex>::AllocateBuffersAndCopy()
+int GatherDriver<Tgpu, Tref, Tindex>::AllocateBuffersAndCopy()
 {
     uint32_t ctx = 0;
 
@@ -361,19 +381,19 @@ int GatherV2Driver<Tgpu, Tref, Tindex>::AllocateBuffersAndCopy()
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
-int GatherV2Driver<Tgpu, Tref, Tindex>::RunForwardGPU()
+int GatherDriver<Tgpu, Tref, Tindex>::RunForwardGPU()
 {
-    return miopenStatusSuccess;
+    return miopenStatusNotImplemented;
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
-int GatherV2Driver<Tgpu, Tref, Tindex>::RunForwardCPU()
+int GatherDriver<Tgpu, Tref, Tindex>::RunForwardCPU()
 {
-    return miopenStatusSuccess;
+    return miopenStatusNotImplemented;
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
-int GatherV2Driver<Tgpu, Tref, Tindex>::RunBackwardGPU()
+int GatherDriver<Tgpu, Tref, Tindex>::RunBackwardGPU()
 {
     float kernel_total_time = 0;
     float kernel_first_time = 0;
@@ -383,15 +403,17 @@ int GatherV2Driver<Tgpu, Tref, Tindex>::RunBackwardGPU()
 
     for(int i = 0; i < inflags.GetValueInt("iter"); i++)
     {
-        miopenGatherV2Backward(GetHandle(),
-                               outputGradTensor,
-                               outputGrad_dev->GetMem(),
-                               indicesTensor,
-                               indices_dev->GetMem(),
-                               paramGradTensor,
-                               paramGrad_dev->GetMem(),
-                               axis,
-                               batch_dims);
+        miopenGatherBackward(GetHandle(),
+                             gatherDesc,
+                             outputGradTensor,
+                             outputGrad_dev->GetMem(),
+                             indicesTensor,
+                             indices_dev->GetMem(),
+                             paramGradTensor,
+                             paramGrad_dev->GetMem(),
+                             &dim,
+                             &batch_dims);
+
         float time = 0.0;
         miopenGetKernelTime(GetHandle(), &time);
         kernel_total_time += time;
@@ -421,40 +443,38 @@ int GatherV2Driver<Tgpu, Tref, Tindex>::RunBackwardGPU()
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
-Tref GatherV2Driver<Tgpu, Tref, Tindex>::GetTolerance()
+Tref GatherDriver<Tgpu, Tref, Tindex>::GetTolerance()
 {
-    // Computation error of fp16 is ~2^13 (=8192) bigger than
-    // the one of fp32 because mantissa is shorter by 13 bits.
-    auto tolerance = std::is_same<Tgpu, float>::value ? 1.5e-6 : 8.2e-3;
-
-    // bf16 mantissa has 7 bits, by 3 bits shorter than fp16.
-    if(std::is_same<Tgpu, bfloat16>::value)
-        tolerance *= 8.0;
+    Tref tolerance = std::numeric_limits<Tgpu>::epsilon() * 10;
     return tolerance;
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
-int GatherV2Driver<Tgpu, Tref, Tindex>::VerifyForward()
+int GatherDriver<Tgpu, Tref, Tindex>::VerifyForward()
 {
+    return miopenStatusNotImplemented;
+}
+
+template <typename Tgpu, typename Tref, typename Tindex>
+int GatherDriver<Tgpu, Tref, Tindex>::RunBackwardCPU()
+{
+    if(mode == MIOPEN_GATHER_V2)
+    {
+        mloGatherV2BackwardRunHost<Tgpu, Tref, Tindex>(outputGradTensor,
+                                                       outGrad.data(),
+                                                       indicesTensor,
+                                                       indices.data(),
+                                                       paramGradTensor,
+                                                       paramGradHost.data(),
+                                                       dim,
+                                                       batch_dims);
+    }
+
     return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
-int GatherV2Driver<Tgpu, Tref, Tindex>::RunBackwardCPU()
-{
-    mloGatherV2BackwardRunHost<Tgpu, Tref, Tindex>(outputGradTensor,
-                                                   outGrad.data(),
-                                                   indicesTensor,
-                                                   indices.data(),
-                                                   paramGradTensor,
-                                                   paramGradHost.data(),
-                                                   axis,
-                                                   batch_dims);
-    return miopenStatusSuccess;
-}
-
-template <typename Tgpu, typename Tref, typename Tindex>
-int GatherV2Driver<Tgpu, Tref, Tindex>::VerifyBackward()
+int GatherDriver<Tgpu, Tref, Tindex>::VerifyBackward()
 {
     RunBackwardCPU();
     const Tref tolerance = GetTolerance();
@@ -470,16 +490,14 @@ int GatherV2Driver<Tgpu, Tref, Tindex>::VerifyBackward()
 
     if(!std::isfinite(error) || error > tolerance)
     {
-        std::cout << "Backward GatherV2 FAILED: " << error << " > " << tolerance << std::endl;
+        std::cout << "Backward Gather FAILED: " << error << " > " << tolerance << std::endl;
         return EC_VerifyFwd;
     }
     else
     {
-        std::cout << "Backward GatherV2 Verifies OK on CPU reference (" << error << " < "
-                  << tolerance << ')' << std::endl;
+        std::cout << "Backward Gather Verifies OK on CPU reference (" << error << " < " << tolerance
+                  << ')' << std::endl;
     }
 
     return miopenStatusSuccess;
 }
-
-#endif // GUARD_MIOPEN_GATHERV2_DRIVER_HPP

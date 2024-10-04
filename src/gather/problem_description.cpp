@@ -26,13 +26,13 @@
  *******************************************************************************/
 
 #include "miopen/tensor.hpp"
-#include <miopen/gatherv2/problem_description.hpp>
+#include <miopen/gather/problem_description.hpp>
 #include <numeric>
 #include <sstream>
 
 namespace miopen {
 
-namespace gatherv2 {
+namespace gather {
 
 // M is size of shape
 template <int M>
@@ -112,6 +112,6 @@ NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
     return NetworkConfig{ss.str()};
 }
 
-} // namespace gatherv2
+} // namespace gather
 
 } // namespace miopen

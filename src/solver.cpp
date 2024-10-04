@@ -30,7 +30,7 @@
 #include <miopen/cat/solvers.hpp>
 #include <miopen/conv/solvers.hpp>
 #include <miopen/fusion/solvers.hpp>
-#include "miopen/gatherv2/solvers.hpp"
+#include "miopen/gather/solvers.hpp"
 #include <miopen/glu/solvers.hpp>
 #include <miopen/groupnorm/solvers.hpp>
 #include <miopen/getitem/solvers.hpp>
@@ -686,7 +686,7 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
     Register(registry, ++id, Primitive::Activation, glu::GLUForward{}.SolverDbId());
     Register(registry, ++id, Primitive::Activation, glu::GLUBackward{}.SolverDbId());
 
-    Register(registry, ++id, Primitive::GatherV2, gatherv2::GatherV2Backward{}.SolverDbId());
+    Register(registry, ++id, Primitive::Indexing, gather::GatherV2Backward{}.SolverDbId());
 
     // IMPORTANT: New solvers should be added to the end of the function!
 }

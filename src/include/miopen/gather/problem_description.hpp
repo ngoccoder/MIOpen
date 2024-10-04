@@ -30,12 +30,13 @@
 #include <miopen/tensor.hpp>
 #include <miopen/problem_description_base.hpp>
 #include "../src/kernels/tensor_view.hpp"
+#include "miopen/gather.hpp"
 
 namespace miopen {
 
 struct NetworkConfig;
 
-namespace gatherv2 {
+namespace gather {
 
 template <int M>
 tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<int64_t>& shape);
@@ -49,16 +50,14 @@ extern template tensor_view_t<4> reshape<4>(const TensorDescriptor& tensorDes,
 struct BwdProblemDescription : ProblemDescriptionBase
 {
     // Backward constructor
-    BwdProblemDescription(const TensorDescriptor& outputGradDesc_,
+    BwdProblemDescription(const GatherDescriptor& gatherDesc_,
+                          const TensorDescriptor& outputGradDesc_,
                           const TensorDescriptor& indicesDesc_,
-                          const TensorDescriptor& paramGradDesc_,
-                          int64_t axis_,
-                          int batch_dims_)
-        : outputGradDesc(outputGradDesc_),
+                          const TensorDescriptor& paramGradDesc_)
+        : gatherDesc(gatherDesc_),
+          outputGradDesc(outputGradDesc_),
           indicesDesc(indicesDesc_),
-          paramGradDesc(paramGradDesc_),
-          axis(axis_),
-          batch_dims(batch_dims_)
+          paramGradDesc(paramGradDesc_)
     {
         if(indicesDesc.GetType() != miopenInt32 && indicesDesc.GetType() != miopenInt64)
         {
@@ -78,8 +77,7 @@ struct BwdProblemDescription : ProblemDescriptionBase
     const TensorDescriptor& GetOutputGradDesc() const { return outputGradDesc; }
     const TensorDescriptor& GetIndicesDesc() const { return indicesDesc; }
     const TensorDescriptor& GetParamGradDesc() const { return paramGradDesc; }
-    int64_t GetAxis() const { return axis; }
-    int GetBatchDims() const { return batch_dims; }
+    const GatherDescriptor& GetGatherDesc() const { return gatherDesc; }
 
     bool IsSameType() const
     {
@@ -94,14 +92,12 @@ struct BwdProblemDescription : ProblemDescriptionBase
     NetworkConfig MakeNetworkConfig() const override;
 
 private:
+    GatherDescriptor gatherDesc;
     TensorDescriptor outputGradDesc;
     TensorDescriptor indicesDesc;
     TensorDescriptor paramGradDesc;
-
-    int64_t axis;
-    int batch_dims;
 };
 
-} // namespace gatherv2
+} // namespace gather
 
 } // namespace miopen
