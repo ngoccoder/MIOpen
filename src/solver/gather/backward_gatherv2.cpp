@@ -85,15 +85,15 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
     int64_t outer_size = 1;
     int64_t inner_size = 1;
 
-    for(int i = 0; i < batch_dims; ++i)
+    for(uint32_t i = 0; i < batch_dims; ++i)
     {
         batch_size *= paramGrad[i];
     }
-    for(int i = batch_dims; i < dim; ++i)
+    for(uint32_t i = batch_dims; i < dim; ++i)
     {
         outer_size *= paramGrad[i];
     }
-    for(int i = dim + 1; i < paramGrad.size(); ++i)
+    for(uint32_t i = dim + 1; i < paramGrad.size(); ++i)
     {
         inner_size *= paramGrad[i];
     }
@@ -117,12 +117,18 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
         // Batched Gather Backward
         kernel.kernel_name = "BatchedGatherV2Backward";
 
+        printf("batch size is %ld\n", batch_size);
+        printf("outer_size is %ld\n", outer_size);
+        printf("indices_numel / batch size is %ld\n", indices_numel / batch_size);
+        printf("inner_size is %ld\n", inner_size);
+
         auto outputGrad_tv = miopen::gather::reshape<4>(
             problem.GetOutputGradDesc(),
             {batch_size, outer_size, indices_numel / batch_size, inner_size});
 
         result.construction_params.push_back(kernel);
         result.invoker_factory = [outputGrad_tv,
+                                    paramGrad_numel,
                                   outGrad_numel,
                                   batch_size,
                                   outer_size,
@@ -140,6 +146,7 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
                        params.indices,
                        params.paramGrad,
                        outputGrad_tv,
+                       paramGrad_numel,
                        outer_size,
                        gather_dim_size,
                        indices_numel,

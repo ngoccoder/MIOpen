@@ -37,6 +37,7 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
                                        const TINDEX* indices,
                                        TIO* paramGrad,
                                        tensor_view_t<3> outputGrad_tv,
+                                       size_t param_grad_numel,
                                        long gather_dim_size,
                                        long indices_size,
                                        long inner_size,
@@ -44,6 +45,14 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
                                        bool is_axis_zero)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t num_thread = blockDim.x * gridDim.x;
+
+    // Fill zeros
+    for (size_t i = gid; i < param_grad_numel; i += num_thread)
+    {
+        paramGrad[i] = 0;
+    }
+
     if(gid >= out_size)
         return;
 
@@ -79,6 +88,7 @@ extern "C" __global__ void GatherV2Backward(const IO_TYPE* outputGrad,
                                             const INDEX_TYPE* indices,
                                             IO_TYPE* paramGrad,
                                             tensor_view_t<3> outputGrad_tv,
+                                            long param_grad_numel,
                                             long gather_dim_size,
                                             long indices_size,
                                             long inner_size,
@@ -89,6 +99,7 @@ extern "C" __global__ void GatherV2Backward(const IO_TYPE* outputGrad,
                                                 indices,
                                                 paramGrad,
                                                 outputGrad_tv,
+                                                param_grad_numel,
                                                 gather_dim_size,
                                                 indices_size,
                                                 inner_size,
@@ -101,6 +112,7 @@ __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
                                               const TINDEX* indices,
                                               TIO* paramGrad,
                                               tensor_view_t<4> outputGrad_tv,
+                                              size_t param_grad_numel,
                                               long outer_size,
                                               long gather_dim_size,
                                               long indices_size,
@@ -110,6 +122,15 @@ __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
                                               bool is_batch_dim_zero)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t num_thread = blockDim.x * gridDim.x;
+
+    // Fill zeros 
+    for (size_t i = gid; i < param_grad_numel; i += num_thread)
+    {
+        paramGrad[i] = 0;
+    }
+
+
     if(gid >= out_size)
         return;
 
@@ -162,6 +183,7 @@ extern "C" __global__ void BatchedGatherV2Backward(const IO_TYPE* outputGrad,
                                                    const INDEX_TYPE* indices,
                                                    IO_TYPE* paramGrad,
                                                    tensor_view_t<4> outputGrad_tv,
+                                                   size_t param_grad_numel,
                                                    long outer_size,
                                                    long gather_dim_size,
                                                    long indices_size,
@@ -174,6 +196,7 @@ extern "C" __global__ void BatchedGatherV2Backward(const IO_TYPE* outputGrad,
                                                        indices,
                                                        paramGrad,
                                                        outputGrad_tv,
+                                                       param_grad_numel,
                                                        outer_size,
                                                        gather_dim_size,
                                                        indices_size,
