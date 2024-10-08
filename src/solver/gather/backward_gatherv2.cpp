@@ -128,7 +128,7 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
 
         result.construction_params.push_back(kernel);
         result.invoker_factory = [outputGrad_tv,
-                                    paramGrad_numel,
+                                  paramGrad_numel,
                                   outGrad_numel,
                                   batch_size,
                                   outer_size,

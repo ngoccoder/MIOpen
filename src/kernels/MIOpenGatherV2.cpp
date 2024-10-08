@@ -44,11 +44,11 @@ __device__ void GatherV2BackwardKernel(const TIO* outputGrad,
                                        long out_size,
                                        bool is_axis_zero)
 {
-    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t gid        = blockIdx.x * blockDim.x + threadIdx.x;
     size_t num_thread = blockDim.x * gridDim.x;
 
     // Fill zeros
-    for (size_t i = gid; i < param_grad_numel; i += num_thread)
+    for(size_t i = gid; i < param_grad_numel; i += num_thread)
     {
         paramGrad[i] = 0;
     }
@@ -121,15 +121,14 @@ __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
                                               bool is_axis_zero,
                                               bool is_batch_dim_zero)
 {
-    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+    size_t gid        = blockIdx.x * blockDim.x + threadIdx.x;
     size_t num_thread = blockDim.x * gridDim.x;
 
-    // Fill zeros 
-    for (size_t i = gid; i < param_grad_numel; i += num_thread)
+    // Fill zeros
+    for(size_t i = gid; i < param_grad_numel; i += num_thread)
     {
         paramGrad[i] = 0;
     }
-
 
     if(gid >= out_size)
         return;
