@@ -46,15 +46,17 @@ struct MIOPEN_INTERNALS_EXPORT GatherDescriptor : miopenGatherDescriptor
     uint32_t getDim() const { return dim; }
     uint32_t getBatchDims() const { return batch_dims; }
 
+    void setMode(miopenGatherMode_t m) { mode = m; }
+    void setDim(uint32_t d) { dim = d; }
+    void setBatchDims(uint32_t b) { batch_dims = b; }
+
     miopenStatus_t Backward(Handle& handle,
                             const TensorDescriptor& outputGradDesc,
                             ConstData_t outputgrad,
                             const TensorDescriptor& indiceDesc,
                             ConstData_t indices,
                             const TensorDescriptor& paramGradDesc,
-                            Data_t paramGrad,
-                            const void* dim,
-                            const void* batch_dim) const;
+                            Data_t paramGrad) const;
 
     friend std::ostream& operator<<(std::ostream& stream, const GatherDescriptor& x);
 

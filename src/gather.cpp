@@ -24,15 +24,15 @@
  *
  *******************************************************************************/
 
-#include "miopen/gather/problem_description.hpp"
-#include "miopen/invoke_params.hpp"
-#include "miopen/logger.hpp"
-#include "miopen/miopen.h"
-#include "miopen/names.hpp"
-#include <miopen/gather/invoke_params.hpp>
 #include <miopen/find_solution.hpp>
-#include <miopen/gather/solvers.hpp>
 #include <miopen/gather.hpp>
+#include <miopen/gather/invoke_params.hpp>
+#include <miopen/gather/problem_description.hpp>
+#include <miopen/gather/solvers.hpp>
+#include <miopen/invoke_params.hpp>
+#include <miopen/logger.hpp>
+#include <miopen/miopen.h>
+#include <miopen/names.hpp>
 
 namespace miopen {
 
@@ -54,9 +54,7 @@ miopenStatus_t GatherDescriptor::Backward(Handle& handle,
                                           const TensorDescriptor& indiceDesc,
                                           ConstData_t indices,
                                           const TensorDescriptor& paramGradDesc,
-                                          Data_t paramGrad,
-                                          const void* dim,
-                                          const void* batch_dim) const
+                                          Data_t paramGrad) const
 {
     const auto problem =
         gather::BwdProblemDescription{*this, outputGradDesc, indiceDesc, paramGradDesc};

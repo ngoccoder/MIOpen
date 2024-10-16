@@ -26,11 +26,11 @@
 
 #pragma once
 
-#include "miopen/errors.hpp"
+#include <miopen/errors.hpp>
+#include "miopen/gather.hpp"
 #include <miopen/tensor.hpp>
 #include <miopen/problem_description_base.hpp>
 #include "../src/kernels/tensor_view.hpp"
-#include "miopen/gather.hpp"
 
 namespace miopen {
 
@@ -72,6 +72,8 @@ struct BwdProblemDescription : ProblemDescriptionBase
                          "GatherV2::BwdProblemDescription: Output grad and param grad tensors must "
                          "be same type.");
         }
+
+        // batch = 1 and dim = 1 and size large
     }
 
     const TensorDescriptor& GetOutputGradDesc() const { return outputGradDesc; }

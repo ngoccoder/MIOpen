@@ -93,9 +93,7 @@ extern "C" miopenStatus_t miopenGatherBackward(miopenHandle_t handle,
                       miopen::deref(indicesDesc),
                       DataCast(indices),
                       miopen::deref(paramGradDesc),
-                      DataCast(paramGrad),
-                      dim,
-                      batch_dims);
+                      DataCast(paramGrad));
     });
 }
 

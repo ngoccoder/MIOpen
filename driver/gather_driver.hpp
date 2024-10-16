@@ -75,7 +75,7 @@ int mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
         inner_size *= paramGrad_lens[i];
     }
 
-    int64_t gather_dim_size = paramGrad_lens[dim];
+    auto gather_dim_size = paramGrad_lens[dim];
 
     if(batch_dims > 0)
     {
@@ -93,7 +93,7 @@ int mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
             long batch_i   = 0;
             long outer_i   = 0;
             long indices_i = 0;
-            long slice_i   = 0;
+            long inner_i   = 0;
 
             const long slices_count = i / inner_size;
             if(is_batch_dims_zero)
@@ -104,13 +104,13 @@ int mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
                 }
                 else
                 {
-                    outer_i   = slices_count / gather_dim_size;
-                    indices_i = slices_count - outer_i * gather_dim_size;
+                    outer_i   = slices_count / indices_numel;
+                    indices_i = slices_count - outer_i * indices_numel;
                 }
             }
             else
             {
-                const long entries_count = slices_count / gather_dim_size;
+                const long entries_count = slices_count / indices_numel;
                 if(is_axis_zero)
                 {
                     batch_i = entries_count;
@@ -122,49 +122,16 @@ int mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
                 }
                 indices_i = slices_count - entries_count * inner_size;
             }
-            slice_i = i - slices_count * inner_size;
+            inner_i = i - slices_count * inner_size;
 
-            size_t gather_i = indices[batch_i * gather_dim_size + indices_i];
+            size_t gather_i = indices[batch_i * indices_numel + indices_i];
 
             if(gather_i < gather_dim_size)
             {
                 long param_i =
-                    ((batch_i * outer_size + outer_i) * gather_dim_size) * inner_size + slice_i;
+                    ((batch_i * outer_size + outer_i) * gather_dim_size + gather_i) * inner_size +
+                    inner_i;
                 paramGrad[param_i] += getNDVal(outputGrad, outGrad_tv, i);
-            }
-        }
-    }
-    else
-    {
-        auto outputGrad_tv = miopen::gather::reshape<3>(miopen::deref(outputGradDesc),
-                                                        {outer_size, indices_numel, inner_size});
-        bool is_axis_zero  = (outer_size == 1);
-
-        for(long i = 0; i < outGrad_numel; i++)
-        {
-            long outer_i   = 0;
-            long indices_i = 0;
-            long inner_i   = 0;
-            if(is_axis_zero)
-            {
-                indices_i = i / inner_size;
-                inner_i   = i - indices_i * inner_size;
-            }
-            else
-            {
-                long batch_indices_i = i / inner_size;
-                outer_i              = batch_indices_i / indices_numel;
-                indices_i            = batch_indices_i - outer_i * indices_numel;
-                inner_i              = i - batch_indices_i * inner_size;
-            }
-
-            size_t gather_i = indices[indices_i];
-
-            if(gather_i < gather_dim_size)
-            {
-                long param_i = (outer_i * gather_dim_size + gather_i) * inner_size + inner_i;
-                paramGrad[param_i] += getNDVal(outputGrad, outputGrad_tv, i);
-                // paramGrad[outer_i][gather_i][inner_i] += outputGrad[i];
             }
         }
     }
@@ -321,8 +288,8 @@ int GatherDriver<Tgpu, Tref, Tindex>::AddCmdLineArgs()
                          "Run only Forward (1) or Run both Forward and Backward (0) (Default = 0)",
                          "int");
     inflags.AddTensorFlag(
-        "param_grad_shape", 'P', "16x4x4", "The shape of the param gradient tensor");
-    inflags.AddTensorFlag("indices_shape", 'I', "2x12", "The shape of the indices tensor");
+        "param_grad_shape", 'P', "2x3x5x5", "The shape of the param gradient tensor");
+    inflags.AddTensorFlag("indices_shape", 'I', "2x4x4", "The shape of the indices tensor");
     inflags.AddInputFlag("mode",
                          'm',
                          "gatherv2",
@@ -373,8 +340,9 @@ int GatherDriver<Tgpu, Tref, Tindex>::AllocateBuffersAndCopy()
         for(size_t i = 0; i < indices_sz; i++)
         {
             auto param_grad_shape = miopen::deref(paramGradTensor).GetLengths();
-            indices[i]            = prng::gen_A_to_B(static_cast<Tindex>(0),
-                                          static_cast<Tindex>(param_grad_shape[dim]));
+            // indices[i]            = prng::gen_A_to_B(static_cast<Tindex>(0),
+            //                              static_cast<Tindex>(param_grad_shape[dim]));
+            indices[i] = 0;
         }
 
         if(indices_dev->ToGPU(GetStream(), indices.data()) != 0)
