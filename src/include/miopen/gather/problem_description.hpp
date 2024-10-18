@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <miopen/errors.hpp>
 #include "miopen/gather.hpp"
 #include <miopen/tensor.hpp>
@@ -59,6 +60,9 @@ struct BwdProblemDescription : ProblemDescriptionBase
           indicesDesc(indicesDesc_),
           paramGradDesc(paramGradDesc_)
     {
+        auto dim        = gatherDesc.getDim();
+        auto batch_dims = gatherDesc.getBatchDims();
+
         if(indicesDesc.GetType() != miopenInt32 && indicesDesc.GetType() != miopenInt64)
         {
             MIOPEN_THROW(
@@ -73,7 +77,52 @@ struct BwdProblemDescription : ProblemDescriptionBase
                          "be same type.");
         }
 
-        // batch = 1 and dim = 1 and size large
+        if(!IsAllContiguous())
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "GatherV2::BwdProblemDescription: All tensors must be contiguous.");
+        }
+
+        if(paramGradDesc.GetNumDims() < dim + 1)
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "GatherV2::BwdProblemDescription: Param grad tensor dimension must be "
+                         "larger than dim value.");
+        }
+
+        if(batch_dims > 0)
+        {
+            if(batch_dims > indicesDesc.GetNumDims())
+            {
+                MIOPEN_THROW(miopenStatusBadParm,
+                             "GatherV2::BwdProblemDescription: Batch dims must be less than or "
+                             "equal to indices tensor dimension.");
+            }
+
+            if(batch_dims >= paramGradDesc.GetNumDims())
+            {
+                MIOPEN_THROW(miopenStatusBadParm,
+                             "GatherV2::BwdProblemDescription: Batch dims must be less than or "
+                             "equal to param grad tensor dimension.");
+            }
+
+            if(dim < batch_dims)
+            {
+                MIOPEN_THROW(miopenStatusBadParm,
+                             "GatherV2::BwdProblemDescription: Batch dims must be less than or "
+                             "equal to dim value.");
+            }
+
+            for(uint32_t i = 0; i < batch_dims; i++)
+            {
+                if(paramGradDesc.GetLengths()[i] != indicesDesc.GetLengths()[i])
+                {
+                    MIOPEN_THROW(miopenStatusBadParm,
+                                 "GatherV2::BwdProblemDescription: Param grad tensor dim should be "
+                                 "equal to indices dim.");
+                }
+            }
+        }
     }
 
     const TensorDescriptor& GetOutputGradDesc() const { return outputGradDesc; }
@@ -89,6 +138,16 @@ struct BwdProblemDescription : ProblemDescriptionBase
         }
 
         return true;
+    }
+
+    bool IsAllContiguous() const
+    {
+        if(outputGradDesc.IsContiguous() && indicesDesc.IsContiguous() &&
+           paramGradDesc.IsContiguous())
+        {
+            return true;
+        }
+        return false;
     }
 
     NetworkConfig MakeNetworkConfig() const override;

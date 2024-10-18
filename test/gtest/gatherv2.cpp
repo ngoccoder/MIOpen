@@ -46,7 +46,7 @@ TEST_P(GPU_GatherV2_bwd_BFP16, Test)
 {
     RunTest();
     Verify();
-}
+};
 
 INSTANTIATE_TEST_SUITE_P(Full, GPU_GatherV2_bwd_FP32, testing::ValuesIn(GenFullTestCases()));
 INSTANTIATE_TEST_SUITE_P(Full, GPU_GatherV2_bwd_FP16, testing::ValuesIn(GenFullTestCases()));

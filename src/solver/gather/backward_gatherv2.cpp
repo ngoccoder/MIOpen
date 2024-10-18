@@ -24,18 +24,18 @@
  *
  *******************************************************************************/
 
-#include "miopen/hipoc_kernel.hpp"
-#include "miopen/invoke_params.hpp"
-#include "miopen/kernel_info.hpp"
-#include "miopen/miopen.h"
-#include "miopen/mlo_internal.hpp"
-#include <miopen/tensor.hpp>
-#include <miopen/tensor_view_utils.hpp>
+#include <cstddef>
+
 #include <miopen/datatype.hpp>
-#include <miopen/kernel_build_params.hpp>
+#include <miopen/gather.hpp>
 #include <miopen/gather/invoke_params.hpp>
 #include <miopen/gather/solvers.hpp>
-#include <miopen/gather.hpp>
+#include <miopen/hipoc_kernel.hpp>
+#include <miopen/invoke_params.hpp>
+#include <miopen/kernel_build_params.hpp>
+#include <miopen/kernel_info.hpp>
+#include <miopen/miopen.h>
+#include <miopen/mlo_internal.hpp>
 
 #define LOCAL_SIZE 256
 
@@ -48,6 +48,7 @@ namespace gather {
 bool GatherV2Backward::IsApplicable(const ExecutionContext& /*context*/,
                                     const miopen::gather::BwdProblemDescription& problem) const
 {
+    // batch dim > 0 and large tensor
     return problem.GetGatherDesc().getMode() == MIOPEN_GATHER_V2;
 }
 
@@ -64,99 +65,153 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
 
     auto gatherDesc      = problem.GetGatherDesc();
     auto batch_dims      = gatherDesc.getBatchDims();
-    auto paramGrad       = problem.GetParamGradDesc().GetLengths();
+    auto param_grad_len  = problem.GetParamGradDesc().GetLengths();
     auto outGrad_numel   = problem.GetOutputGradDesc().GetElementSize();
-    auto indices_numel   = problem.GetIndicesDesc().GetElementSize();
     auto paramGrad_numel = problem.GetParamGradDesc().GetElementSize();
     auto dim             = gatherDesc.getDim();
-    auto kernel          = KernelInfo{};
 
-    const auto build_params = KernelBuildParameters{
-        {"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
-        {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
-        {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
-        {"IO_TYPE", in_out_dtype == "bfloat16" ? "ushort" : in_out_dtype},
-        {"INDEX_TYPE", indices_type},
-    };
-
-    kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
-
-    int64_t batch_size = 1;
-    int64_t outer_size = 1;
-    int64_t inner_size = 1;
-
-    for(uint32_t i = 0; i < batch_dims; ++i)
+    /* Phase 1: Fill param grad with zeros */
     {
-        batch_size *= paramGrad[i];
-    }
-    for(uint32_t i = batch_dims; i < dim; ++i)
-    {
-        outer_size *= paramGrad[i];
-    }
-    for(uint32_t i = dim + 1; i < paramGrad.size(); ++i)
-    {
-        inner_size *= paramGrad[i];
-    }
+        size_t xlocalsize = LOCAL_SIZE;
+        size_t xgridsize  = AlignUp(paramGrad_numel, xlocalsize);
 
-    int64_t gather_dim_size = paramGrad[dim];
+        auto kernel        = KernelInfo{};
+        kernel.kernel_file = "MIOpenFill.cpp";
+        kernel.kernel_name = "FillConstant";
 
-    kernel.kernel_file = "MIOpenGatherV2.cpp";
+        const auto build_params = KernelBuildParameters{
+            {"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
+            {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
+            {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
+            {"IO_TYPE", in_out_dtype == "bfloat16" ? "ushort" : in_out_dtype},
+        };
 
-    size_t xlocalsize = LOCAL_SIZE;
-    size_t xgridsize  = AlignUp(outGrad_numel, xlocalsize);
+        kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
-    kernel.l_wk.push_back(xlocalsize);
-    kernel.l_wk.push_back(1);
-    kernel.l_wk.push_back(1);
-    kernel.g_wk.push_back(xgridsize);
-    kernel.g_wk.push_back(1);
-    kernel.g_wk.push_back(1);
-
-    if(batch_dims > 0)
-    {
-        // Batched Gather Backward
-        kernel.kernel_name = "BatchedGatherV2Backward";
-
-        printf("batch size is %ld\n", batch_size);
-        printf("outer_size is %ld\n", outer_size);
-        printf("indices_numel / batch size is %ld\n", indices_numel / batch_size);
-        printf("inner_size is %ld\n", inner_size);
-
-        auto outputGrad_tv = miopen::gather::reshape<4>(
-            problem.GetOutputGradDesc(),
-            {batch_size, outer_size, indices_numel / batch_size, inner_size});
+        kernel.l_wk.push_back(xlocalsize);
+        kernel.l_wk.push_back(1);
+        kernel.l_wk.push_back(1);
+        kernel.g_wk.push_back(xgridsize);
+        kernel.g_wk.push_back(1);
+        kernel.g_wk.push_back(1);
 
         result.construction_params.push_back(kernel);
-        result.invoker_factory = [outputGrad_tv,
-                                  paramGrad_numel,
-                                  outGrad_numel,
-                                  batch_size,
-                                  outer_size,
-                                  gather_dim_size,
-                                  indices_numel,
-                                  inner_size](const std::vector<Kernel>& kernels) {
-            return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
+    }
+
+    /* Phase 2: Gather backward */
+    {
+        size_t xlocalsize = LOCAL_SIZE;
+        size_t xgridsize  = AlignUp(outGrad_numel, xlocalsize);
+
+        auto kernel        = KernelInfo{};
+        kernel.kernel_file = "MIOpenGatherV2.cpp";
+        kernel.kernel_name = "BatchedGatherV2Backward";
+
+        const auto build_params = KernelBuildParameters{
+            {"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
+            {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
+            {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
+            {"IO_TYPE", in_out_dtype == "bfloat16" ? "ushort" : in_out_dtype},
+            {"INDEX_TYPE", indices_type},
+        };
+
+        kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
+
+        kernel.l_wk.push_back(xlocalsize);
+        kernel.l_wk.push_back(1);
+        kernel.l_wk.push_back(1);
+        kernel.g_wk.push_back(xgridsize);
+        kernel.g_wk.push_back(1);
+        kernel.g_wk.push_back(1);
+
+        result.construction_params.push_back(kernel);
+    }
+
+    result.invoker_factory = [paramGrad_numel, batch_dims, dim, outGrad_numel](
+                                 const std::vector<Kernel>& kernels) {
+        return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
+            decltype(auto) params = raw_params.CastTo<miopen::gather::BwdInvokeParams>();
+
+            float elapsed = 0.0f;
+            HipEventPtr start;
+            HipEventPtr stop;
+
+            bool reset_profiling_state = false;
+            if(handle_.IsProfilingEnabled())
+            {
+                reset_profiling_state = true;
+                handle_.EnableProfiling(false);
+                start = miopen::make_hip_event();
+                stop  = miopen::make_hip_event();
+                hipEventRecord(start.get(), handle_.GetStream());
+            }
+
+            /* Phase 1: Fill param grad with zeros */
+            {
                 decltype(auto) kernel = handle_.Run(kernels.front());
-                decltype(auto) params = raw_params.CastTo<miopen::gather::BwdInvokeParams>();
+                float zero            = 0.0f;
+                kernel(params.paramGrad, zero, paramGrad_numel);
+            }
 
+            auto param_grad_len = deref(params.paramGradDesc).GetLengths();
+            size_t batch_size   = 1;
+            size_t outer_size   = 1;
+            size_t inner_size   = 1;
+
+            for(uint32_t i = 0; i < batch_dims; ++i)
+            {
+                batch_size *= param_grad_len[i];
+            }
+            for(uint32_t i = batch_dims; i < dim; ++i)
+            {
+                outer_size *= param_grad_len[i];
+            }
+            for(uint32_t i = dim + 1; i < param_grad_len.size(); ++i)
+            {
+                inner_size *= param_grad_len[i];
+            }
+
+            size_t gather_dim_size = param_grad_len[dim];
+            size_t indices_numel   = deref(params.indicesDesc).GetElementSize() / batch_size;
+
+            /* Phase 2: Gather backward */
+            {
+                decltype(auto) kernel         = handle_.Run(kernels.back());
                 const bool is_batch_dims_zero = (batch_size == 1);
-                const bool is_axis_zero       = (outer_size == 1);
 
+                auto output_grad_tv =
+                    miopen::gather::reshape<4>(miopen::deref(params.outputGradDesc),
+                                               {batch_size, outer_size, indices_numel, inner_size});
                 kernel(params.outputGrad,
                        params.indices,
                        params.paramGrad,
-                       outputGrad_tv,
-                       paramGrad_numel,
+                       output_grad_tv,
                        outer_size,
                        gather_dim_size,
                        indices_numel,
                        inner_size,
                        outGrad_numel,
-                       is_axis_zero,
                        is_batch_dims_zero);
-            };
+            }
+
+            if(reset_profiling_state)
+            {
+                handle_.EnableProfiling(true);
+            }
+            if(handle_.IsProfilingEnabled())
+            {
+                hipEventRecord(stop.get(), handle_.GetStream());
+                hipEventSynchronize(stop.get());
+                hipEventElapsedTime(&elapsed, start.get(), stop.get());
+
+                // Clean up
+                hipEventDestroy(start.get());
+                hipEventDestroy(stop.get());
+                handle_.ResetKernelTime();
+                handle_.AccumKernelTime(elapsed);
+            }
         };
-    }
+    };
 
     return result;
 }

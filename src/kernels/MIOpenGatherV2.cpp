@@ -29,52 +29,35 @@
 #endif
 
 #include "float_types.h"
-#include "tensor_view.hpp"
 #include "hip_atomic.hpp"
+#include "tensor_view.hpp"
 
 template <typename TIO, typename TINDEX>
 __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
                                               const TINDEX* indices,
                                               TIO* paramGrad,
                                               tensor_view_t<4> outputGrad_tv,
-                                              size_t param_grad_numel,
-                                              long outer_size,
-                                              long gather_dim_size,
-                                              long indices_size,
-                                              long slice_size,
-                                              long out_size,
-                                              bool is_axis_zero,
+                                              size_t outer_size,
+                                              size_t gather_dim_size,
+                                              size_t indices_numel,
+                                              size_t inner_size,
+                                              size_t out_grad_numel,
                                               bool is_batch_dim_zero)
 {
-    size_t gid        = blockIdx.x * blockDim.x + threadIdx.x;
-    size_t num_thread = blockDim.x * gridDim.x;
+    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    // Fill zeros
-    for(size_t i = gid; i < param_grad_numel; i += num_thread)
-    {
-        paramGrad[i] = 0;
-    }
-
-    if(gid >= out_size)
+    if(gid >= out_grad_numel)
         return;
 
-    if(gid == 0)
-    {
-        printf("[kernel] outer_size = %ld, gather_dim_size = %ld, indices_size = %ld, slice_size = "
-               "%ld, out_size = %ld\n",
-               outer_size,
-               gather_dim_size,
-               indices_size,
-               slice_size,
-               out_size);
-    }
+    bool is_axis_zero = (outer_size == 1);
 
-    long batch_i   = 0;
-    long outer_i   = 0;
-    long indices_i = 0;
-    long inner_i   = 0;
+    size_t batch_i   = 0;
+    size_t outer_i   = 0;
+    size_t indices_i = 0;
+    size_t inner_i   = 0;
 
-    const long slices_count = gid / slice_size;
+    const size_t slices_count = gid / inner_size;
+    inner_i                   = gid - slices_count * inner_size;
     if(is_batch_dim_zero)
     {
         if(is_axis_zero)
@@ -83,13 +66,14 @@ __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
         }
         else
         {
-            outer_i   = slices_count / indices_size;
-            indices_i = slices_count - outer_i * indices_size;
+            outer_i   = slices_count / indices_numel;
+            indices_i = slices_count - outer_i * indices_numel;
         }
     }
     else
     {
-        const long entries_count = slices_count / indices_size;
+        const size_t entries_count = slices_count / indices_numel;
+        indices_i                  = slices_count - entries_count * indices_numel;
         if(is_axis_zero)
         {
             batch_i = entries_count;
@@ -99,16 +83,15 @@ __device__ void BatchedGatherV2BackwardKernel(const TIO* outputGrad,
             batch_i = entries_count / outer_size;
             outer_i = entries_count - batch_i * outer_size;
         }
-        indices_i = slices_count - entries_count * slice_size;
     }
-    inner_i = gid - slices_count * slice_size;
 
-    size_t gather_i = indices[batch_i * indices_size + indices_i];
+    size_t gather_i = static_cast<size_t>(indices[batch_i * indices_numel + indices_i]);
 
     if(gather_i < gather_dim_size)
     {
-        long param_i =
-            ((batch_i * outer_size + outer_i) * gather_dim_size + gather_i) * slice_size + inner_i;
+        // paramGrad[batch_i][outer_i][gather_i][inner_i] += outputGrad[gid];
+        size_t param_i =
+            ((batch_i * outer_size + outer_i) * gather_dim_size + gather_i) * inner_size + inner_i;
         FLOAT_ACCUM val =
             CVT_FLOAT2ACCUM(getNDVal(outputGrad, outputGrad_tv, static_cast<uint64_t>(gid)));
         atomic_add_g(paramGrad + param_i, val);
@@ -119,25 +102,21 @@ extern "C" __global__ void BatchedGatherV2Backward(const IO_TYPE* outputGrad,
                                                    const INDEX_TYPE* indices,
                                                    IO_TYPE* paramGrad,
                                                    tensor_view_t<4> outputGrad_tv,
-                                                   size_t param_grad_numel,
-                                                   long outer_size,
-                                                   long gather_dim_size,
-                                                   long indices_size,
-                                                   long slice_size,
-                                                   long out_size,
-                                                   bool is_axis_zero,
+                                                   size_t outer_size,
+                                                   size_t gather_dim_size,
+                                                   size_t indices_numel,
+                                                   size_t inner_size,
+                                                   size_t out_grad_numel,
                                                    bool is_batch_dim_zero)
 {
     BatchedGatherV2BackwardKernel<IO_TYPE, INDEX_TYPE>(outputGrad,
                                                        indices,
                                                        paramGrad,
                                                        outputGrad_tv,
-                                                       param_grad_numel,
                                                        outer_size,
                                                        gather_dim_size,
-                                                       indices_size,
-                                                       slice_size,
-                                                       out_size,
-                                                       is_axis_zero,
+                                                       indices_numel,
+                                                       inner_size,
+                                                       out_grad_numel,
                                                        is_batch_dim_zero);
 }

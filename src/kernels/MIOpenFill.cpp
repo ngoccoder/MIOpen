@@ -29,16 +29,16 @@
 #endif
 
 template <typename TIO>
-__device__ void FillConstantKernel(TIO* output, TIO val, long size)
+__device__ void FillConstantKernel(TIO* output, float val, long size)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
     if(gid >= size)
         return;
 
-    output[gid] = val;
+    output[gid] = static_cast<TIO>(val);
 }
 
-extern "C" __global__ void FillConstant(IO_TYPE* output, IO_TYPE val, long size)
+extern "C" __global__ void FillConstant(IO_TYPE* output, float val, long size)
 {
     FillConstantKernel<IO_TYPE>(output, val, size);
 }

@@ -44,23 +44,22 @@
 #include <vector>
 
 template <typename Tgpu, typename Tcheck, typename Tindex>
-int mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
-                               const Tgpu* outputGrad,
-                               miopenTensorDescriptor_t indicesDesc,
-                               const Tindex* indices,
-                               miopenTensorDescriptor_t paramGradDesc,
-                               Tcheck* paramGrad,
-                               uint32_t dim,
-                               uint32_t batch_dims)
+int mloBatchedGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
+                                      const Tgpu* outputGrad,
+                                      miopenTensorDescriptor_t indicesDesc,
+                                      const Tindex* indices,
+                                      miopenTensorDescriptor_t paramGradDesc,
+                                      Tcheck* paramGrad,
+                                      uint32_t dim,
+                                      uint32_t batch_dims)
 {
-    uint32_t batch_size = 1;
-    uint32_t outer_size = 1;
-    uint32_t inner_size = 1;
+    size_t batch_size = 1;
+    size_t outer_size = 1;
+    size_t inner_size = 1;
 
     auto paramGrad_num_dim = miopen::deref(paramGradDesc).GetNumDims();
     auto paramGrad_lens    = miopen::deref(paramGradDesc).GetLengths();
     auto outGrad_numel     = miopen::deref(outputGradDesc).GetElementSize();
-    auto indices_numel     = miopen::deref(indicesDesc).GetElementSize();
 
     for(uint32_t i = 0; i < batch_dims; i++)
     {
@@ -75,64 +74,58 @@ int mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
         inner_size *= paramGrad_lens[i];
     }
 
+    auto indices_numel   = miopen::deref(indicesDesc).GetElementSize() / batch_size;
     auto gather_dim_size = paramGrad_lens[dim];
 
-    if(batch_dims > 0)
+    auto outGrad_tv = miopen::gather::reshape<4>(
+        miopen::deref(outputGradDesc), {batch_size, outer_size, indices_numel, inner_size});
+
+    const bool is_batch_dims_zero = (batch_size == 1);
+    const bool is_axis_zero       = (outer_size == 1);
+
+    for(size_t i = 0; i < outGrad_numel; i++)
     {
-        printf("indices numel: %u\n", indices_numel);
-        printf("batch_size: %u\n", batch_size);
-        auto outGrad_tv = miopen::gather::reshape<4>(
-            miopen::deref(outputGradDesc),
-            {batch_size, outer_size, indices_numel / batch_size, inner_size});
+        size_t batch_i   = 0;
+        size_t outer_i   = 0;
+        size_t indices_i = 0;
+        size_t inner_i   = 0;
 
-        const bool is_batch_dims_zero = (batch_size == 1);
-        const bool is_axis_zero       = (outer_size == 1);
-
-        for(long i = 0; i < outGrad_numel; i++)
+        const size_t slices_count = i / inner_size;
+        inner_i                   = i - slices_count * inner_size;
+        if(is_batch_dims_zero)
         {
-            long batch_i   = 0;
-            long outer_i   = 0;
-            long indices_i = 0;
-            long inner_i   = 0;
-
-            const long slices_count = i / inner_size;
-            if(is_batch_dims_zero)
+            if(is_axis_zero)
             {
-                if(is_axis_zero)
-                {
-                    indices_i = slices_count;
-                }
-                else
-                {
-                    outer_i   = slices_count / indices_numel;
-                    indices_i = slices_count - outer_i * indices_numel;
-                }
+                indices_i = slices_count;
             }
             else
             {
-                const long entries_count = slices_count / indices_numel;
-                if(is_axis_zero)
-                {
-                    batch_i = entries_count;
-                }
-                else
-                {
-                    batch_i = entries_count / outer_size;
-                    outer_i = entries_count - batch_i * outer_size;
-                }
-                indices_i = slices_count - entries_count * inner_size;
+                outer_i   = slices_count / indices_numel;
+                indices_i = slices_count - outer_i * indices_numel;
             }
-            inner_i = i - slices_count * inner_size;
-
-            size_t gather_i = indices[batch_i * indices_numel + indices_i];
-
-            if(gather_i < gather_dim_size)
+        }
+        else
+        {
+            const size_t entries_count = slices_count / indices_numel;
+            indices_i                  = slices_count - entries_count * indices_numel;
+            if(is_axis_zero)
             {
-                long param_i =
-                    ((batch_i * outer_size + outer_i) * gather_dim_size + gather_i) * inner_size +
-                    inner_i;
-                paramGrad[param_i] += getNDVal(outputGrad, outGrad_tv, i);
+                batch_i = entries_count;
             }
+            else
+            {
+                batch_i = entries_count / outer_size;
+                outer_i = entries_count - batch_i * outer_size;
+            }
+        }
+
+        size_t gather_i = indices[batch_i * indices_numel + indices_i];
+        if(gather_i < gather_dim_size)
+        {
+            size_t param_i =
+                ((batch_i * outer_size + outer_i) * gather_dim_size + gather_i) * inner_size +
+                inner_i;
+            paramGrad[param_i] += getNDVal(outputGrad, outGrad_tv, i);
         }
     }
 
@@ -340,9 +333,9 @@ int GatherDriver<Tgpu, Tref, Tindex>::AllocateBuffersAndCopy()
         for(size_t i = 0; i < indices_sz; i++)
         {
             auto param_grad_shape = miopen::deref(paramGradTensor).GetLengths();
-            // indices[i]            = prng::gen_A_to_B(static_cast<Tindex>(0),
-            //                              static_cast<Tindex>(param_grad_shape[dim]));
-            indices[i] = 0;
+            indices[i]            = prng::gen_A_to_B(static_cast<Tindex>(0),
+                                          static_cast<Tindex>(param_grad_shape[dim]));
+            // indices[i] = 0;
         }
 
         if(indices_dev->ToGPU(GetStream(), indices.data()) != 0)
@@ -436,14 +429,14 @@ int GatherDriver<Tgpu, Tref, Tindex>::RunBackwardCPU()
 {
     if(mode == MIOPEN_GATHER_V2)
     {
-        mloGatherV2BackwardRunHost<Tgpu, Tref, Tindex>(outputGradTensor,
-                                                       outGrad.data(),
-                                                       indicesTensor,
-                                                       indices.data(),
-                                                       paramGradTensor,
-                                                       paramGradHost.data(),
-                                                       dim,
-                                                       batch_dims);
+        mloBatchedGatherV2BackwardRunHost<Tgpu, Tref, Tindex>(outputGradTensor,
+                                                              outGrad.data(),
+                                                              indicesTensor,
+                                                              indices.data(),
+                                                              paramGradTensor,
+                                                              paramGradHost.data(),
+                                                              dim,
+                                                              batch_dims);
     }
     else
     {
@@ -459,6 +452,15 @@ int GatherDriver<Tgpu, Tref, Tindex>::VerifyBackward()
     RunBackwardCPU();
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(paramGradHost, paramGrad);
+
+    for(int i = 0; i < paramGradHost.size(); i++)
+    {
+        if(std::abs(paramGradHost[i] - paramGrad[i]) > tolerance)
+        {
+            std::cout << "paramGradHost[" << i << "] = " << paramGradHost[i] << " paramGrad[" << i
+                      << "] = " << paramGrad[i] << std::endl;
+        }
+    }
 
     if(!std::isfinite(error) || error > tolerance)
     {

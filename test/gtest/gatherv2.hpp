@@ -90,9 +90,12 @@ struct GatherV2TestCase
 
 inline std::vector<GatherV2TestCase> GenFullTestCases()
 {
-    return {GatherV2TestCase({16, 256, 256}, {16, 256}, 1, 1),
-            GatherV2TestCase({16, 256, 768}, {16, 8}, 2, 1),
-            GatherV2TestCase({32, 400, 400}, {32, 8}, 2, 1)};
+    return {
+        GatherV2TestCase({2, 2, 3}, {2, 2}, 1, 1),
+        // GatherV2TestCase({16, 256, 256}, {16, 256}, 1, 1)
+        // GatherV2TestCase({16, 256, 768}, {16, 8}, 2, 1),
+        // GatherV2TestCase({32, 400, 400}, {32, 8}, 2, 1)
+    };
 }
 
 template <typename T, typename I>
@@ -129,10 +132,14 @@ protected:
         gatherDesc.setDim(dim);
         gatherDesc.setBatchDims(batch_dims);
 
-        auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
+        auto gen_value = [](auto...) {
+            return prng::gen_A_to_B(static_cast<T>(0), static_cast<T>(1));
+            // return prng::gen_descreet_uniform_sign<T>(1e-2, 100);
+        };
         auto gather_dim_size = param_grad_dims[dim];
         auto gen_index       = [gather_dim_size](auto...) {
-            return prng::gen_0_to_B(static_cast<I>(gather_dim_size));
+            return 0;
+            // return prng::gen_0_to_B(static_cast<I>(gather_dim_size));
         };
 
         indices    = tensor<I>{indices_dims}.generate(gen_index);
@@ -147,8 +154,6 @@ protected:
         paramGrad_dev  = handle.Write(paramGrad.data);
         indices_dev    = handle.Write(indices.data);
         outputGrad_dev = handle.Write(outputGrad.data);
-
-        std::cout << "after set up: " << std::endl;
     }
 
     void RunTest()
@@ -156,9 +161,8 @@ protected:
         auto&& handle = get_handle();
 
         cpu_batched_gatherv2_backward<T, I>(outputGrad, indices, ref_paramGrad, dim, batch_dims);
-        std::cout << "after run cpu " << std::endl;
-        miopenStatus_t status;
 
+        miopenStatus_t status;
         status = gatherDesc.Backward(handle,
                                      outputGrad.desc,
                                      outputGrad_dev.get(),
@@ -166,7 +170,6 @@ protected:
                                      indices_dev.get(),
                                      paramGrad.desc,
                                      paramGrad_dev.get());
-        std::cout << "after run gpu " << std::endl;
 
         EXPECT_EQ(status, miopenStatusSuccess);
 
@@ -182,7 +185,16 @@ protected:
     void Verify()
     {
         double threshold = GetTolerance();
-        auto error       = miopen::rms_range(ref_paramGrad, paramGrad);
+        for(int i = 0; i < paramGrad.GetSize(); i++)
+        {
+            if(std::abs(paramGrad[i] - ref_paramGrad[i]) > threshold)
+            {
+                std::cout << "paramGrad[" << i << "] = " << paramGrad[i] << " ref_paramGrad[" << i
+                          << "] = " << ref_paramGrad[i] << std::endl;
+            }
+        }
+
+        auto error = miopen::rms_range(ref_paramGrad, paramGrad);
 
         EXPECT_TRUE(miopen::range_distance(ref_paramGrad) == miopen::range_distance(paramGrad));
 

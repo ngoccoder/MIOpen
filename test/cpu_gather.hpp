@@ -29,7 +29,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "ford.hpp"
 #include "tensor_holder.hpp"
 #include "tensor_view.hpp"
 
@@ -47,7 +46,6 @@ void cpu_batched_gatherv2_backward(const tensor<T>& outputGrad,
     size_t inner_size = 1;
 
     auto param_grad_len = paramGrad.desc.GetLengths();
-    auto indices_numel  = indices.GetSize();
     auto out_grad_numel = outputGrad.desc.GetElementSize();
 
     for(uint32_t i = 0; i < batch_dims; i++)
@@ -64,24 +62,23 @@ void cpu_batched_gatherv2_backward(const tensor<T>& outputGrad,
     }
 
     auto gather_dim_size = param_grad_len[dim];
+    auto indices_numel   = indices.desc.GetElementSize() / batch_size;
 
     auto outGrad_tv = miopen::gather::reshape<4>(
-        outputGrad.desc, {batch_size, outer_size, indices_numel / batch_size, inner_size});
+        outputGrad.desc, {batch_size, outer_size, indices_numel, inner_size});
 
     const bool is_batch_dims_zero = (batch_size == 1);
     const bool is_axis_zero       = (outer_size == 1);
 
-    std::cout << "[cpu] batch_size=" << batch_size << " outer_size=" << outer_size
-              << " inner_size=" << inner_size << " gather_dim_size=" << gather_dim_size
-              << " indices_numel=" << indices_numel << std::endl;
-
-    par_ford(out_grad_numel)([&](size_t o) {
+    for(size_t o = 0; o < out_grad_numel; o++)
+    {
         size_t batch_i   = 0;
         size_t outer_i   = 0;
         size_t indices_i = 0;
         size_t inner_i   = 0;
 
         const size_t slices_count = o / inner_size;
+        inner_i                   = o - slices_count * inner_size;
         if(is_batch_dims_zero)
         {
             if(is_axis_zero)
@@ -97,6 +94,7 @@ void cpu_batched_gatherv2_backward(const tensor<T>& outputGrad,
         else
         {
             const size_t entries_count = slices_count / indices_numel;
+            indices_i                  = slices_count - entries_count * indices_numel;
             if(is_axis_zero)
             {
                 batch_i = entries_count;
@@ -106,27 +104,17 @@ void cpu_batched_gatherv2_backward(const tensor<T>& outputGrad,
                 batch_i = entries_count / outer_size;
                 outer_i = entries_count - batch_i * outer_size;
             }
-            indices_i = slices_count - entries_count * inner_size;
         }
-        inner_i = o - slices_count * inner_size;
 
-        if(batch_i * indices_numel + indices_i >= indices_numel)
+        size_t gather_i = indices[batch_i * indices_numel + indices_i];
+        if(gather_i < gather_dim_size)
         {
-            std::cout << "batch i = " << batch_i << " outer i = " << outer_i
-                      << " indices i = " << indices_i << " inner i = " << inner_i << std::endl;
+            // paramGrad[batch_i][outer_i][gather_i][inner_i] += outputGrad[o]
+            size_t param_i =
+                ((batch_i * outer_size + outer_i) * gather_dim_size + gather_i) * inner_size +
+                inner_i;
+            T val = getNDVal(outputGrad.data.data(), outGrad_tv, o);
+            paramGrad[param_i] += val;
         }
-        else
-        {
-            size_t gather_i = indices[batch_i * indices_numel + indices_i];
-
-            if(gather_i < gather_dim_size)
-            {
-                // paramGrad[batch_i][outer_i][gather_i][inner_i] += outputGrad[o]
-                size_t param_i =
-                    ((batch_i * outer_size + outer_i) * gather_dim_size + gather_i) * inner_size +
-                    inner_i;
-                paramGrad[param_i] += getNDVal(outputGrad.data.data(), outGrad_tv, o);
-            }
-        }
-    });
+    };
 }
