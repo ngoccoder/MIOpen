@@ -90,12 +90,10 @@ struct GatherV2TestCase
 
 inline std::vector<GatherV2TestCase> GenFullTestCases()
 {
-    return {
-        GatherV2TestCase({2, 2, 3}, {2, 2}, 1, 1),
-        // GatherV2TestCase({16, 256, 256}, {16, 256}, 1, 1)
-        // GatherV2TestCase({16, 256, 768}, {16, 8}, 2, 1),
-        // GatherV2TestCase({32, 400, 400}, {32, 8}, 2, 1)
-    };
+    return {GatherV2TestCase({2, 2, 3}, {2, 2}, 1, 1),
+            GatherV2TestCase({16, 256, 256}, {16, 256}, 1, 1),
+            GatherV2TestCase({16, 256, 768}, {16, 8}, 2, 1),
+            GatherV2TestCase({32, 400, 400}, {32, 8}, 2, 1)};
 }
 
 template <typename T, typename I>
@@ -146,7 +144,7 @@ protected:
         outputGrad = tensor<T>{out_grad_dims}.generate(gen_value);
 
         paramGrad = tensor<T>{param_grad_dims};
-        std::fill(paramGrad.begin(), paramGrad.end(), std::numeric_limits<T>::quiet_NaN());
+        std::fill(paramGrad.begin(), paramGrad.end(), static_cast<T>(0));
 
         ref_paramGrad = tensor<T>{param_grad_dims};
         std::fill(ref_paramGrad.begin(), ref_paramGrad.end(), static_cast<T>(0));
@@ -185,16 +183,7 @@ protected:
     void Verify()
     {
         double threshold = GetTolerance();
-        for(int i = 0; i < paramGrad.GetSize(); i++)
-        {
-            if(std::abs(paramGrad[i] - ref_paramGrad[i]) > threshold)
-            {
-                std::cout << "paramGrad[" << i << "] = " << paramGrad[i] << " ref_paramGrad[" << i
-                          << "] = " << ref_paramGrad[i] << std::endl;
-            }
-        }
-
-        auto error = miopen::rms_range(ref_paramGrad, paramGrad);
+        auto error       = miopen::rms_range(ref_paramGrad, paramGrad);
 
         EXPECT_TRUE(miopen::range_distance(ref_paramGrad) == miopen::range_distance(paramGrad));
 

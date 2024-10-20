@@ -108,6 +108,12 @@ NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
     std::ostringstream ss;
 
     ss << "gatherv2";
+    ss << "dtype" << paramGradDesc.GetType();
+    ss << "index_type" << indicesDesc.GetType();
+    ss << "param_size" << paramGradDesc.GetElementSize();
+    ss << "indices_size" << indicesDesc.GetElementSize();
+    ss << "dim " << gatherDesc.getDim();
+    ss << "batch dim " << gatherDesc.getBatchDims();
 
     return NetworkConfig{ss.str()};
 }

@@ -70,6 +70,14 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
     auto paramGrad_numel = problem.GetParamGradDesc().GetElementSize();
     auto dim             = gatherDesc.getDim();
 
+    const auto build_params = KernelBuildParameters{
+        {"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
+        {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
+        {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
+        {"IO_TYPE", in_out_dtype == "bfloat16" ? "ushort" : in_out_dtype},
+        {"INDEX_TYPE", indices_type},
+    };
+
     /* Phase 1: Fill param grad with zeros */
     {
         size_t xlocalsize = LOCAL_SIZE;
@@ -77,14 +85,7 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
 
         auto kernel        = KernelInfo{};
         kernel.kernel_file = "MIOpenFill.cpp";
-        kernel.kernel_name = "FillConstant";
-
-        const auto build_params = KernelBuildParameters{
-            {"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
-            {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
-            {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
-            {"IO_TYPE", in_out_dtype == "bfloat16" ? "ushort" : in_out_dtype},
-        };
+        kernel.kernel_name = "FillZero";
 
         kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
@@ -105,15 +106,15 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
 
         auto kernel        = KernelInfo{};
         kernel.kernel_file = "MIOpenGatherV2.cpp";
-        kernel.kernel_name = "BatchedGatherV2Backward";
 
-        const auto build_params = KernelBuildParameters{
-            {"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
-            {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
-            {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
-            {"IO_TYPE", in_out_dtype == "bfloat16" ? "ushort" : in_out_dtype},
-            {"INDEX_TYPE", indices_type},
-        };
+        if(batch_dims > 0)
+        {
+            kernel.kernel_name = "BatchedGatherV2Backward";
+        }
+        else
+        {
+            kernel.kernel_name = "GatherV2Backward";
+        }
 
         kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
@@ -127,91 +128,109 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
         result.construction_params.push_back(kernel);
     }
 
-    result.invoker_factory = [paramGrad_numel, batch_dims, dim, outGrad_numel](
-                                 const std::vector<Kernel>& kernels) {
-        return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
-            decltype(auto) params = raw_params.CastTo<miopen::gather::BwdInvokeParams>();
+    result.invoker_factory =
+        [paramGrad_numel, batch_dims, dim, outGrad_numel](const std::vector<Kernel>& kernels) {
+            return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
+                decltype(auto) params = raw_params.CastTo<miopen::gather::BwdInvokeParams>();
 
-            float elapsed = 0.0f;
-            HipEventPtr start;
-            HipEventPtr stop;
+                float elapsed = 0.0f;
+                HipEventPtr start;
+                HipEventPtr stop;
 
-            bool reset_profiling_state = false;
-            if(handle_.IsProfilingEnabled())
-            {
-                reset_profiling_state = true;
-                handle_.EnableProfiling(false);
-                start = miopen::make_hip_event();
-                stop  = miopen::make_hip_event();
-                hipEventRecord(start.get(), handle_.GetStream());
-            }
+                bool reset_profiling_state = false;
+                if(handle_.IsProfilingEnabled())
+                {
+                    reset_profiling_state = true;
+                    handle_.EnableProfiling(false);
+                    start = miopen::make_hip_event();
+                    stop  = miopen::make_hip_event();
+                    hipEventRecord(start.get(), handle_.GetStream());
+                }
 
-            /* Phase 1: Fill param grad with zeros */
-            {
-                decltype(auto) kernel = handle_.Run(kernels.front());
-                float zero            = 0.0f;
-                kernel(params.paramGrad, zero, paramGrad_numel);
-            }
+                /* Phase 1: Fill param grad with zeros */
+                {
+                    decltype(auto) kernel = handle_.Run(kernels.front());
+                    kernel(params.paramGrad, paramGrad_numel);
+                }
 
-            auto param_grad_len = deref(params.paramGradDesc).GetLengths();
-            size_t batch_size   = 1;
-            size_t outer_size   = 1;
-            size_t inner_size   = 1;
+                auto param_grad_len = deref(params.paramGradDesc).GetLengths();
+                size_t batch_size   = 1;
+                size_t outer_size   = 1;
+                size_t inner_size   = 1;
 
-            for(uint32_t i = 0; i < batch_dims; ++i)
-            {
-                batch_size *= param_grad_len[i];
-            }
-            for(uint32_t i = batch_dims; i < dim; ++i)
-            {
-                outer_size *= param_grad_len[i];
-            }
-            for(uint32_t i = dim + 1; i < param_grad_len.size(); ++i)
-            {
-                inner_size *= param_grad_len[i];
-            }
+                for(uint32_t i = 0; i < batch_dims; ++i)
+                {
+                    batch_size *= param_grad_len[i];
+                }
+                for(uint32_t i = batch_dims; i < dim; ++i)
+                {
+                    outer_size *= param_grad_len[i];
+                }
+                for(uint32_t i = dim + 1; i < param_grad_len.size(); ++i)
+                {
+                    inner_size *= param_grad_len[i];
+                }
 
-            size_t gather_dim_size = param_grad_len[dim];
-            size_t indices_numel   = deref(params.indicesDesc).GetElementSize() / batch_size;
+                size_t gather_dim_size = param_grad_len[dim];
+                size_t indices_numel   = deref(params.indicesDesc).GetElementSize() / batch_size;
 
-            /* Phase 2: Gather backward */
-            {
-                decltype(auto) kernel         = handle_.Run(kernels.back());
-                const bool is_batch_dims_zero = (batch_size == 1);
+                /* Phase 2: Gather backward */
+                {
+                    decltype(auto) kernel         = handle_.Run(kernels.back());
+                    const bool is_axis_zero       = (outer_size == 1);
+                    const bool is_batch_dims_zero = (batch_size == 1);
 
-                auto output_grad_tv =
-                    miopen::gather::reshape<4>(miopen::deref(params.outputGradDesc),
-                                               {batch_size, outer_size, indices_numel, inner_size});
-                kernel(params.outputGrad,
-                       params.indices,
-                       params.paramGrad,
-                       output_grad_tv,
-                       outer_size,
-                       gather_dim_size,
-                       indices_numel,
-                       inner_size,
-                       outGrad_numel,
-                       is_batch_dims_zero);
-            }
+                    if(batch_dims > 0)
+                    {
+                        auto output_grad_tv = miopen::gather::reshape<4>(
+                            miopen::deref(params.outputGradDesc),
+                            {batch_size, outer_size, indices_numel, inner_size});
+                        kernel(params.outputGrad,
+                               params.indices,
+                               params.paramGrad,
+                               output_grad_tv,
+                               outer_size,
+                               gather_dim_size,
+                               indices_numel,
+                               inner_size,
+                               outGrad_numel,
+                               is_batch_dims_zero);
+                    }
+                    else
+                    {
+                        auto output_grad_tv =
+                            miopen::gather::reshape<3>(miopen::deref(params.outputGradDesc),
+                                                       {outer_size, indices_numel, inner_size});
+                        kernel(params.outputGrad,
+                               params.indices,
+                               params.paramGrad,
+                               output_grad_tv,
+                               gather_dim_size,
+                               indices_numel,
+                               inner_size,
+                               outGrad_numel,
+                               is_axis_zero);
+                    }
+                }
 
-            if(reset_profiling_state)
-            {
-                handle_.EnableProfiling(true);
-            }
-            if(handle_.IsProfilingEnabled())
-            {
-                hipEventRecord(stop.get(), handle_.GetStream());
-                hipEventSynchronize(stop.get());
-                hipEventElapsedTime(&elapsed, start.get(), stop.get());
+                if(reset_profiling_state)
+                {
+                    handle_.EnableProfiling(true);
+                }
+                if(handle_.IsProfilingEnabled())
+                {
+                    hipEventRecord(stop.get(), handle_.GetStream());
+                    hipEventSynchronize(stop.get());
+                    hipEventElapsedTime(&elapsed, start.get(), stop.get());
 
-                // Clean up
-                hipEventDestroy(start.get());
-                hipEventDestroy(stop.get());
-                handle_.ResetKernelTime();
-                handle_.AccumKernelTime(elapsed);
-            }
+                    // Clean up
+                    hipEventDestroy(start.get());
+                    hipEventDestroy(stop.get());
+                    handle_.ResetKernelTime();
+                    handle_.AccumKernelTime(elapsed);
+                }
+            };
         };
-    };
 
     return result;
 }

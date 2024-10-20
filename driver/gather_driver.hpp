@@ -77,55 +77,90 @@ int mloBatchedGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
     auto indices_numel   = miopen::deref(indicesDesc).GetElementSize() / batch_size;
     auto gather_dim_size = paramGrad_lens[dim];
 
-    auto outGrad_tv = miopen::gather::reshape<4>(
-        miopen::deref(outputGradDesc), {batch_size, outer_size, indices_numel, inner_size});
-
     const bool is_batch_dims_zero = (batch_size == 1);
     const bool is_axis_zero       = (outer_size == 1);
 
-    for(size_t i = 0; i < outGrad_numel; i++)
+    if(batch_dims > 0)
     {
-        size_t batch_i   = 0;
-        size_t outer_i   = 0;
-        size_t indices_i = 0;
-        size_t inner_i   = 0;
+        auto outGrad_tv = miopen::gather::reshape<4>(
+            miopen::deref(outputGradDesc), {batch_size, outer_size, indices_numel, inner_size});
 
-        const size_t slices_count = i / inner_size;
-        inner_i                   = i - slices_count * inner_size;
-        if(is_batch_dims_zero)
+        for(size_t i = 0; i < outGrad_numel; i++)
         {
-            if(is_axis_zero)
+            size_t batch_i   = 0;
+            size_t outer_i   = 0;
+            size_t indices_i = 0;
+            size_t inner_i   = 0;
+
+            const size_t slices_count = i / inner_size;
+            inner_i                   = i - slices_count * inner_size;
+            if(is_batch_dims_zero)
             {
-                indices_i = slices_count;
+                if(is_axis_zero)
+                {
+                    indices_i = slices_count;
+                }
+                else
+                {
+                    outer_i   = slices_count / indices_numel;
+                    indices_i = slices_count - outer_i * indices_numel;
+                }
             }
             else
             {
-                outer_i   = slices_count / indices_numel;
-                indices_i = slices_count - outer_i * indices_numel;
+                const size_t entries_count = slices_count / indices_numel;
+                indices_i                  = slices_count - entries_count * indices_numel;
+                if(is_axis_zero)
+                {
+                    batch_i = entries_count;
+                }
+                else
+                {
+                    batch_i = entries_count / outer_size;
+                    outer_i = entries_count - batch_i * outer_size;
+                }
+            }
+
+            size_t gather_i = indices[batch_i * indices_numel + indices_i];
+            if(gather_i < gather_dim_size)
+            {
+                size_t param_i =
+                    ((batch_i * outer_size + outer_i) * gather_dim_size + gather_i) * inner_size +
+                    inner_i;
+                paramGrad[param_i] += getNDVal(outputGrad, outGrad_tv, i);
             }
         }
-        else
+    }
+    else
+    {
+        auto outputGrad_tv = miopen::gather::reshape<3>(miopen::deref(outputGradDesc),
+                                                        {outer_size, indices_numel, inner_size});
+        for(size_t i = 0; i < outGrad_numel; i++)
         {
-            const size_t entries_count = slices_count / indices_numel;
-            indices_i                  = slices_count - entries_count * indices_numel;
+            size_t outer_i   = 0;
+            size_t indices_i = 0;
+            size_t inner_i   = 0;
             if(is_axis_zero)
             {
-                batch_i = entries_count;
+                indices_i = i / inner_size;
+                inner_i   = i - indices_i * inner_size;
             }
             else
             {
-                batch_i = entries_count / outer_size;
-                outer_i = entries_count - batch_i * outer_size;
+                size_t batch_indices_i = i / inner_size;
+                outer_i                = batch_indices_i / indices_numel;
+                indices_i              = batch_indices_i - outer_i * indices_numel;
+                inner_i                = i - batch_indices_i * inner_size;
             }
-        }
 
-        size_t gather_i = indices[batch_i * indices_numel + indices_i];
-        if(gather_i < gather_dim_size)
-        {
-            size_t param_i =
-                ((batch_i * outer_size + outer_i) * gather_dim_size + gather_i) * inner_size +
-                inner_i;
-            paramGrad[param_i] += getNDVal(outputGrad, outGrad_tv, i);
+            size_t gather_i = indices[indices_i];
+
+            if(gather_i < gather_dim_size)
+            {
+                size_t param_i = (outer_i * gather_dim_size + gather_i) * inner_size + inner_i;
+                paramGrad[param_i] += getNDVal(outputGrad, outputGrad_tv, i);
+                // paramGrad[outer_i][gather_i][inner_i] += outputGrad[i];
+            }
         }
     }
 
