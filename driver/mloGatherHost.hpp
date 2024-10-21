@@ -26,61 +26,59 @@
 
 #pragma once
 
-#include <cstddef>
-#include <cstdint>
-
-#include "tensor_holder.hpp"
-#include "tensor_view.hpp"
-
 #include <miopen/gather/problem_description.hpp>
 
-template <class T, class I>
-void cpu_gatherv2_backward(const tensor<T>& outputGrad,
-                           const tensor<I>& indices,
-                           tensor<T>& paramGrad,
-                           uint32_t dim,
-                           uint32_t batch_dims)
+template <typename Tgpu, typename Tcheck, typename Tindex>
+int mloGatherV2BackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
+                               const Tgpu* outputGrad,
+                               miopenTensorDescriptor_t indicesDesc,
+                               const Tindex* indices,
+                               miopenTensorDescriptor_t paramGradDesc,
+                               Tcheck* paramGrad,
+                               uint32_t dim,
+                               uint32_t batch_dims)
 {
     size_t batch_size = 1;
     size_t outer_size = 1;
     size_t inner_size = 1;
 
-    auto param_grad_len = paramGrad.desc.GetLengths();
-    auto out_grad_numel = outputGrad.desc.GetElementSize();
+    auto paramGrad_num_dim = miopen::deref(paramGradDesc).GetNumDims();
+    auto paramGrad_lens    = miopen::deref(paramGradDesc).GetLengths();
+    auto outGrad_numel     = miopen::deref(outputGradDesc).GetElementSize();
 
     for(uint32_t i = 0; i < batch_dims; i++)
     {
-        batch_size *= param_grad_len[i];
+        batch_size *= paramGrad_lens[i];
     }
     for(uint32_t i = batch_dims; i < dim; i++)
     {
-        outer_size *= param_grad_len[i];
+        outer_size *= paramGrad_lens[i];
     }
-    for(uint32_t i = dim + 1; i < paramGrad.desc.GetNumDims(); i++)
+    for(uint32_t i = dim + 1; i < paramGrad_num_dim; i++)
     {
-        inner_size *= param_grad_len[i];
+        inner_size *= paramGrad_lens[i];
     }
+
+    auto indices_numel   = miopen::deref(indicesDesc).GetElementSize() / batch_size;
+    auto gather_dim_size = paramGrad_lens[dim];
 
     const bool is_batch_dims_zero = (batch_size == 1);
     const bool is_axis_zero       = (outer_size == 1);
 
-    auto gather_dim_size = param_grad_len[dim];
-    auto indices_numel   = indices.desc.GetElementSize() / batch_size;
-
     if(batch_dims > 0)
     {
         auto outGrad_tv = miopen::gather::reshape<4>(
-            outputGrad.desc, {batch_size, outer_size, indices_numel, inner_size});
+            miopen::deref(outputGradDesc), {batch_size, outer_size, indices_numel, inner_size});
 
-        for(size_t o = 0; o < out_grad_numel; o++)
+        for(size_t i = 0; i < outGrad_numel; i++)
         {
             size_t batch_i   = 0;
             size_t outer_i   = 0;
             size_t indices_i = 0;
             size_t inner_i   = 0;
 
-            const size_t slices_count = o / inner_size;
-            inner_i                   = o - slices_count * inner_size;
+            const size_t slices_count = i / inner_size;
+            inner_i                   = i - slices_count * inner_size;
             if(is_batch_dims_zero)
             {
                 if(is_axis_zero)
@@ -111,21 +109,18 @@ void cpu_gatherv2_backward(const tensor<T>& outputGrad,
             size_t gather_i = indices[batch_i * indices_numel + indices_i];
             if(gather_i < gather_dim_size)
             {
-                // paramGrad[batch_i][outer_i][gather_i][inner_i] += outputGrad[o]
                 size_t param_i =
                     ((batch_i * outer_size + outer_i) * gather_dim_size + gather_i) * inner_size +
                     inner_i;
-                T val = getNDVal(outputGrad.data.data(), outGrad_tv, o);
-                paramGrad[param_i] += val;
+                paramGrad[param_i] += getNDVal(outputGrad, outGrad_tv, i);
             }
-        };
+        }
     }
     else
     {
-        auto outputGrad_tv =
-            miopen::gather::reshape<3>(outputGrad.desc, {outer_size, indices_numel, inner_size});
-
-        for(size_t i = 0; i < out_grad_numel; i++)
+        auto outputGrad_tv = miopen::gather::reshape<3>(miopen::deref(outputGradDesc),
+                                                        {outer_size, indices_numel, inner_size});
+        for(size_t i = 0; i < outGrad_numel; i++)
         {
             size_t outer_i   = 0;
             size_t indices_i = 0;
@@ -148,9 +143,11 @@ void cpu_gatherv2_backward(const tensor<T>& outputGrad,
             if(gather_i < gather_dim_size)
             {
                 size_t param_i = (outer_i * gather_dim_size + gather_i) * inner_size + inner_i;
-                paramGrad[param_i] += getNDVal(outputGrad.data.data(), outputGrad_tv, i);
+                paramGrad[param_i] += getNDVal(outputGrad, outputGrad_tv, i);
                 // paramGrad[outer_i][gather_i][inner_i] += outputGrad[i];
             }
         }
     }
+
+    return 0;
 }

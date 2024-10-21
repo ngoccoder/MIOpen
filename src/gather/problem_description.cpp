@@ -25,9 +25,11 @@
  *
  *******************************************************************************/
 
-#include "miopen/tensor.hpp"
+#include <miopen/errors.hpp>
 #include <miopen/gather/problem_description.hpp>
-#include <numeric>
+#include <miopen/tensor.hpp>
+
+#include <cstddef>
 #include <sstream>
 
 namespace miopen {
@@ -36,14 +38,16 @@ namespace gather {
 
 // M is size of shape
 template <int M>
-tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<int64_t>& shape)
+tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<size_t>& shape)
 {
-    // check contiguous
-    auto tensor   = tensorDes.GetLengths();
-    int64_t numel = std::accumulate(tensor.begin(), tensor.end(), 1L, std::multiplies<int64_t>());
+    if(!tensorDes.IsContiguous())
+    {
+        MIOPEN_THROW("Cannot reshape non-contiguous tensor");
+    }
+    size_t numel = tensorDes.GetElementSize();
 
-    int64_t inferred_dim = -1;
-    int64_t new_numel    = 1;
+    size_t inferred_dim = -1;
+    size_t new_numel    = 1;
     for(size_t i = 0; i < shape.size(); i++)
     {
         auto dim = shape[i];
@@ -51,7 +55,7 @@ tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<in
         {
             if(inferred_dim != -1)
             {
-                throw std::runtime_error("only one dimension can be inferred");
+                MIOPEN_THROW("only one dimension can be inferred");
             }
             inferred_dim = i;
         }
@@ -59,7 +63,7 @@ tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<in
         {
             if(dim <= 0)
             {
-                throw std::runtime_error("dimension must be positive");
+                MIOPEN_THROW("dimension must be positive");
             }
             new_numel *= dim;
         }
@@ -67,7 +71,7 @@ tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<in
 
     if(numel < new_numel)
     {
-        throw std::runtime_error("invalid shape size");
+        MIOPEN_THROW("invalid shape size (can't reshape tensor into a larger size)");
     }
 
     tensor_view_t<M> new_tv;
@@ -75,12 +79,12 @@ tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<in
     {
         new_tv.size[i] = shape[i];
     }
-    // std::copy(shape.begin(), shape.end(), new_tv.size.begin());
+
     if(inferred_dim != -1)
     {
         if(numel % new_numel != 0)
         {
-            throw std::runtime_error("invalid shape size");
+            MIOPEN_THROW("invalid shape size");
         }
         new_tv.size[inferred_dim] = numel / new_numel;
     }
@@ -88,7 +92,7 @@ tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<in
     {
         if(numel != new_numel)
         {
-            throw std::runtime_error("invalid shape size");
+            MIOPEN_THROW("invalid shape size");
         }
     }
 
@@ -98,10 +102,10 @@ tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<in
 }
 
 template tensor_view_t<3> reshape(const TensorDescriptor& tensorDes,
-                                  const std::vector<int64_t>& shape);
+                                  const std::vector<size_t>& shape);
 
 template tensor_view_t<4> reshape(const TensorDescriptor& tensorDes,
-                                  const std::vector<int64_t>& shape);
+                                  const std::vector<size_t>& shape);
 
 NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
 {
@@ -111,7 +115,8 @@ NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
     ss << "dtype" << paramGradDesc.GetType();
     ss << "index_type" << indicesDesc.GetType();
     ss << "param_size" << paramGradDesc.GetElementSize();
-    ss << "indices_size" << indicesDesc.GetElementSize();
+    ss << "outgrad_size" << outputGradDesc.GetElementSize();
+    ss << "mode " << gatherDesc.getMode();
     ss << "dim " << gatherDesc.getDim();
     ss << "batch dim " << gatherDesc.getBatchDims();
 

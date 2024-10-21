@@ -48,8 +48,17 @@ namespace gather {
 bool GatherV2Backward::IsApplicable(const ExecutionContext& /*context*/,
                                     const miopen::gather::BwdProblemDescription& problem) const
 {
-    // batch dim > 0 and large tensor
-    return problem.GetGatherDesc().getMode() == MIOPEN_GATHER_V2;
+    auto paramGradDesc = problem.GetParamGradDesc();
+    if(paramGradDesc.GetType() != miopenFloat && paramGradDesc.GetType() != miopenHalf &&
+       paramGradDesc.GetType() != miopenBFloat16)
+    {
+        return false;
+    }
+    if(problem.GetGatherDesc().getMode() != MIOPEN_GATHER_V2)
+    {
+        return false;
+    }
+    return true;
 }
 
 ConvSolution

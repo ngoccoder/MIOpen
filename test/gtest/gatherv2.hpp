@@ -90,9 +90,11 @@ struct GatherV2TestCase
 
 inline std::vector<GatherV2TestCase> GenFullTestCases()
 {
-    return {GatherV2TestCase({2, 2, 3}, {2, 2}, 1, 1),
-            GatherV2TestCase({16, 256, 256}, {16, 256}, 1, 1),
-            GatherV2TestCase({16, 256, 768}, {16, 8}, 2, 1),
+    return {GatherV2TestCase({2, 2, 3}, {2, 2}, 1, 0),         // non-batched
+            GatherV2TestCase({16, 16, 3}, {24, 2}, 2, 0),      // non-batched large size
+            GatherV2TestCase({2, 2, 3}, {2, 2}, 1, 1),         // batched
+            GatherV2TestCase({16, 256, 256}, {16, 256}, 1, 1), // batched large size
+            GatherV2TestCase({16, 256, 768}, {16, 256}, 2, 2),
             GatherV2TestCase({32, 400, 400}, {32, 8}, 2, 1)};
 }
 
@@ -130,14 +132,10 @@ protected:
         gatherDesc.setDim(dim);
         gatherDesc.setBatchDims(batch_dims);
 
-        auto gen_value = [](auto...) {
-            return prng::gen_A_to_B(static_cast<T>(0), static_cast<T>(1));
-            // return prng::gen_descreet_uniform_sign<T>(1e-2, 100);
-        };
+        auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
         auto gather_dim_size = param_grad_dims[dim];
         auto gen_index       = [gather_dim_size](auto...) {
-            return 0;
-            // return prng::gen_0_to_B(static_cast<I>(gather_dim_size));
+            return prng::gen_0_to_B(static_cast<I>(gather_dim_size));
         };
 
         indices    = tensor<I>{indices_dims}.generate(gen_index);
@@ -158,7 +156,7 @@ protected:
     {
         auto&& handle = get_handle();
 
-        cpu_batched_gatherv2_backward<T, I>(outputGrad, indices, ref_paramGrad, dim, batch_dims);
+        cpu_gatherv2_backward<T, I>(outputGrad, indices, ref_paramGrad, dim, batch_dims);
 
         miopenStatus_t status;
         status = gatherDesc.Backward(handle,
