@@ -102,14 +102,6 @@ inline tensor_view_t<N - 1> get_tv_without_dim(const tensor_view_t<N>& origin_tv
     return res;
 }
 
-inline tensor_view_t<1> flatten(const TensorDescriptor& desc)
-{
-    tensor_view_t<1> res;
-    res.size[0]   = desc.GetElementSize();
-    res.stride[0] = 1;
-    return res;
-}
-
 } // namespace miopen
 
 #endif // MIOPEN_TENSOR_VIEW_UTIL_HPP_
