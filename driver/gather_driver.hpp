@@ -356,7 +356,10 @@ int GatherDriver<Tgpu, Tref, Tindex>::RunBackwardCPU()
                                                                 dim,
                                                                 batch_dims);
     }
-    elsep { return miopenStatusNotImplemented; }
+    else
+    {
+        return miopenStatusNotImplemented;
+    }
 
     return status;
 }
