@@ -107,6 +107,25 @@ template tensor_view_t<3> reshape(const TensorDescriptor& tensorDes,
 template tensor_view_t<4> reshape(const TensorDescriptor& tensorDes,
                                   const std::vector<size_t>& shape);
 
+bool BwdProblemDescription::IsSameType() const
+{
+    if(outputGradDesc.GetType() != paramGradDesc.GetType())
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool BwdProblemDescription::IsAllContiguous() const
+{
+    if(outputGradDesc.IsContiguous() && indicesDesc.IsContiguous() && paramGradDesc.IsContiguous())
+    {
+        return true;
+    }
+    return false;
+}
+
 NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
 {
     std::ostringstream ss;

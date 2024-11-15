@@ -34,6 +34,7 @@
 #include <miopen/tensor.hpp>
 #include <miopen/problem_description_base.hpp>
 #include "../src/kernels/tensor_view.hpp"
+#include "miopen/miopen.h"
 
 namespace miopen {
 
@@ -81,8 +82,9 @@ struct BwdProblemDescription : ProblemDescriptionBase
 
         if(!IsAllContiguous())
         {
-            MIOPEN_THROW(miopenStatusBadParm,
-                         "GatherV2::BwdProblemDescription: All tensors must be contiguous.");
+            MIOPEN_THROW(miopenStatusNotImplemented,
+                         "GatherV2::BwdProblemDescription: This operator only supports contiguous "
+                         "tensors.");
         }
 
         if(paramGradDesc.GetNumDims() < dim + 1)
@@ -132,25 +134,8 @@ struct BwdProblemDescription : ProblemDescriptionBase
     const TensorDescriptor& GetParamGradDesc() const { return paramGradDesc; }
     const GatherDescriptor& GetGatherDesc() const { return gatherDesc; }
 
-    bool IsSameType() const
-    {
-        if(outputGradDesc.GetType() != paramGradDesc.GetType())
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    bool IsAllContiguous() const
-    {
-        if(outputGradDesc.IsContiguous() && indicesDesc.IsContiguous() &&
-           paramGradDesc.IsContiguous())
-        {
-            return true;
-        }
-        return false;
-    }
+    bool IsSameType() const;
+    bool IsAllContiguous() const;
 
     NetworkConfig MakeNetworkConfig() const override;
 

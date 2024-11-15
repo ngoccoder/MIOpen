@@ -289,16 +289,17 @@ int GatherDriver<Tgpu, Tref, Tindex>::RunBackwardGPU()
 
     for(int i = 0; i < inflags.GetValueInt("iter"); i++)
     {
-        miopenGatherBackward(GetHandle(),
-                             gatherDesc,
-                             outputGradTensor,
-                             outputGrad_dev->GetMem(),
-                             indicesTensor,
-                             indices_dev->GetMem(),
-                             paramGradTensor,
-                             paramGrad_dev->GetMem(),
-                             &dim,
-                             &batch_dims);
+        auto status = miopenGatherBackward(GetHandle(),
+                                           gatherDesc,
+                                           outputGradTensor,
+                                           outputGrad_dev->GetMem(),
+                                           indicesTensor,
+                                           indices_dev->GetMem(),
+                                           paramGradTensor,
+                                           paramGrad_dev->GetMem(),
+                                           &dim,
+                                           &batch_dims);
+        MIOPEN_THROW_IF(status != miopenStatusSuccess, "Error in miopenGatherBackward");
 
         float time = 0.0;
         miopenGetKernelTime(GetHandle(), &time);
@@ -343,23 +344,21 @@ int GatherDriver<Tgpu, Tref, Tindex>::VerifyForward()
 template <typename Tgpu, typename Tref, typename Tindex>
 int GatherDriver<Tgpu, Tref, Tindex>::RunBackwardCPU()
 {
+    int status = miopenStatusSuccess;
     if(mode == MIOPEN_GATHER_V2)
     {
-        mloGatherV2BackwardRunHost<Tgpu, Tref, Tindex>(outputGradTensor,
-                                                       outGrad.data(),
-                                                       indicesTensor,
-                                                       indices.data(),
-                                                       paramGradTensor,
-                                                       paramGradHost.data(),
-                                                       dim,
-                                                       batch_dims);
+        status = mloGatherV2BackwardRunHost<Tgpu, Tref, Tindex>(outputGradTensor,
+                                                                outGrad.data(),
+                                                                indicesTensor,
+                                                                indices.data(),
+                                                                paramGradTensor,
+                                                                paramGradHost.data(),
+                                                                dim,
+                                                                batch_dims);
     }
-    else
-    {
-        return miopenStatusNotImplemented;
-    }
+    elsep { return miopenStatusNotImplemented; }
 
-    return miopenStatusSuccess;
+    return status;
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>

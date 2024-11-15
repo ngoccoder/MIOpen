@@ -183,11 +183,10 @@ protected:
         double threshold = GetTolerance();
         auto error       = miopen::rms_range(ref_paramGrad, paramGrad);
 
-        EXPECT_TRUE(miopen::range_distance(ref_paramGrad) == miopen::range_distance(paramGrad));
+        ASSERT_EQ(miopen::range_distance(ref_paramGrad), miopen::range_distance(paramGrad));
 
-        EXPECT_TRUE(error < threshold)
-            << "Error output (param grad) beyond tolerance Error:" << error
-            << ",  Threshold: " << threshold << std::endl;
+        EXPECT_LT(error, threshold) << "Error output (param grad) beyond tolerance Error:" << error
+                                    << ",  Threshold: " << threshold << std::endl;
     }
 
     GatherV2TestCase config;

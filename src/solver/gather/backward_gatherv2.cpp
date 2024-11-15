@@ -84,7 +84,7 @@ GatherV2Backward::GetSolution(const ExecutionContext& context,
         {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
         {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
         {"IO_TYPE", in_out_dtype == "bfloat16" ? "ushort" : in_out_dtype},
-        {"INDEX_TYPE", indices_type},
+        {"INDEX_TYPE", indices_type == "int64" ? "size_t" : indices_type},
     };
 
     /* Phase 1: Fill param grad with zeros */
