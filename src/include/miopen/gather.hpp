@@ -28,7 +28,7 @@
 #include <miopen/common.hpp>
 #include <miopen/export_internals.h>
 #include <miopen/handle.hpp>
-#include "miopen/object.hpp"
+#include <miopen/object.hpp>
 #include <miopen/miopen.h>
 
 #include <ostream>

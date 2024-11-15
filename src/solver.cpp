@@ -30,7 +30,7 @@
 #include <miopen/cat/solvers.hpp>
 #include <miopen/conv/solvers.hpp>
 #include <miopen/fusion/solvers.hpp>
-#include "miopen/gather/solvers.hpp"
+#include <miopen/gather/solvers.hpp>
 #include <miopen/glu/solvers.hpp>
 #include <miopen/groupnorm/solvers.hpp>
 #include <miopen/getitem/solvers.hpp>
@@ -702,7 +702,6 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
              multimarginloss::MultiMarginLossForward{}.SolverDbId());
 
     Register(registry, ++id, Primitive::Indexing, gather::GatherV2Backward{}.SolverDbId());
-
     // IMPORTANT: New solvers should be added to the end of the function!
 }
 

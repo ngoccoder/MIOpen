@@ -30,7 +30,7 @@
 #include <cstdint>
 
 #include <miopen/errors.hpp>
-#include "miopen/gather.hpp"
+#include <miopen/gather.hpp>
 #include <miopen/tensor.hpp>
 #include <miopen/problem_description_base.hpp>
 #include "../src/kernels/tensor_view.hpp"

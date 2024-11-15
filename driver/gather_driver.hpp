@@ -186,14 +186,14 @@ int GatherDriver<Tgpu, Tref, Tindex>::GetandSetData()
 template <typename Tgpu, typename Tref, typename Tindex>
 int GatherDriver<Tgpu, Tref, Tindex>::AddCmdLineArgs()
 {
-    inflags.AddInputFlag("forw",
-                         'F',
-                         "0",
-                         "Run only Forward (1) or Run both Forward and Backward (0) (Default = 0)",
-                         "int");
+    inflags.AddInputFlag(
+        "forw", 'F', "0", "Run both Forward and Backward (0) (Default = 0)", "int");
+    inflags.AddTensorFlag("param_grad_shape",
+                          'P',
+                          "2x3x5x5",
+                          "The shape of the param gradient tensor (Default = 2x3x5x5)");
     inflags.AddTensorFlag(
-        "param_grad_shape", 'P', "2x3x5x5", "The shape of the param gradient tensor");
-    inflags.AddTensorFlag("indices_shape", 'I', "2x4x4", "The shape of the indices tensor");
+        "indices_shape", 'I', "2x4x4", "The shape of the indices tensor (Default = 2x4x4)");
     inflags.AddInputFlag("mode",
                          'm',
                          "gatherv2",
@@ -249,12 +249,18 @@ int GatherDriver<Tgpu, Tref, Tindex>::AllocateBuffersAndCopy()
         }
 
         if(indices_dev->ToGPU(GetStream(), indices.data()) != 0)
+        {
             std::cerr << "Error copying (indices) to GPU, size: " << indices_dev->GetSize()
                       << std::endl;
+            return miopenStatusInternalError;
+        }
 
         if(outputGrad_dev->ToGPU(GetStream(), outGrad.data()) != 0)
+        {
             std::cerr << "Error copying (outputGrad) to GPU, size: " << outputGrad_dev->GetSize()
                       << std::endl;
+            return miopenStatusInternalError;
+        }
     }
 
     return miopenStatusSuccess;
@@ -366,7 +372,7 @@ int GatherDriver<Tgpu, Tref, Tindex>::VerifyBackward()
     if(!std::isfinite(error) || error > tolerance)
     {
         std::cout << "Backward Gather FAILED: " << error << " > " << tolerance << std::endl;
-        return EC_VerifyFwd;
+        return EC_VerifyBwd;
     }
     else
     {
