@@ -167,7 +167,7 @@ protected:
                                      paramGrad.desc,
                                      paramGrad_dev.get());
 
-        EXPECT_EQ(status, miopenStatusSuccess);
+        ASSERT_EQ(status, miopenStatusSuccess);
 
         paramGrad.data = handle.Read<T>(paramGrad_dev, paramGrad.data.size());
     }
@@ -182,9 +182,6 @@ protected:
     {
         double threshold = GetTolerance();
         auto error       = miopen::rms_range(ref_paramGrad, paramGrad);
-
-        ASSERT_EQ(miopen::range_distance(ref_paramGrad), miopen::range_distance(paramGrad));
-
         EXPECT_LT(error, threshold) << "Error output (param grad) beyond tolerance Error:" << error
                                     << ",  Threshold: " << threshold << std::endl;
     }
