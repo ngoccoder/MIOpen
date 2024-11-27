@@ -87,40 +87,6 @@ extern "C" miopenStatus_t miopenGatherForward(miopenHandle_t handle,
     });
 }
 
-extern "C" miopenStatus_t miopenGatherBackward(miopenHandle_t handle,
-                                               const miopenGatherDescriptor_t gatherDesc,
-                                               const miopenTensorDescriptor_t outputGradDesc,
-                                               const void* outputGrad,
-                                               const miopenTensorDescriptor_t indicesDesc,
-                                               const void* indices,
-                                               const miopenTensorDescriptor_t paramGradDesc,
-                                               void* paramGrad,
-                                               const void* dim,
-                                               const void* batch_dims)
-{
-    MIOPEN_LOG_FUNCTION(handle,
-                        gatherDesc,
-                        outputGradDesc,
-                        outputGrad,
-                        indicesDesc,
-                        indices,
-                        paramGradDesc,
-                        paramGrad,
-                        dim,
-                        batch_dims);
-
-    return miopen::try_([&] {
-        miopen::deref(gatherDesc)
-            .Backward(miopen::deref(handle),
-                      miopen::deref(outputGradDesc),
-                      DataCast(outputGrad),
-                      miopen::deref(indicesDesc),
-                      DataCast(indices),
-                      miopen::deref(paramGradDesc),
-                      DataCast(paramGrad));
-    });
-}
-
 extern "C" miopenStatus_t miopenDestroyGatherDescriptor(miopenGatherDescriptor_t gatherDesc)
 {
     MIOPEN_LOG_FUNCTION(gatherDesc);

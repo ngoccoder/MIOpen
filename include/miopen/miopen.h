@@ -8082,31 +8082,6 @@ MIOPEN_EXPORT miopenStatus_t miopenGatherForward(miopenHandle_t handle,
                                                  const miopenTensorDescriptor_t outputDesc,
                                                  void* output);
 
-/*! @brief Execute a Gather backward layer
- *
- * @param handle                   MIOpen handle (input)
- * @param gatherDesc               Gather descriptor (input)
- * @param outputGradDesc           Tensor descriptor for output gradient tensor (input)
- * @param outputGrad               Gradient of output (input)
- * @param indicesDesc              Tensor descriptor for indices tensor (input)
- * @param indices                  Indices tensor (input)
- * @param paramGradDesc            Tensor descriptor for param gradient tensor (input)
- * @param paramGrad                Gradient of param (output)
- * @param dim                      The dimension in params to gather indices from (input)
- * @param batch_dims               Number of batch dimensions (input)
- * @return                         miopenStatus_t
- */
-MIOPEN_EXPORT miopenStatus_t miopenGatherBackward(miopenHandle_t handle,
-                                                  const miopenGatherDescriptor_t gatherDesc,
-                                                  const miopenTensorDescriptor_t outputGradDesc,
-                                                  const void* outputGrad,
-                                                  const miopenTensorDescriptor_t indicesDesc,
-                                                  const void* indices,
-                                                  const miopenTensorDescriptor_t paramGradDesc,
-                                                  void* paramGrad,
-                                                  const void* dim,
-                                                  const void* batch_dims);
-
 /*! @brief Destroy the gather descriptor object
  *
  * @param gatherDesc  A gather descriptor type (input)

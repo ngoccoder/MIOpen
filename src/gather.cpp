@@ -24,6 +24,7 @@
  *
  *******************************************************************************/
 
+#include <miopen/common.hpp>
 #include <miopen/find_solution.hpp>
 #include <miopen/gather.hpp>
 #include <miopen/gather/invoke_params.hpp>
@@ -33,12 +34,13 @@
 #include <miopen/logger.hpp>
 #include <miopen/miopen.h>
 #include <miopen/names.hpp>
+#include <miopen/tensor.hpp>
 
 namespace miopen {
 
-static auto GatherBackwardSolvers()
+static auto GatherForwardSolvers()
 {
-    return solver::SolverContainer<solver::gather::GatherV2Backward>{};
+    return solver::SolverContainer<solver::gather::GatherForward>{};
 }
 
 GatherDescriptor::GatherDescriptor() {}
@@ -49,12 +51,12 @@ GatherDescriptor::GatherDescriptor(miopenGatherMode_t m, uint32_t dim_, uint32_t
 }
 
 miopenStatus_t GatherDescriptor::Forward(Handle& handle,
-                                         const TensorDescriptor& outputDesc,
-                                         Data_t output,
                                          const TensorDescriptor& inputDesc,
                                          ConstData_t input,
                                          const TensorDescriptor& indicesDesc,
-                                         ConstData_t indices) const
+                                         ConstData_t indices,
+                                         const TensorDescriptor& outputDesc,
+                                         Data_t output) const
 {
     const auto problem = gather::FwdProblemDescription{*this, outputDesc, inputDesc, indicesDesc};
 

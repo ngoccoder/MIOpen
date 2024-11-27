@@ -27,7 +27,6 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
 
 #include <miopen/errors.hpp>
 #include <miopen/gather.hpp>
@@ -42,15 +41,6 @@ struct NetworkConfig;
 
 namespace gather {
 
-template <int M>
-tensor_view_t<M> reshape(const TensorDescriptor& tensorDes, const std::vector<size_t>& shape);
-
-extern template tensor_view_t<3> reshape<3>(const TensorDescriptor& tensorDes,
-                                            const std::vector<size_t>& shape);
-
-extern template tensor_view_t<4> reshape<4>(const TensorDescriptor& tensorDes,
-                                            const std::vector<size_t>& shape);
-
 struct FwdProblemDescription : ProblemDescriptionBase
 {
     // Forward constructor
@@ -63,6 +53,20 @@ struct FwdProblemDescription : ProblemDescriptionBase
           indicesDesc(indicesDesc_),
           outputDesc(outputDesc_)
     {
+        if(gatherDesc.getDim() >= inputDesc.GetNumDims())
+        {
+            MIOPEN_THROW("Gather: Dimension out of range");
+        }
+
+        if(inputDesc.GetNumDims() != indicesDesc.GetNumDims())
+        {
+            MIOPEN_THROW("Input and indices dimension size should be the same");
+        }
+
+        if(indicesDesc.GetNumDims() != outputDesc.GetNumDims())
+        {
+            MIOPEN_THROW("Indices and output dimension size should be the same");
+        }
     }
 
     const TensorDescriptor& GetInputDesc() const { return inputDesc; }

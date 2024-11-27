@@ -39,12 +39,12 @@ using GatherFwdSolver =
 
 struct GatherForward final : GatherFwdSolver
 {
-    const std::string& SolverDbId() const override { return GetSolverDbId<GatherV2Backward>(); }
+    const std::string& SolverDbId() const override { return GetSolverDbId<GatherForward>(); }
 
     bool IsApplicable(const ExecutionContext& context,
-                      const miopen::gather::BwdProblemDescription& problem) const override;
+                      const miopen::gather::FwdProblemDescription& problem) const override;
     ConvSolution GetSolution(const ExecutionContext& context,
-                             const miopen::gather::BwdProblemDescription& problem) const override;
+                             const miopen::gather::FwdProblemDescription& problem) const override;
 };
 
 } // namespace gather

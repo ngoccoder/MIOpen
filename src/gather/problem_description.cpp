@@ -23,49 +23,44 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#pragma once
 
-#include <miopen/common.hpp>
-#include <miopen/export_internals.h>
-#include <miopen/handle.hpp>
-#include <miopen/object.hpp>
-#include <miopen/miopen.h>
+#include <miopen/errors.hpp>
+#include <miopen/gather/problem_description.hpp>
+#include <miopen/tensor.hpp>
 
-#include <ostream>
+#include <sstream>
 
 namespace miopen {
 
-struct Handle;
-struct TensorDescriptor;
+namespace gather {
 
-struct MIOPEN_INTERNALS_EXPORT GatherDescriptor : miopenGatherDescriptor
+bool FwdProblemDescription::IsSameType() const
 {
-    GatherDescriptor();
-    GatherDescriptor(miopenGatherMode_t m, uint32_t dim, uint32_t batch_dims);
+    if(inputDesc.GetType() != outputDesc.GetType())
+    {
+        return false;
+    }
 
-    miopenGatherMode_t getMode() const { return mode; }
-    uint32_t getDim() const { return dim; }
-    uint32_t getBatchDims() const { return batch_dims; }
+    return true;
+}
 
-    void setMode(miopenGatherMode_t m) { mode = m; }
-    void setDim(uint32_t d) { dim = d; }
-    void setBatchDims(uint32_t b) { batch_dims = b; }
+bool FwdProblemDescription::IsAllContiguous() const { return true; }
 
-    miopenStatus_t Forward(Handle& handle,
-                           const TensorDescriptor& inputDesc,
-                           ConstData_t input,
-                           const TensorDescriptor& indiceDesc,
-                           ConstData_t indices,
-                           const TensorDescriptor& outputDesc,
-                           Data_t output) const;
+NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
+{
+    std::ostringstream ss;
 
-    friend std::ostream& operator<<(std::ostream& stream, const GatherDescriptor& x);
+    ss << "gather";
+    ss << "dtype" << inputDesc.GetType();
+    ss << "index_type" << indicesDesc.GetType();
+    ss << "output_size" << outputDesc.GetElementSize();
+    ss << "mode " << gatherDesc.getMode();
+    ss << "dim " << gatherDesc.getDim();
+    ss << "batch dim " << gatherDesc.getBatchDims();
 
-private:
-    miopenGatherMode_t mode = MIOPEN_GATHER;
-    uint32_t dim;
-    uint32_t batch_dims;
-};
+    return NetworkConfig{ss.str()};
+}
+
+} // namespace gather
 
 } // namespace miopen
-MIOPEN_DEFINE_OBJECT(miopenGatherDescriptor, miopen::GatherDescriptor);

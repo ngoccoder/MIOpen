@@ -48,9 +48,9 @@ class GatherDriver : public Driver
 public:
     GatherDriver() : Driver()
     {
-        miopenCreateTensorDescriptor(&outputGradTensor);
+        miopenCreateTensorDescriptor(&inputTensor);
         miopenCreateTensorDescriptor(&indicesTensor);
-        miopenCreateTensorDescriptor(&paramGradTensor);
+        miopenCreateTensorDescriptor(&outputTensor);
 
         data_type       = miopen_type<Tgpu>{};
         index_data_type = miopen_type<Tindex>{};
@@ -75,9 +75,9 @@ public:
     int VerifyForward() override;
     ~GatherDriver() override
     {
-        miopenDestroyTensorDescriptor(outputGradTensor);
+        miopenDestroyTensorDescriptor(inputTensor);
         miopenDestroyTensorDescriptor(indicesTensor);
-        miopenDestroyTensorDescriptor(paramGradTensor);
+        miopenDestroyTensorDescriptor(outputTensor);
     }
 
 private:
@@ -87,19 +87,19 @@ private:
     miopenDataType_t index_data_type;
     miopenGatherDescriptor_t gatherDesc;
 
-    miopenTensorDescriptor_t outputGradTensor;
+    miopenTensorDescriptor_t inputTensor;
     miopenTensorDescriptor_t indicesTensor;
-    miopenTensorDescriptor_t paramGradTensor;
+    miopenTensorDescriptor_t outputTensor;
 
-    std::unique_ptr<GPUMem> outputGrad_dev;
+    std::unique_ptr<GPUMem> input_dev;
     std::unique_ptr<GPUMem> indices_dev;
-    std::unique_ptr<GPUMem> paramGrad_dev;
+    std::unique_ptr<GPUMem> output_dev;
 
-    std::vector<Tgpu> outGrad;
+    std::vector<Tgpu> input;
     std::vector<Tindex> indices;
-    std::vector<Tgpu> paramGrad;
+    std::vector<Tgpu> output;
 
-    std::vector<Tref> paramGradHost;
+    std::vector<Tref> outputHost;
 
     miopenGatherMode_t mode;
     uint32_t dim;
@@ -112,7 +112,7 @@ int GatherDriver<Tgpu, Tref, Tindex>::ParseCmdLineArgs(int argc, char* argv[])
     inflags.Parse(argc, argv);
 
     forw = inflags.GetValueInt("forw");
-    MIOPEN_THROW_IF(forw != 0, "Incorrect Forward Mode");
+    MIOPEN_THROW_IF(forw != 0 && forw != 1, "Incorrect Forward Mode");
 
     if(inflags.GetValueInt("time") == 1)
     {
@@ -147,38 +147,25 @@ int GatherDriver<Tgpu, Tref, Tindex>::ParseCmdLineArgs(int argc, char* argv[])
 template <typename Tgpu, typename Tref, typename Tindex>
 int GatherDriver<Tgpu, Tref, Tindex>::GetandSetData()
 {
-    std::vector<int> paramGrad_len = inflags.GetValueTensor("param_grad_shape").lengths;
-    SetTensorNd(paramGradTensor, paramGrad_len, data_type);
+    std::vector<int> input_len = inflags.GetValueTensor("input_shape").lengths;
+    SetTensorNd(inputTensor, input_len, data_type);
 
     std::vector<int> indices_len = inflags.GetValueTensor("indices_shape").lengths;
     SetTensorNd(indicesTensor, indices_len, index_data_type);
 
-    std::vector<int> outGrad_len;
+    std::vector<int> output_len;
 
     // output shape = param[:axis] + indice[batch_dim:] + param[axis + 1:]
-    if(mode == MIOPEN_GATHER_V2)
+    if(mode == MIOPEN_GATHER)
     {
-        for(uint32_t i = 0; i < dim; i++)
-        {
-            outGrad_len.push_back(paramGrad_len[i]);
-        }
-
-        for(uint32_t i = batch_dims; i < indices_len.size(); i++)
-        {
-            outGrad_len.push_back(indices_len[i]);
-        }
-
-        for(uint32_t i = dim + 1; i < paramGrad_len.size(); i++)
-        {
-            outGrad_len.push_back(paramGrad_len[i]);
-        }
+        output_len = indices_len;
     }
     else
     {
         return miopenStatusNotImplemented;
     }
 
-    SetTensorNd(outputGradTensor, outGrad_len, data_type);
+    SetTensorNd(outputTensor, output_len, data_type);
 
     return miopenStatusSuccess;
 }
@@ -186,19 +173,17 @@ int GatherDriver<Tgpu, Tref, Tindex>::GetandSetData()
 template <typename Tgpu, typename Tref, typename Tindex>
 int GatherDriver<Tgpu, Tref, Tindex>::AddCmdLineArgs()
 {
-    inflags.AddInputFlag(
-        "forw", 'F', "0", "Run both Forward and Backward (0) (Default = 0)", "int");
-    inflags.AddTensorFlag("param_grad_shape",
-                          'P',
-                          "2x3x5x5",
-                          "The shape of the param gradient tensor (Default = 2x3x5x5)");
+    inflags.AddInputFlag("forw",
+                         'F',
+                         "0",
+                         "Run both Forward and Backward (0), Run only Forward (1) (Default = 1)",
+                         "int");
     inflags.AddTensorFlag(
-        "indices_shape", 'I', "2x4x4", "The shape of the indices tensor (Default = 2x4x4)");
-    inflags.AddInputFlag("mode",
-                         'm',
-                         "gatherv2",
-                         "Gather Mode (gather, gatherv2, gathernd) (Default=gatherv2)",
-                         "str");
+        "input_shape", 'P', "2x3x5x5", "The shape of the input tensor (Default = 2x3x5x5)");
+    inflags.AddTensorFlag(
+        "indices_shape", 'I', "2x3x3x3", "The shape of the indices tensor (Default = 2x3x3x3)");
+    inflags.AddInputFlag(
+        "mode", 'm', "gather", "Gather Mode (gather, gatherv2, gathernd) (Default=gather)", "str");
     inflags.AddInputFlag(
         "dim", 'D', "0", "The dimension in params to gather indices from (Default=0)", "int");
     inflags.AddInputFlag(
@@ -217,50 +202,46 @@ int GatherDriver<Tgpu, Tref, Tindex>::AllocateBuffersAndCopy()
 {
     uint32_t ctx = 0;
 
-    if(forw == 0)
+    size_t input_sz   = GetTensorSpace(inputTensor);
+    size_t output_sz  = GetTensorSpace(outputTensor);
+    size_t indices_sz = GetTensorSpace(indicesTensor);
+
+    // GPU allocation
+    input_dev   = std::unique_ptr<GPUMem>(new GPUMem(ctx, input_sz, sizeof(Tgpu)));
+    output_dev  = std::unique_ptr<GPUMem>(new GPUMem(ctx, output_sz, sizeof(Tgpu)));
+    indices_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, indices_sz, sizeof(Tindex)));
+
+    // GPU host allocation
+    input   = std::vector<Tgpu>(input_sz, static_cast<Tgpu>(0));
+    output  = std::vector<Tgpu>(output_sz, static_cast<Tgpu>(0));
+    indices = std::vector<Tindex>(indices_sz, static_cast<Tindex>(0));
+
+    // CPU allocation
+    outputHost = std::vector<Tref>(output_sz, static_cast<Tref>(0));
+
+    for(size_t i = 0; i < input_sz; i++)
     {
-        size_t paramGrad_sz = GetTensorSpace(paramGradTensor);
-        size_t outGrad_sz   = GetTensorSpace(outputGradTensor);
-        size_t indices_sz   = GetTensorSpace(indicesTensor);
+        input[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+    }
 
-        // GPU allocation
-        paramGrad_dev  = std::unique_ptr<GPUMem>(new GPUMem(ctx, paramGrad_sz, sizeof(Tgpu)));
-        outputGrad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, outGrad_sz, sizeof(Tgpu)));
-        indices_dev    = std::unique_ptr<GPUMem>(new GPUMem(ctx, indices_sz, sizeof(Tindex)));
+    for(size_t i = 0; i < indices_sz; i++)
+    {
+        auto input_shape = miopen::deref(inputTensor).GetLengths();
+        indices[i] =
+            prng::gen_A_to_B(static_cast<Tindex>(0), static_cast<Tindex>(input_shape[dim]));
+    }
 
-        // GPU host allocation
-        paramGrad = std::vector<Tgpu>(paramGrad_sz, static_cast<Tgpu>(0));
-        outGrad   = std::vector<Tgpu>(outGrad_sz, static_cast<Tgpu>(0));
-        indices   = std::vector<Tindex>(indices_sz, static_cast<Tindex>(0));
+    if(indices_dev->ToGPU(GetStream(), indices.data()) != 0)
+    {
+        std::cerr << "Error copying (indices) to GPU, size: " << indices_dev->GetSize()
+                  << std::endl;
+        return miopenStatusInternalError;
+    }
 
-        // CPU allocation
-        paramGradHost = std::vector<Tref>(paramGrad_sz, static_cast<Tref>(0));
-
-        for(size_t i = 0; i < outGrad_sz; i++)
-        {
-            outGrad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
-        }
-
-        for(size_t i = 0; i < indices_sz; i++)
-        {
-            auto param_grad_shape = miopen::deref(paramGradTensor).GetLengths();
-            indices[i]            = prng::gen_A_to_B(static_cast<Tindex>(0),
-                                          static_cast<Tindex>(param_grad_shape[dim]));
-        }
-
-        if(indices_dev->ToGPU(GetStream(), indices.data()) != 0)
-        {
-            std::cerr << "Error copying (indices) to GPU, size: " << indices_dev->GetSize()
-                      << std::endl;
-            return miopenStatusInternalError;
-        }
-
-        if(outputGrad_dev->ToGPU(GetStream(), outGrad.data()) != 0)
-        {
-            std::cerr << "Error copying (outputGrad) to GPU, size: " << outputGrad_dev->GetSize()
-                      << std::endl;
-            return miopenStatusInternalError;
-        }
+    if(input_dev->ToGPU(GetStream(), input.data()) != 0)
+    {
+        std::cerr << "Error copying (input) to GPU, size: " << input_dev->GetSize() << std::endl;
+        return miopenStatusInternalError;
     }
 
     return miopenStatusSuccess;
@@ -268,18 +249,6 @@ int GatherDriver<Tgpu, Tref, Tindex>::AllocateBuffersAndCopy()
 
 template <typename Tgpu, typename Tref, typename Tindex>
 int GatherDriver<Tgpu, Tref, Tindex>::RunForwardGPU()
-{
-    return miopenStatusNotImplemented;
-}
-
-template <typename Tgpu, typename Tref, typename Tindex>
-int GatherDriver<Tgpu, Tref, Tindex>::RunForwardCPU()
-{
-    return miopenStatusNotImplemented;
-}
-
-template <typename Tgpu, typename Tref, typename Tindex>
-int GatherDriver<Tgpu, Tref, Tindex>::RunBackwardGPU()
 {
     float kernel_total_time = 0;
     float kernel_first_time = 0;
@@ -289,17 +258,15 @@ int GatherDriver<Tgpu, Tref, Tindex>::RunBackwardGPU()
 
     for(int i = 0; i < inflags.GetValueInt("iter"); i++)
     {
-        auto status = miopenGatherBackward(GetHandle(),
-                                           gatherDesc,
-                                           outputGradTensor,
-                                           outputGrad_dev->GetMem(),
-                                           indicesTensor,
-                                           indices_dev->GetMem(),
-                                           paramGradTensor,
-                                           paramGrad_dev->GetMem(),
-                                           &dim,
-                                           &batch_dims);
-        MIOPEN_THROW_IF(status != miopenStatusSuccess, "Error in miopenGatherBackward");
+        auto status = miopenGatherForward(GetHandle(),
+                                          gatherDesc,
+                                          inputTensor,
+                                          input_dev->GetMem(),
+                                          indicesTensor,
+                                          indices_dev->GetMem(),
+                                          outputTensor,
+                                          output_dev->GetMem());
+        MIOPEN_THROW_IF(status != miopenStatusSuccess, "Error in miopenGatherForward");
 
         float time = 0.0;
         miopenGetKernelTime(GetHandle(), &time);
@@ -313,19 +280,47 @@ int GatherDriver<Tgpu, Tref, Tindex>::RunBackwardGPU()
         STOP_TIME
         int iter = inflags.GetValueInt("iter");
         if(WALL_CLOCK)
-            std::cout << "Wall-clock Time Backward Gather Elapsed: " << t.gettime_ms() / iter
+            std::cout << "Wall-clock Time Forward Gather Elapsed: " << t.gettime_ms() / iter
                       << " ms\n";
 
         float kernel_average_time =
             iter > 1 ? (kernel_total_time - kernel_first_time) / (iter - 1) : kernel_first_time;
-        std::cout << "GPU Kernel Time Backward Gather Elapsed: " << kernel_average_time << " ms\n";
+        std::cout << "GPU Kernel Time Forward Gather Elapsed: " << kernel_average_time << " ms\n";
     }
 
-    if(paramGrad_dev->FromGPU(GetStream(), paramGrad.data()) != 0)
-        std::cerr << "Error copying (paramGrad_dev) from GPU, size: " << paramGrad_dev->GetSize()
+    if(output_dev->FromGPU(GetStream(), output.data()) != 0)
+        std::cerr << "Error copying (output_dev) from GPU, size: " << output_dev->GetSize()
                   << std::endl;
 
     return miopenStatusSuccess;
+}
+
+template <typename Tgpu, typename Tref, typename Tindex>
+int GatherDriver<Tgpu, Tref, Tindex>::RunForwardCPU()
+{
+    int status = miopenStatusSuccess;
+    if(mode == MIOPEN_GATHER)
+    {
+        status = mloGatherForwardRunHost<Tgpu, Tref, Tindex>(inputTensor,
+                                                             input.data(),
+                                                             indicesTensor,
+                                                             indices.data(),
+                                                             outputTensor,
+                                                             outputHost.data(),
+                                                             dim);
+    }
+    else
+    {
+        return miopenStatusNotImplemented;
+    }
+
+    return status;
+}
+
+template <typename Tgpu, typename Tref, typename Tindex>
+int GatherDriver<Tgpu, Tref, Tindex>::RunBackwardGPU()
+{
+    return miopenStatusNotImplemented;
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
@@ -338,49 +333,32 @@ Tref GatherDriver<Tgpu, Tref, Tindex>::GetTolerance()
 template <typename Tgpu, typename Tref, typename Tindex>
 int GatherDriver<Tgpu, Tref, Tindex>::VerifyForward()
 {
-    return miopenStatusNotImplemented;
+    RunForwardCPU();
+    const Tref tolerance = GetTolerance();
+    auto error           = miopen::rms_range(outputHost, output);
+
+    if(!std::isfinite(error) || error > tolerance)
+    {
+        std::cout << "Forward Gather FAILED: " << error << " > " << tolerance << std::endl;
+        return EC_VerifyFwd;
+    }
+    else
+    {
+        std::cout << "Forward Gather Verifies OK on CPU reference (" << error << " < " << tolerance
+                  << ')' << std::endl;
+    }
+
+    return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
 int GatherDriver<Tgpu, Tref, Tindex>::RunBackwardCPU()
 {
-    int status = miopenStatusSuccess;
-    if(mode == MIOPEN_GATHER_V2)
-    {
-        status = mloGatherV2BackwardRunHost<Tgpu, Tref, Tindex>(outputGradTensor,
-                                                                outGrad.data(),
-                                                                indicesTensor,
-                                                                indices.data(),
-                                                                paramGradTensor,
-                                                                paramGradHost.data(),
-                                                                dim,
-                                                                batch_dims);
-    }
-    else
-    {
-        return miopenStatusNotImplemented;
-    }
-
-    return status;
+    return miopenStatusNotImplemented;
 }
 
 template <typename Tgpu, typename Tref, typename Tindex>
 int GatherDriver<Tgpu, Tref, Tindex>::VerifyBackward()
 {
-    RunBackwardCPU();
-    const Tref tolerance = GetTolerance();
-    auto error           = miopen::rms_range(paramGradHost, paramGrad);
-
-    if(!std::isfinite(error) || error > tolerance)
-    {
-        std::cout << "Backward Gather FAILED: " << error << " > " << tolerance << std::endl;
-        return EC_VerifyBwd;
-    }
-    else
-    {
-        std::cout << "Backward Gather Verifies OK on CPU reference (" << error << " < " << tolerance
-                  << ')' << std::endl;
-    }
-
-    return miopenStatusSuccess;
+    return miopenStatusNotImplemented;
 }

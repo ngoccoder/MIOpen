@@ -35,40 +35,33 @@ __device__ void GatherForwardKernel(const TIO* input,
                                     const TINDEX* indices,
                                     TIO* output,
                                     uint32_t dim,
-                                    tensor_view_t<4> input_tv,
-                                    tensor_view_t<4> indices_tv,
-                                    tensor_view_t<4> output_tv)
+                                    tensor_view_t<5> input_tv,
+                                    tensor_view_t<5> indices_tv,
+                                    tensor_view_t<5> output_tv)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+    tensor_layout_t<5> output_layout{output_tv, gid};
 
-    size_t n[4], n012, n01;
-    n[3] = gid % output_tv.size[3];
-    n012 = gid / output_tv.size[3];
-    n[2] = n012 % output_tv.size[2];
-    n01  = n012 / output_tv.size[2];
-    n[1] = n01 % output_tv.size[1];
-    n[0] = n01 / output_tv.size[1];
-
-    if(n[0] >= output_tv.size[0])
+    if(output_layout.layout[0] >= output_tv.size[0]) // out of bound
         return;
 
-    size_t output_idx = output_tv.get_tensor_view_idx(tensor_layout_t<4>{n[0], n[1], n[2], n[3]});
-    n[dim] = indices[indices_tv.get_tensor_view_idx(tensor_layout_t<4>{n[0], n[1], n[2], n[3]})];
+    size_t output_idx         = output_tv.get_tensor_view_idx(output_layout);
+    output_layout.layout[dim] = indices[indices_tv.get_tensor_view_idx(output_layout)];
 
-    if(n[dim] >= input_tv.size[dim])
+    if(output_layout.layout[dim] >= input_tv.size[dim]) // out of bound
         return;
 
-    size_t input_idx   = input_tv.get_tensor_view_idx(tensor_layout_t<4>{n[0], n[1], n[2], n[3]});
-    output[output_idx] = input[input_idx]; // recheck tensor view
+    size_t input_idx   = input_tv.get_tensor_view_idx(output_layout);
+    output[output_idx] = input[input_idx];
 }
 
 extern "C" __global__ void GatherForward(const IO_TYPE* input,
                                          const INDEX_TYPE* indices,
-                                         const IO_TYPE* output,
+                                         IO_TYPE* output,
                                          uint32_t dim,
-                                         tensor_view_t<4> input_tv,
-                                         tensor_view_t<4> indices_tv,
-                                         tensor_view_t<4> output_tv)
+                                         tensor_view_t<5> input_tv,
+                                         tensor_view_t<5> indices_tv,
+                                         tensor_view_t<5> output_tv)
 {
     GatherForwardKernel<IO_TYPE, INDEX_TYPE>(
         input, indices, output, dim, input_tv, indices_tv, output_tv);
