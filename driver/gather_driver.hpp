@@ -60,6 +60,8 @@ public:
     int ParseCmdLineArgs(int argc, char* argv[]) override;
     InputFlags& GetInputFlags() override { return inflags; }
 
+    std::vector<int> ComputeStrides(std::vector<int> inputDim);
+
     int GetandSetData() override;
 
     int AllocateBuffersAndCopy() override;
@@ -82,6 +84,7 @@ public:
 
 private:
     int forw;
+    bool isContiguous;
 
     InputFlags inflags;
     miopenDataType_t index_data_type;
@@ -106,6 +109,21 @@ private:
     uint32_t batch_dims;
 };
 
+// Equivalent tensor.transpose(0, -1).contiguous().transpose(0, -1)
+template <typename Tgpu, typename Tref, typename Tindex>
+std::vector<int> GatherDriver<Tgpu, Tref, Tindex>::ComputeStrides(std::vector<int> inputDim)
+{
+    if(!isContiguous)
+        std::swap(inputDim.front(), inputDim.back());
+    std::vector<int> strides(inputDim.size());
+    strides.back() = 1;
+    for(int i = inputDim.size() - 2; i >= 0; --i)
+        strides[i] = strides[i + 1] * inputDim[i + 1];
+    if(!isContiguous)
+        std::swap(strides.front(), strides.back());
+    return strides;
+}
+
 template <typename Tgpu, typename Tref, typename Tindex>
 int GatherDriver<Tgpu, Tref, Tindex>::ParseCmdLineArgs(int argc, char* argv[])
 {
@@ -113,6 +131,8 @@ int GatherDriver<Tgpu, Tref, Tindex>::ParseCmdLineArgs(int argc, char* argv[])
 
     forw = inflags.GetValueInt("forw");
     MIOPEN_THROW_IF(forw != 0 && forw != 1, "Incorrect Forward Mode");
+
+    isContiguous = inflags.GetValueInt("contiguous") == 1 ? true : false;
 
     if(inflags.GetValueInt("time") == 1)
     {
@@ -148,10 +168,12 @@ template <typename Tgpu, typename Tref, typename Tindex>
 int GatherDriver<Tgpu, Tref, Tindex>::GetandSetData()
 {
     std::vector<int> input_len = inflags.GetValueTensor("input_shape").lengths;
-    SetTensorNd(inputTensor, input_len, data_type);
+    auto input_stride          = ComputeStrides(input_len);
+    SetTensorNd(inputTensor, input_len, input_stride, data_type);
 
     std::vector<int> indices_len = inflags.GetValueTensor("indices_shape").lengths;
-    SetTensorNd(indicesTensor, indices_len, index_data_type);
+    auto indices_stride          = ComputeStrides(indices_len);
+    SetTensorNd(indicesTensor, indices_len, input_stride, index_data_type);
 
     std::vector<int> output_len;
 
@@ -165,7 +187,8 @@ int GatherDriver<Tgpu, Tref, Tindex>::GetandSetData()
         return miopenStatusNotImplemented;
     }
 
-    SetTensorNd(outputTensor, output_len, data_type);
+    auto output_stride = ComputeStrides(output_len);
+    SetTensorNd(outputTensor, output_len, output_stride, data_type);
 
     return miopenStatusSuccess;
 }
@@ -175,13 +198,15 @@ int GatherDriver<Tgpu, Tref, Tindex>::AddCmdLineArgs()
 {
     inflags.AddInputFlag("forw",
                          'F',
-                         "0",
-                         "Run both Forward and Backward (0), Run only Forward (1) (Default = 1)",
+                         "1",
+                         "Run both Forward and Backward (0), Run only Forward (1) (Default=1)",
                          "int");
+    inflags.AddInputFlag(
+        "contiguous", 'C', "1", "Tensor is contiguous (1) or not (0) (Default=1)", "int");
     inflags.AddTensorFlag(
-        "input_shape", 'P', "2x3x5x5", "The shape of the input tensor (Default = 2x3x5x5)");
+        "input_shape", 'P', "2x3x5x5", "The shape of the input tensor (Default=2x3x5x5)");
     inflags.AddTensorFlag(
-        "indices_shape", 'I', "2x3x3x3", "The shape of the indices tensor (Default = 2x3x3x3)");
+        "indices_shape", 'I', "2x3x3x3", "The shape of the indices tensor (Default=2x3x3x3)");
     inflags.AddInputFlag(
         "mode", 'm', "gather", "Gather Mode (gather, gatherv2, gathernd) (Default=gather)", "str");
     inflags.AddInputFlag(

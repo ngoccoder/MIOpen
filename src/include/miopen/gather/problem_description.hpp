@@ -33,7 +33,6 @@
 #include <miopen/miopen.h>
 #include <miopen/tensor.hpp>
 #include <miopen/problem_description_base.hpp>
-#include "../src/kernels/tensor_view.hpp"
 
 namespace miopen {
 
@@ -67,6 +66,26 @@ struct FwdProblemDescription : ProblemDescriptionBase
         {
             MIOPEN_THROW("Indices and output dimension size should be the same");
         }
+
+        for(size_t i = 0; i < indicesDesc.GetNumDims(); i++)
+        {
+            if(i == gatherDesc.getDim())
+                continue;
+            if(indicesDesc.GetLengths()[i] > inputDesc.GetLengths()[i])
+            {
+                MIOPEN_THROW("Index size of dimension " + std::to_string(i) + " out of bound.");
+            }
+        }
+
+        if(indicesDesc.GetType() != miopenInt64)
+        {
+            MIOPEN_THROW("Index tensor type should be int64");
+        }
+
+        if(!IsSameType())
+        {
+            MIOPEN_THROW("Input and output tensor type should be the same");
+        }
     }
 
     const TensorDescriptor& GetInputDesc() const { return inputDesc; }
@@ -75,7 +94,6 @@ struct FwdProblemDescription : ProblemDescriptionBase
     const GatherDescriptor& GetGatherDesc() const { return gatherDesc; }
 
     bool IsSameType() const;
-    bool IsAllContiguous() const;
 
     NetworkConfig MakeNetworkConfig() const override;
 

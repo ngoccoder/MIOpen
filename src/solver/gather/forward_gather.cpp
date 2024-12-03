@@ -24,10 +24,8 @@
  *
  *******************************************************************************/
 
-#include "miopen/errors.hpp"
-#include "miopen/gather/problem_description.hpp"
-#include "miopen/tensor_view_utils.hpp"
 #include <miopen/datatype.hpp>
+#include <miopen/errors.hpp>
 #include <miopen/gather.hpp>
 #include <miopen/gather/invoke_params.hpp>
 #include <miopen/gather/solvers.hpp>
@@ -37,6 +35,8 @@
 #include <miopen/kernel_info.hpp>
 #include <miopen/miopen.h>
 #include <miopen/mlo_internal.hpp>
+#include <miopen/gather/problem_description.hpp>
+#include <miopen/tensor_view_utils.hpp>
 
 #define LOCAL_SIZE 256
 

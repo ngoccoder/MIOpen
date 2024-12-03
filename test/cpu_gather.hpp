@@ -24,41 +24,37 @@
  *
  *******************************************************************************/
 
-#include <miopen/errors.hpp>
-#include <miopen/gather/problem_description.hpp>
-#include <miopen/tensor.hpp>
+#pragma once
 
-#include <sstream>
+#include <cstddef>
+#include <cstdint>
 
-namespace miopen {
+#include <miopen/tensor_view_utils.hpp>
+#include "tensor_holder.hpp"
+#include "tensor_view.hpp"
 
-namespace gather {
-
-bool FwdProblemDescription::IsSameType() const
+template <class T>
+void cpu_gather_forward(const tensor<T>& input,
+                        const tensor<int64_t>& indices,
+                        tensor<T>& output,
+                        uint32_t dim)
 {
-    if(inputDesc.GetType() != outputDesc.GetType())
+    auto output_size = output.desc.GetElementSize();
+    auto input_tv    = miopen::get_inner_expanded_tv<5>(input.desc);
+    auto indices_tv  = miopen::get_inner_expanded_tv<5>(indices.desc);
+    auto output_tv   = miopen::get_inner_expanded_tv<5>(output.desc);
+    for(size_t i = 0; i < output_size; i++)
     {
-        return false;
-    }
+        tensor_layout_t<5> output_layout(output_tv, i);
+        if(output_layout.layout[0] >= output_tv.size[0]) // out of bound
+            continue;
 
-    return true;
+        size_t output_idx         = output_tv.get_tensor_view_idx(output_layout);
+        output_layout.layout[dim] = indices[indices_tv.get_tensor_view_idx(output_layout)];
+        if(output_layout.layout[dim] >= input_tv.size[dim]) // out of bound
+            continue;
+
+        size_t input_idx   = input_tv.get_tensor_view_idx(output_layout);
+        output[output_idx] = input[input_idx];
+    };
 }
-
-NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
-{
-    std::ostringstream ss;
-
-    ss << "gather";
-    ss << "dtype" << inputDesc.GetType();
-    ss << "index_type" << indicesDesc.GetType();
-    ss << "output_size" << outputDesc.GetElementSize();
-    ss << "mode " << gatherDesc.getMode();
-    ss << "dim " << gatherDesc.getDim();
-    ss << "batch dim " << gatherDesc.getBatchDims();
-
-    return NetworkConfig{ss.str()};
-}
-
-} // namespace gather
-
-} // namespace miopen

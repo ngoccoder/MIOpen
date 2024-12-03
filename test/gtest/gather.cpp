@@ -24,41 +24,30 @@
  *
  *******************************************************************************/
 
-#include <miopen/errors.hpp>
-#include <miopen/gather/problem_description.hpp>
-#include <miopen/tensor.hpp>
+#include "gather.hpp"
 
-#include <sstream>
+using GPU_Gather_fwd_FP32  = GatherFwdTest<float>;
+using GPU_Gather_fwd_FP16  = GatherFwdTest<half>;
+using GPU_Gather_fwd_BFP16 = GatherFwdTest<bfloat16>;
 
-namespace miopen {
-
-namespace gather {
-
-bool FwdProblemDescription::IsSameType() const
+TEST_P(GPU_Gather_fwd_FP32, Test)
 {
-    if(inputDesc.GetType() != outputDesc.GetType())
-    {
-        return false;
-    }
+    RunTest();
+    Verify();
+};
 
-    return true;
-}
-
-NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
+TEST_P(GPU_Gather_fwd_FP16, Test)
 {
-    std::ostringstream ss;
+    RunTest();
+    Verify();
+};
 
-    ss << "gather";
-    ss << "dtype" << inputDesc.GetType();
-    ss << "index_type" << indicesDesc.GetType();
-    ss << "output_size" << outputDesc.GetElementSize();
-    ss << "mode " << gatherDesc.getMode();
-    ss << "dim " << gatherDesc.getDim();
-    ss << "batch dim " << gatherDesc.getBatchDims();
+TEST_P(GPU_Gather_fwd_BFP16, Test)
+{
+    RunTest();
+    Verify();
+};
 
-    return NetworkConfig{ss.str()};
-}
-
-} // namespace gather
-
-} // namespace miopen
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Gather_fwd_FP32, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Gather_fwd_FP16, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Gather_fwd_BFP16, testing::ValuesIn(GenFullTestCases()));

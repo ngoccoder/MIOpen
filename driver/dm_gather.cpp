@@ -25,15 +25,16 @@
  *******************************************************************************/
 #include "registry_driver_maker.hpp"
 #include "gather_driver.hpp"
+#include <cstdint>
 
 static Driver* makeDriver(const std::string& base_arg)
 {
     if(base_arg == "gather")
-        return new GatherDriver<float, float, int>();
+        return new GatherDriver<float, float, int64_t>();
     if(base_arg == "gatherfp16")
-        return new GatherDriver<float16, float, int>();
+        return new GatherDriver<float16, float, int64_t>();
     if(base_arg == "gatherbfp16")
-        return new GatherDriver<bfloat16, float, int>();
+        return new GatherDriver<bfloat16, float, int64_t>();
     return nullptr;
 }
 

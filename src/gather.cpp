@@ -58,7 +58,7 @@ miopenStatus_t GatherDescriptor::Forward(Handle& handle,
                                          const TensorDescriptor& outputDesc,
                                          Data_t output) const
 {
-    const auto problem = gather::FwdProblemDescription{*this, outputDesc, inputDesc, indicesDesc};
+    const auto problem = gather::FwdProblemDescription{*this, inputDesc, indicesDesc, outputDesc};
 
     const auto invoke_params = [&]() {
         auto tmp        = gather::FwdInvokeParams{};
