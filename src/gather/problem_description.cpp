@@ -50,11 +50,9 @@ NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 
     ss << "gather";
     ss << "dtype" << inputDesc.GetType();
-    ss << "index_type" << indicesDesc.GetType();
     ss << "output_size" << outputDesc.GetElementSize();
     ss << "mode " << gatherDesc.getMode();
     ss << "dim " << gatherDesc.getDim();
-    ss << "batch dim " << gatherDesc.getBatchDims();
 
     return NetworkConfig{ss.str()};
 }
