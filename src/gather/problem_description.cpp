@@ -29,10 +29,30 @@
 #include <miopen/tensor.hpp>
 
 #include <sstream>
+#include <vector>
 
 namespace miopen {
 
 namespace gather {
+
+// indices.shape = [num_indices, idx_depth]
+std::vector<size_t> GetIndicesFlattenShape(const TensorDescriptor& indicesDesc)
+{
+    int indices_dim = 2;
+    std::vector<size_t> indices_flatten_shape(indices_dim);
+    int offset = indicesDesc.GetNumDims() - indices_dim;
+    for(int out_dim = indices_dim - 1; out_dim >= 0; out_dim--)
+    {
+        const int in_dim               = out_dim + offset;
+        indices_flatten_shape[out_dim] = in_dim < 0 ? 1 : indicesDesc.GetLengths()[in_dim];
+    }
+    for(int in_dim = 0; in_dim < offset; in_dim++)
+    {
+        indices_flatten_shape[0] *= indicesDesc.GetLengths()[in_dim];
+    }
+
+    return indices_flatten_shape;
+}
 
 bool BwdProblemDescription::IsSameType() const
 {

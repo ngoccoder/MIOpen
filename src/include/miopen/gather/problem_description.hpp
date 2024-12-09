@@ -42,6 +42,8 @@ struct NetworkConfig;
 
 namespace gather {
 
+std::vector<size_t> GetIndicesFlattenShape(const TensorDescriptor& indicesDesc);
+
 struct BwdProblemDescription : ProblemDescriptionBase
 {
     // Backward constructor
