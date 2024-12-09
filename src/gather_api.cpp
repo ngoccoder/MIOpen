@@ -70,9 +70,7 @@ extern "C" miopenStatus_t miopenGatherBackward(miopenHandle_t handle,
                                                const miopenTensorDescriptor_t indicesDesc,
                                                const void* indices,
                                                const miopenTensorDescriptor_t paramGradDesc,
-                                               void* paramGrad,
-                                               const void* dim,
-                                               const void* batch_dims)
+                                               void* paramGrad)
 {
     MIOPEN_LOG_FUNCTION(handle,
                         gatherDesc,
@@ -81,9 +79,7 @@ extern "C" miopenStatus_t miopenGatherBackward(miopenHandle_t handle,
                         indicesDesc,
                         indices,
                         paramGradDesc,
-                        paramGrad,
-                        dim,
-                        batch_dims);
+                        paramGrad);
 
     return miopen::try_([&] {
         miopen::deref(gatherDesc)

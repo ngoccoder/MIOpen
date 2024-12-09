@@ -36,6 +36,7 @@
 #include <miopen/kernel_info.hpp>
 #include <miopen/miopen.h>
 #include <miopen/mlo_internal.hpp>
+#include <miopen/tensor_view_utils.hpp>
 
 #define LOCAL_SIZE 256
 
@@ -72,12 +73,25 @@ GatherNDBackward::GetSolution(const ExecutionContext& context,
     auto in_out_dtype = miopen::GetDataType(dtype);
     auto indices_type = miopen::GetDataType(problem.GetIndicesDesc().GetType());
 
-    auto gatherDesc      = problem.GetGatherDesc();
-    auto batch_dims      = gatherDesc.getBatchDims();
-    auto param_grad_len  = problem.GetParamGradDesc().GetLengths();
-    auto outGrad_numel   = problem.GetOutputGradDesc().GetElementSize();
-    auto paramGrad_numel = problem.GetParamGradDesc().GetElementSize();
-    auto dim             = gatherDesc.getDim();
+    auto param_grad_len     = problem.GetParamGradDesc().GetLengths();
+    auto outGrad_numel      = problem.GetOutputGradDesc().GetElementSize();
+    auto paramGrad_numel    = problem.GetParamGradDesc().GetElementSize();
+    auto param_grad_num_dim = problem.GetParamGradDesc().GetNumDims();
+    auto indices_num_dim    = problem.GetIndicesDesc().GetNumDims();
+    auto indices_len        = problem.GetIndicesDesc().GetLengths();
+    auto slice_dim          = (indices_num_dim > 1) ? indices_len[indices_num_dim - 1] : 1;
+
+    size_t slice_size = 1;
+    for(size_t i = slice_dim; i < param_grad_num_dim; i++)
+    {
+        slice_size *= param_grad_len[i];
+    }
+
+    size_t num_indices = 1;
+    for(size_t i = 0; i < indices_num_dim - 1; i++)
+    {
+        num_indices *= indices_len[i];
+    }
 
     const auto build_params = KernelBuildParameters{
         {"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
@@ -114,16 +128,8 @@ GatherNDBackward::GetSolution(const ExecutionContext& context,
         size_t xgridsize  = AlignUp(outGrad_numel, xlocalsize);
 
         auto kernel        = KernelInfo{};
-        kernel.kernel_file = "MIOpenGatherV2.cpp";
-
-        if(batch_dims > 0)
-        {
-            kernel.kernel_name = "BatchedGatherV2Backward";
-        }
-        else
-        {
-            kernel.kernel_name = "GatherV2Backward";
-        }
+        kernel.kernel_file = "MIOpenScatterND.cpp";
+        kernel.kernel_name = "ScatterNDAddForward";
 
         kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
@@ -137,109 +143,63 @@ GatherNDBackward::GetSolution(const ExecutionContext& context,
         result.construction_params.push_back(kernel);
     }
 
-    result.invoker_factory =
-        [paramGrad_numel, batch_dims, dim, outGrad_numel](const std::vector<Kernel>& kernels) {
-            return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
-                decltype(auto) params = raw_params.CastTo<miopen::gather::BwdInvokeParams>();
+    result.invoker_factory = [paramGrad_numel, num_indices, slice_size, slice_dim](
+                                 const std::vector<Kernel>& kernels) {
+        return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
+            decltype(auto) params = raw_params.CastTo<miopen::gather::BwdInvokeParams>();
 
-                float elapsed = 0.0f;
-                HipEventPtr start;
-                HipEventPtr stop;
+            float elapsed = 0.0f;
+            HipEventPtr start;
+            HipEventPtr stop;
 
-                bool reset_profiling_state = false;
-                if(handle_.IsProfilingEnabled())
-                {
-                    reset_profiling_state = true;
-                    handle_.EnableProfiling(false);
-                    start = miopen::make_hip_event();
-                    stop  = miopen::make_hip_event();
-                    hipEventRecord(start.get(), handle_.GetStream());
-                }
+            bool reset_profiling_state = false;
+            if(handle_.IsProfilingEnabled())
+            {
+                reset_profiling_state = true;
+                handle_.EnableProfiling(false);
+                start = miopen::make_hip_event();
+                stop  = miopen::make_hip_event();
+                hipEventRecord(start.get(), handle_.GetStream());
+            }
 
-                /* Phase 1: Fill param grad with zeros */
-                {
-                    decltype(auto) kernel = handle_.Run(kernels.front());
-                    kernel(params.paramGrad, paramGrad_numel);
-                }
+            /* Phase 1: Fill param grad with zeros */
+            {
+                decltype(auto) kernel = handle_.Run(kernels.front());
+                kernel(params.paramGrad, paramGrad_numel);
+            }
 
-                auto param_grad_len = deref(params.paramGradDesc).GetLengths();
-                size_t batch_size   = 1;
-                size_t outer_size   = 1;
-                size_t inner_size   = 1;
+            /* Phase 2: GatherND backward */
+            {
+                decltype(auto) kernel = handle_.Run(kernels.back());
+                auto outgrad_tv = get_inner_expanded_tv<5>(miopen::deref(params.outputGradDesc));
 
-                for(uint32_t i = 0; i < batch_dims; ++i)
-                {
-                    batch_size *= param_grad_len[i];
-                }
-                for(uint32_t i = batch_dims; i < dim; ++i)
-                {
-                    outer_size *= param_grad_len[i];
-                }
-                for(uint32_t i = dim + 1; i < param_grad_len.size(); ++i)
-                {
-                    inner_size *= param_grad_len[i];
-                }
+                kernel(params.outputGrad,
+                       params.indices,
+                       params.paramGrad,
+                       num_indices,
+                       slice_size,
+                       slice_dim,
+                       outgrad_tv);
+            }
 
-                size_t gather_dim_size = param_grad_len[dim];
-                size_t indices_numel   = deref(params.indicesDesc).GetElementSize() / batch_size;
+            if(reset_profiling_state)
+            {
+                handle_.EnableProfiling(true);
+            }
+            if(handle_.IsProfilingEnabled())
+            {
+                hipEventRecord(stop.get(), handle_.GetStream());
+                hipEventSynchronize(stop.get());
+                hipEventElapsedTime(&elapsed, start.get(), stop.get());
 
-                /* Phase 2: Gather backward */
-                {
-                    decltype(auto) kernel         = handle_.Run(kernels.back());
-                    const bool is_axis_zero       = (outer_size == 1);
-                    const bool is_batch_dims_zero = (batch_size == 1);
-
-                    if(batch_dims > 0)
-                    {
-                        auto output_grad_tv = miopen::gather::reshape<4>(
-                            miopen::deref(params.outputGradDesc),
-                            {batch_size, outer_size, indices_numel, inner_size});
-                        kernel(params.outputGrad,
-                               params.indices,
-                               params.paramGrad,
-                               output_grad_tv,
-                               outer_size,
-                               gather_dim_size,
-                               indices_numel,
-                               inner_size,
-                               outGrad_numel,
-                               is_batch_dims_zero);
-                    }
-                    else
-                    {
-                        auto output_grad_tv =
-                            miopen::gather::reshape<3>(miopen::deref(params.outputGradDesc),
-                                                       {outer_size, indices_numel, inner_size});
-                        kernel(params.outputGrad,
-                               params.indices,
-                               params.paramGrad,
-                               output_grad_tv,
-                               gather_dim_size,
-                               indices_numel,
-                               inner_size,
-                               outGrad_numel,
-                               is_axis_zero);
-                    }
-                }
-
-                if(reset_profiling_state)
-                {
-                    handle_.EnableProfiling(true);
-                }
-                if(handle_.IsProfilingEnabled())
-                {
-                    hipEventRecord(stop.get(), handle_.GetStream());
-                    hipEventSynchronize(stop.get());
-                    hipEventElapsedTime(&elapsed, start.get(), stop.get());
-
-                    // Clean up
-                    hipEventDestroy(start.get());
-                    hipEventDestroy(stop.get());
-                    handle_.ResetKernelTime();
-                    handle_.AccumKernelTime(elapsed);
-                }
-            };
+                // Clean up
+                hipEventDestroy(start.get());
+                hipEventDestroy(stop.get());
+                handle_.ResetKernelTime();
+                handle_.AccumKernelTime(elapsed);
+            }
         };
+    };
 
     return result;
 }

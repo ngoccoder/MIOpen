@@ -27,12 +27,11 @@
 #pragma once
 #include <cstddef>
 #include <miopen/errors.hpp>
-#include <miopen/gather/problem_description.hpp>
 #include <miopen/tensor_view_utils.hpp>
 
+// output_grad.shape = [i1, ..., in, p(d+1), ..., pn]
 // indices.shape = [i1, ..., in, d] where d is index depth
 // param_grad.shape = [p1, ..., pd, p(d+1), ..., pn]
-// output_grad.shape = [i1, ..., in, p(d+1), ..., pn]
 template <typename Tgpu, typename Tcheck, typename Tindex>
 int mloGatherNDBackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
                                const Tgpu* outputGrad,
@@ -53,13 +52,12 @@ int mloGatherNDBackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
         slice_size *= param_grad_len[i];
     }
 
-    auto param_grad_tv = miopen::get_inner_expanded_tv<5>(miopen::deref(paramGradDesc));
     size_t param_grad_shape_prefix[5];
     size_t batch_strides[5];
 
-    for(int i = 0; i < slice_dim; i++)
+    for(size_t i = 0; i < slice_dim; i++)
     {
-        param_grad_shape_prefix[i] = param_grad_tv.size[i];
+        param_grad_shape_prefix[i] = param_grad_len[i];
     }
 
     for(int dim = slice_dim - 1; dim >= 0; dim--)
@@ -83,7 +81,7 @@ int mloGatherNDBackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
 
         size_t param_grad_idx = 0;
         // Get 1D tensor (length = d) out of indices and get index into param_grad
-        for(int dim = 0; dim < slice_dim; dim++)
+        for(size_t dim = 0; dim < slice_dim; dim++)
         {
             size_t offset = slice_dim * indices_idx + dim;
             size_t ix_d   = indices[offset];
@@ -93,6 +91,7 @@ int mloGatherNDBackwardRunHost(miopenTensorDescriptor_t outputGradDesc,
 
         if(!out_of_bounds)
         {
+            std::cout << "out of bound " << out_of_bounds << " for i = " << i << std::endl;
             paramGrad[param_grad_idx + slice_idx] += outputGrad[i];
         }
     }

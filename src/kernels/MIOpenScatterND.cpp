@@ -28,6 +28,8 @@
 #include <hip/hip_runtime.h>
 #endif
 
+#include "float_types.h"
+#include "hip_atomic.hpp"
 #include "tensor_view.hpp"
 
 template <typename TIO, typename TINDEX>
@@ -72,15 +74,15 @@ __device__ void ScatterNDAddForward_Kernel(const TIO* input,
     for(int dim = 0; dim < slice_dim; dim++)
     {
         size_t offset = slice_dim * indices_idx + dim;
-        size_t ix_d   = indices[offset]; // recheck
+        size_t ix_d   = indices[offset];
         out_of_bounds = ix_d >= output_shape_prefix[dim];
         i += ix_d * batch_strides[dim] * slice_size;
     }
 
     if(!out_of_bounds)
     {
-        atomic_add_g(output[i + slice_idx], input[gid]);
-        // output[i + slice_idx] = input[gid]; // recheck
+        FLOAT_ACCUM val = CVT_FLOAT2ACCUM(input[gid]);
+        atomic_add_g(output + i + slice_idx, val);
     }
 }
 
