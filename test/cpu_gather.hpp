@@ -35,7 +35,7 @@
 
 template <class T>
 void cpu_gather_forward(const tensor<T>& input,
-                        const tensor<int64_t>& indices,
+                        const tensor<uint64_t>& indices,
                         tensor<T>& output,
                         uint32_t dim)
 {

@@ -45,8 +45,9 @@ __device__ void GatherForwardKernel(const TIO* input,
     if(output_layout.layout[0] >= output_tv.size[0]) // out of bound
         return;
 
-    size_t output_idx         = output_tv.get_tensor_view_idx(output_layout);
-    output_layout.layout[dim] = indices[indices_tv.get_tensor_view_idx(output_layout)];
+    size_t output_idx = output_tv.get_tensor_view_idx(output_layout);
+    output_layout.layout[dim] =
+        static_cast<size_t>(indices[indices_tv.get_tensor_view_idx(output_layout)]);
 
     if(output_layout.layout[dim] >= input_tv.size[dim]) // out of bound
         return;

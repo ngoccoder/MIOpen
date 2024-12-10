@@ -64,12 +64,12 @@ extern "C" miopenStatus_t miopenGetGatherDescriptor(const miopenGatherDescriptor
 }
 
 extern "C" miopenStatus_t miopenGatherForward(miopenHandle_t handle,
-                                              miopenGatherDescriptor_t gatherDesc,
-                                              miopenTensorDescriptor_t inputDesc,
+                                              const miopenGatherDescriptor_t gatherDesc,
+                                              const miopenTensorDescriptor_t inputDesc,
                                               const void* input,
-                                              miopenTensorDescriptor_t indicesDesc,
+                                              const miopenTensorDescriptor_t indicesDesc,
                                               const void* indices,
-                                              miopenTensorDescriptor_t outputDesc,
+                                              const miopenTensorDescriptor_t outputDesc,
                                               void* output)
 {
     MIOPEN_LOG_FUNCTION(

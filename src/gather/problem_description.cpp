@@ -52,7 +52,6 @@ NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
     ss << "dtype" << inputDesc.GetType();
     ss << "output_size" << outputDesc.GetElementSize();
     ss << "mode " << gatherDesc.getMode();
-    ss << "dim " << gatherDesc.getDim();
 
     return NetworkConfig{ss.str()};
 }

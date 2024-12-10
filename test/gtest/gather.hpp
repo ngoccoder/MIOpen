@@ -30,16 +30,14 @@
 #include "tensor_holder.hpp"
 #include "verify.hpp"
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <vector>
 
 #include <gtest/gtest.h>
 #include <miopen/allocator.hpp>
-#include <miopen/miopen.h>
 #include <miopen/gather.hpp>
+#include <miopen/miopen.h>
 
 struct GatherTestCase
 {
@@ -115,7 +113,7 @@ protected:
             return prng::gen_0_to_B(static_cast<int64_t>(dim_size));
         };
 
-        indices = tensor<int64_t>{indices_dims}.generate(gen_index);
+        indices = tensor<uint64_t>{indices_dims}.generate(gen_index);
         input   = tensor<T>{input_dims}.generate(gen_value);
 
         output = tensor<T>{output_dims};
@@ -168,7 +166,7 @@ protected:
     miopen::GatherDescriptor gatherDesc;
     tensor<T> input;
     tensor<T> output;
-    tensor<int64_t> indices;
+    tensor<uint64_t> indices;
 
     tensor<T> ref_output;
 

@@ -8069,7 +8069,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGetGatherDescriptor(const miopenGatherDescrip
  * @param input                    Input tensor (input)
  * @param indicesDesc              Tensor descriptor for indices tensor (input)
  * @param indices                  Indices tensor (input)
- * @param outputDesc               Tensor descriptor for output tensor (output)
+ * @param outputDesc               Tensor descriptor for output tensor (input)
  * @param output                   Output tensor (output)
  * @return                         miopenStatus_t
  */

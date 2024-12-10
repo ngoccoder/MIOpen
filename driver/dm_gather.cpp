@@ -30,11 +30,11 @@
 static Driver* makeDriver(const std::string& base_arg)
 {
     if(base_arg == "gather")
-        return new GatherDriver<float, float, int64_t>();
+        return new GatherDriver<float, float, uint64_t>();
     if(base_arg == "gatherfp16")
-        return new GatherDriver<float16, float, int64_t>();
+        return new GatherDriver<float16, float, uint64_t>();
     if(base_arg == "gatherbfp16")
-        return new GatherDriver<bfloat16, float, int64_t>();
+        return new GatherDriver<bfloat16, float, uint64_t>();
     return nullptr;
 }
 

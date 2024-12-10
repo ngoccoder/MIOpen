@@ -31,11 +31,11 @@
 #include <miopen/tensor_view_utils.hpp>
 
 template <typename Tgpu, typename Tcheck, typename Tindex>
-int mloGatherForwardRunHost(miopenTensorDescriptor_t inputDesc,
+int mloGatherForwardRunHost(const miopenTensorDescriptor_t inputDesc,
                             const Tgpu* input,
-                            miopenTensorDescriptor_t indicesDesc,
+                            const miopenTensorDescriptor_t indicesDesc,
                             const Tindex* indices,
-                            miopenTensorDescriptor_t outputDesc,
+                            const miopenTensorDescriptor_t outputDesc,
                             Tcheck* output,
                             uint32_t dim)
 {

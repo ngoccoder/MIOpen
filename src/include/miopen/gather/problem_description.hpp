@@ -82,6 +82,12 @@ struct FwdProblemDescription : ProblemDescriptionBase
             MIOPEN_THROW("Index tensor type should be int64");
         }
 
+        if(inputDesc.GetNumDims() > 5 || indicesDesc.GetNumDims() > 5 ||
+           outputDesc.GetNumDims() > 5)
+        {
+            MIOPEN_THROW("Gather only supports up to 5 dimensions");
+        }
+
         if(!IsSameType())
         {
             MIOPEN_THROW("Input and output tensor type should be the same");
