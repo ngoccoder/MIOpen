@@ -163,7 +163,7 @@ protected:
 
     GatherTestCase config;
 
-    miopen::GatherDescriptor gatherDesc;
+    miopen::gather::GatherDescriptor gatherDesc;
     tensor<T> input;
     tensor<T> output;
     tensor<uint64_t> indices;

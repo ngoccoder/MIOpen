@@ -38,6 +38,8 @@
 
 namespace miopen {
 
+namespace gather {
+
 static auto GatherForwardSolvers()
 {
     return solver::SolverContainer<solver::gather::GatherForward>{};
@@ -85,5 +87,7 @@ std::ostream& operator<<(std::ostream& stream, const GatherDescriptor& x)
     MIOPEN_LOG_ENUM(stream, x.mode, MIOPEN_GATHER, MIOPEN_GATHER_V2, MIOPEN_GATHER_ND) << ", ";
     return stream;
 }
+
+} // namespace gather
 
 } // namespace miopen

@@ -38,6 +38,8 @@ namespace miopen {
 struct Handle;
 struct TensorDescriptor;
 
+namespace gather {
+
 struct MIOPEN_INTERNALS_EXPORT GatherDescriptor : miopenGatherDescriptor
 {
     GatherDescriptor();
@@ -67,5 +69,7 @@ private:
     uint32_t batch_dims;
 };
 
+} // namespace gather
+
 } // namespace miopen
-MIOPEN_DEFINE_OBJECT(miopenGatherDescriptor, miopen::GatherDescriptor);
+MIOPEN_DEFINE_OBJECT(miopenGatherDescriptor, miopen::gather::GatherDescriptor);
