@@ -27,13 +27,11 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
 
 #include <miopen/errors.hpp>
 #include <miopen/gather.hpp>
 #include <miopen/tensor.hpp>
 #include <miopen/problem_description_base.hpp>
-#include "../src/kernels/tensor_view.hpp"
 #include "miopen/miopen.h"
 
 namespace miopen {
@@ -140,6 +138,16 @@ struct BwdProblemDescription : ProblemDescriptionBase
                 MIOPEN_THROW("Dimension " + std::to_string(d) +
                              " of output grad and param grad must be equal");
             }
+        }
+
+        if(!IsAllContiguous())
+        {
+            MIOPEN_THROW("All tensors must be contiguous");
+        }
+
+        if(!IsSameType())
+        {
+            MIOPEN_THROW("Output grad and param grad tensors must have the same type");
         }
     }
 

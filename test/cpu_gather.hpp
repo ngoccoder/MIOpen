@@ -25,25 +25,21 @@
  *******************************************************************************/
 
 #pragma once
-#include <cstddef>
-#include <miopen/errors.hpp>
-#include <miopen/tensor_view_utils.hpp>
 
-// output_grad.shape = [i1, ..., in, p(d+1), ..., pn]
-// indices.shape = [i1, ..., in, d] where d is index depth
-// param_grad.shape = [p1, ..., pd, p(d+1), ..., pn]
-template <typename Tgpu, typename Tcheck, typename Tindex>
-int mloGatherNDBackwardRunHost(const miopenTensorDescriptor_t outputGradDesc,
-                               const Tgpu* outputGrad,
-                               const miopenTensorDescriptor_t indicesDesc,
-                               const Tindex* indices,
-                               const miopenTensorDescriptor_t paramGradDesc,
-                               Tcheck* paramGrad)
+#include <cstddef>
+
+#include <miopen/tensor_view_utils.hpp>
+#include "tensor_holder.hpp"
+
+template <class T, class TID>
+void cpu_gathernd_backward(const tensor<T>& outputGrad,
+                           const tensor<TID>& indices,
+                           tensor<T>& paramGrad)
 {
-    auto indices_num_dim    = miopen::deref(indicesDesc).GetNumDims();
-    auto indices_len        = miopen::deref(indicesDesc).GetLengths();
-    auto param_grad_num_dim = miopen::deref(paramGradDesc).GetNumDims();
-    auto param_grad_len     = miopen::deref(paramGradDesc).GetLengths();
+    auto indices_num_dim    = indices.desc.GetNumDims();
+    auto indices_len        = indices.desc.GetLengths();
+    auto param_grad_num_dim = paramGrad.desc.GetNumDims();
+    auto param_grad_len     = paramGrad.desc.GetLengths();
     size_t slice_dim        = (indices_num_dim > 1) ? indices_len[indices_num_dim - 1] : 1;
 
     size_t slice_size = 1;
@@ -72,7 +68,7 @@ int mloGatherNDBackwardRunHost(const miopenTensorDescriptor_t outputGradDesc,
         }
     }
 
-    size_t output_grad_size = miopen::deref(outputGradDesc).GetElementSize();
+    size_t output_grad_size = outputGrad.desc.GetElementSize();
     for(size_t i = 0; i < output_grad_size; i++)
     {
         bool out_of_bounds = false;
@@ -91,10 +87,7 @@ int mloGatherNDBackwardRunHost(const miopenTensorDescriptor_t outputGradDesc,
 
         if(!out_of_bounds)
         {
-            // std::cout << "out of bound " << out_of_bounds << " for i = " << i << std::endl;
             paramGrad[param_grad_idx + slice_idx] += outputGrad[i];
         }
     }
-
-    return 0;
 }

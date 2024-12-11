@@ -171,7 +171,7 @@ GatherNDBackward::GetSolution(const ExecutionContext& context,
             /* Phase 2: GatherND backward */
             {
                 decltype(auto) kernel = handle_.Run(kernels.back());
-                auto outgrad_tv = get_inner_expanded_tv<5>(miopen::deref(params.outputGradDesc));
+                auto param_grad_tv = get_inner_expanded_tv<9>(miopen::deref(params.paramGradDesc));
 
                 kernel(params.outputGrad,
                        params.indices,
@@ -179,7 +179,7 @@ GatherNDBackward::GetSolution(const ExecutionContext& context,
                        num_indices,
                        slice_size,
                        slice_dim,
-                       outgrad_tv);
+                       param_grad_tv);
             }
 
             if(reset_profiling_state)

@@ -39,7 +39,7 @@ __device__ void ScatterNDAddForward_Kernel(const TIO* input,
                                            size_t num_indices,
                                            size_t slice_size,
                                            size_t slice_dim,
-                                           tensor_view_t<5> shape)
+                                           tensor_view_t<9> shape)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -51,8 +51,8 @@ __device__ void ScatterNDAddForward_Kernel(const TIO* input,
     if(indices_idx >= num_indices)
         return;
 
-    size_t output_shape_prefix[5];
-    size_t batch_strides[5];
+    size_t output_shape_prefix[9];
+    size_t batch_strides[9];
 
     for(int j = 0; j < slice_dim; j++)
     {
@@ -92,7 +92,7 @@ extern "C" __global__ void ScatterNDAddForward(const IO_TYPE* input,
                                                size_t num_indices,
                                                size_t slice_size,
                                                size_t slice_dim,
-                                               tensor_view_t<5> shape)
+                                               tensor_view_t<9> shape)
 {
     ScatterNDAddForward_Kernel<IO_TYPE, INDEX_TYPE>(
         input, indices, output, num_indices, slice_size, slice_dim, shape);

@@ -251,8 +251,8 @@ int GatherDriver<Tgpu, Tref, Tindex>::AllocateBuffersAndCopy()
         }
         for(size_t i = 0; i < indices_sz; i++)
         {
-            indices[i] = prng::gen_A_to_B(static_cast<Tindex>(0),
-                                          static_cast<Tindex>(min_dim_param_grad - 1));
+            indices[i] =
+                prng::gen_A_to_B(static_cast<Tindex>(0), static_cast<Tindex>(min_dim_param_grad));
         }
 
         if(indices_dev->ToGPU(GetStream(), indices.data()) != 0)
@@ -374,11 +374,11 @@ int GatherDriver<Tgpu, Tref, Tindex>::VerifyBackward()
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(paramGradHost, paramGrad);
 
-    for(int i = 0; i < paramGradHost.size(); i++)
-    {
-        std::cout << "paramGradHost[" << i << "] = " << paramGradHost[i] << ", paramGrad[" << i
-                  << "] = " << paramGrad[i] << std::endl;
-    }
+    // for(int i = 0; i < paramGradHost.size(); i++)
+    //{
+    //    std::cout << "paramGradHost[" << i << "] = " << paramGradHost[i] << ", paramGrad[" << i
+    //              << "] = " << paramGrad[i] << std::endl;
+    //}
 
     if(!std::isfinite(error) || error > tolerance)
     {
