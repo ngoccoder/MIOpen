@@ -43,18 +43,18 @@ void cpu_gather_forward(const tensor<T>& input,
     auto input_tv    = miopen::get_inner_expanded_tv<5>(input.desc);
     auto indices_tv  = miopen::get_inner_expanded_tv<5>(indices.desc);
     auto output_tv   = miopen::get_inner_expanded_tv<5>(output.desc);
-    for(size_t i = 0; i < output_size; i++)
-    {
-        tensor_layout_t<5> output_layout(output_tv, i);
-        if(output_layout.layout[0] >= output_tv.size[0]) // out of bound
-            continue;
+    par_ford(output_size)([&](size_t i) {
+        tensor_layout_t<5> output_layout{output_tv, i};
+        if(output_layout.layout[0] < output_tv.size[0])
+        { // not out of bound
+            size_t output_idx         = output_tv.get_tensor_view_idx(output_layout);
+            output_layout.layout[dim] = indices[indices_tv.get_tensor_view_idx(output_layout)];
 
-        size_t output_idx         = output_tv.get_tensor_view_idx(output_layout);
-        output_layout.layout[dim] = indices[indices_tv.get_tensor_view_idx(output_layout)];
-        if(output_layout.layout[dim] >= input_tv.size[dim]) // out of bound
-            continue;
-
-        size_t input_idx   = input_tv.get_tensor_view_idx(output_layout);
-        output[output_idx] = input[input_idx];
-    };
+            if(output_layout.layout[dim] < input_tv.size[dim])
+            { // not out of bound
+                size_t input_idx   = input_tv.get_tensor_view_idx(output_layout);
+                output[output_idx] = input[input_idx];
+            }
+        }
+    });
 }
