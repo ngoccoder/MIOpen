@@ -72,6 +72,7 @@
  * @defgroup ReduceCalculation
  * @defgroup RotaryPositionalEmbeddings
  * @defgroup ReLU
+ * @defgroup trace
  *
  */
 
@@ -8001,6 +8002,50 @@ MIOPEN_EXPORT miopenStatus_t miopenMultiMarginLossForward(miopenHandle_t handle,
 
 /** @} */
 // CLOSEOUT LossFunction DOXYGEN GROUP
+#endif // MIOPEN_BETA_API
+
+#ifdef MIOPEN_BETA_API
+/** @addtogroup trace
+ *
+ *  @{
+ */
+
+/*! @brief Helper function to query the minimum workspace size required by the Trace call
+ *
+ * @param handle                   MIOpen Handle (input)
+ * @param inputDesc                    Tensor descriptor for input tensor (input)
+ * @param sizeInBytes              Pointer to data to return the minimum workspace size
+ * @return                         miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenGetTraceForwardWorkspaceSize(
+    miopenHandle_t handle, const miopenTensorDescriptor_t inputDesc, size_t* sizeInBytes);
+
+/** @addtogroup trace
+ *
+ *  @{
+ */
+
+/*! @brief Execute Trace forward layer
+ *
+ * @param handle                   MIOpen handle (input)
+ * @param workspace                Address of the allocated workspace data (input)
+ * @param workspaceSizeInBytes     Size in bytes of the allocated workspace data (input)
+ * @param inputDesc                    Tensor descriptor for input tensor (input)
+ * @param input                        Input tensor (input)
+ * @param outputDesc                    Tensor descriptor for output tensor (input)
+ * @param output                        Output tensor (output)
+ * @return                         miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenTraceForward(miopenHandle_t handle,
+                                                void* workspace,
+                                                size_t workspaceSizeInBytes,
+                                                const miopenTensorDescriptor_t inputDesc,
+                                                const void* input,
+                                                const miopenTensorDescriptor_t outputDesc,
+                                                void* output);
+
+/** @} */
+// CLOSEOUT TRACE DOXYGEN GROUP
 #endif // MIOPEN_BETA_API
 
 #ifdef __cplusplus
