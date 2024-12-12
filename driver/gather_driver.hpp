@@ -374,12 +374,6 @@ int GatherDriver<Tgpu, Tref, Tindex>::VerifyBackward()
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(paramGradHost, paramGrad);
 
-    // for(int i = 0; i < paramGradHost.size(); i++)
-    //{
-    //    std::cout << "paramGradHost[" << i << "] = " << paramGradHost[i] << ", paramGrad[" << i
-    //              << "] = " << paramGrad[i] << std::endl;
-    //}
-
     if(!std::isfinite(error) || error > tolerance)
     {
         std::cout << "Backward Gather FAILED: " << error << " > " << tolerance << std::endl;

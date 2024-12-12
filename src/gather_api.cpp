@@ -34,7 +34,7 @@ extern "C" miopenStatus_t miopenCreateGatherDescriptor(miopenGatherDescriptor_t*
     MIOPEN_LOG_FUNCTION(gatherDesc);
     return miopen::try_([&] {
         auto& desc = miopen::deref(gatherDesc);
-        desc       = new miopen::GatherDescriptor();
+        desc       = new miopen::gather::GatherDescriptor();
     });
 }
 
@@ -46,7 +46,7 @@ extern "C" miopenStatus_t miopenSetGatherDescriptor(const miopenGatherDescriptor
     MIOPEN_LOG_FUNCTION(gatherDesc, mode, dim, batch_dims);
     return miopen::try_([&] {
         auto& desc = miopen::deref(gatherDesc);
-        desc       = miopen::GatherDescriptor(mode, dim, batch_dims);
+        desc       = miopen::gather::GatherDescriptor(mode, dim, batch_dims);
     });
 }
 

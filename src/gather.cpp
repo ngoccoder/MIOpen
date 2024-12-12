@@ -36,6 +36,8 @@
 
 namespace miopen {
 
+namespace gather {
+
 static auto GatherBackwardSolvers()
 {
     return solver::SolverContainer<solver::gather::GatherNDBackward>{};
@@ -84,5 +86,7 @@ std::ostream& operator<<(std::ostream& stream, const GatherDescriptor& x)
     MIOPEN_LOG_ENUM(stream, x.mode, MIOPEN_GATHER, MIOPEN_GATHER_V2, MIOPEN_GATHER_ND) << ", ";
     return stream;
 }
+
+} // namespace gather
 
 } // namespace miopen

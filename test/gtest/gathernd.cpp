@@ -26,28 +26,56 @@
 
 #include "gathernd.hpp"
 
-using GPU_GatherND_bwd_FP32  = GatherNDBwdTest<float, int>;
-using GPU_GatherND_bwd_FP16  = GatherNDBwdTest<half, int>;
-using GPU_GatherND_bwd_BFP16 = GatherNDBwdTest<bfloat16, int>;
+using GPU_GatherND_bwd_FP32_UINT32  = GatherNDBwdTest<float, uint32_t>;
+using GPU_GatherND_bwd_FP16_UINT32  = GatherNDBwdTest<half, uint32_t>;
+using GPU_GatherND_bwd_BFP16_UINT32 = GatherNDBwdTest<bfloat16, uint32_t>;
+using GPU_GatherND_bwd_FP32_UINT64  = GatherNDBwdTest<float, uint64_t>;
+using GPU_GatherND_bwd_FP16_UINT64  = GatherNDBwdTest<half, uint64_t>;
+using GPU_GatherND_bwd_BFP16_UINT64 = GatherNDBwdTest<bfloat16, uint64_t>;
 
-TEST_P(GPU_GatherND_bwd_FP32, Test)
+TEST_P(GPU_GatherND_bwd_FP32_UINT32, Test)
 {
     RunTest();
     Verify();
 };
 
-TEST_P(GPU_GatherND_bwd_FP16, Test)
+TEST_P(GPU_GatherND_bwd_FP16_UINT32, Test)
 {
     RunTest();
     Verify();
 };
 
-TEST_P(GPU_GatherND_bwd_BFP16, Test)
+TEST_P(GPU_GatherND_bwd_BFP16_UINT32, Test)
 {
     RunTest();
     Verify();
 };
 
-INSTANTIATE_TEST_SUITE_P(Full, GPU_GatherND_bwd_FP32, testing::ValuesIn(GenFullTestCases()));
-INSTANTIATE_TEST_SUITE_P(Full, GPU_GatherND_bwd_FP16, testing::ValuesIn(GenFullTestCases()));
-INSTANTIATE_TEST_SUITE_P(Full, GPU_GatherND_bwd_BFP16, testing::ValuesIn(GenFullTestCases()));
+TEST_P(GPU_GatherND_bwd_FP32_UINT64, Test)
+{
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_GatherND_bwd_FP16_UINT64, Test)
+{
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_GatherND_bwd_BFP16_UINT64, Test)
+{
+    RunTest();
+    Verify();
+};
+
+INSTANTIATE_TEST_SUITE_P(Full, GPU_GatherND_bwd_FP32_UINT32, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_GatherND_bwd_FP16_UINT32, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full,
+                         GPU_GatherND_bwd_BFP16_UINT32,
+                         testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_GatherND_bwd_FP32_UINT64, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_GatherND_bwd_FP16_UINT64, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full,
+                         GPU_GatherND_bwd_BFP16_UINT64,
+                         testing::ValuesIn(GenFullTestCases()));

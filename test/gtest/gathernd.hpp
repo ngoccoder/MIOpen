@@ -169,7 +169,7 @@ protected:
 
     GatherNDTestCase config;
 
-    miopen::GatherDescriptor gatherDesc;
+    miopen::gather::GatherDescriptor gatherDesc;
     tensor<T> paramGrad;
     tensor<T> outputGrad;
     tensor<I> indices;
