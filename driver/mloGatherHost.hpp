@@ -91,7 +91,6 @@ int mloGatherNDBackwardRunHost(const miopenTensorDescriptor_t outputGradDesc,
 
         if(!out_of_bounds)
         {
-            // std::cout << "out of bound " << out_of_bounds << " for i = " << i << std::endl;
             paramGrad[param_grad_idx + slice_idx] += outputGrad[i];
         }
     }

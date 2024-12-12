@@ -83,8 +83,6 @@ NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
     ss << "param_size" << paramGradDesc.GetElementSize();
     ss << "outgrad_size" << outputGradDesc.GetElementSize();
     ss << "mode " << gatherDesc.getMode();
-    ss << "dim " << gatherDesc.getDim();
-    ss << "batch dim " << gatherDesc.getBatchDims();
 
     return NetworkConfig{ss.str()};
 }
