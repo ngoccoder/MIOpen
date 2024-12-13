@@ -24,29 +24,18 @@
  *
  *******************************************************************************/
 
-#include <miopen/trace/problem_description.hpp>
-#include <miopen/names.hpp>
+#include "trace_driver.hpp"
+#include "registry_driver_maker.hpp"
 
-#include <sstream>
-
-namespace miopen {
-
-namespace trace {
-
-NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
+static Driver* makeDriver(const std::string& base_arg)
 {
-    auto input_dtype = inputDesc.GetType();
-    auto size        = inputDesc.GetElementSize();
-
-    std::ostringstream ss;
-
-    ss << "trace_fwd";
-    ss << "i_dtype" << input_dtype;
-    ss << "size" << size;
-
-    return NetworkConfig{ss.str()};
+    if(base_arg == "trace")
+        return new TraceDriver<float, float>();
+    if(base_arg == "l1lossfp16")
+        return new TraceDriver<float16, float>();
+    if(base_arg == "l1lossbfp16")
+        return new TraceDriver<bfloat16, float>();
+    return nullptr;
 }
 
-} // namespace trace
-
-} // namespace miopen
+REGISTER_DRIVER_MAKER(makeDriver);

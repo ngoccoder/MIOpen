@@ -25,6 +25,7 @@
  *******************************************************************************/
 #pragma once
 
+#include "miopen/errors.hpp"
 #include <miopen/miopen.h>
 #include <miopen/problem_description_base.hpp>
 #include <miopen/tensor.hpp>
@@ -37,17 +38,31 @@ namespace trace {
 
 struct FwdProblemDescription : ProblemDescriptionBase
 {
-    FwdProblemDescription(const TensorDescriptor& iDesc_, const TensorDescriptor& oDesc_)
-        : iDesc(iDesc_), oDesc(oDesc_)
+    FwdProblemDescription(const TensorDescriptor& inputDesc_, const TensorDescriptor& outputDesc_)
+        : inputDesc(inputDesc_), outputDesc(outputDesc_)
     {
+        if(inputDesc.GetNumDims() != 2)
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Input tensor must be 2D.");
+        }
+
+        if(outputDesc.GetNumDims() != 1)
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Output tensor must be 1D.");
+        }
+
+        if(!IsSameType())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Input and output tensor must have same type.");
+        }
     }
 
-    const TensorDescriptor& GetIDesc() const { return iDesc; }
-    const TensorDescriptor& GetODesc() const { return oDesc; }
+    const TensorDescriptor& GetInputDesc() const { return inputDesc; }
+    const TensorDescriptor& GetOutputDesc() const { return outputDesc; }
 
     bool IsSameType() const
     {
-        if(iDesc.GetType() != oDesc.GetType())
+        if(inputDesc.GetType() != outputDesc.GetType())
         {
             return false;
         }
@@ -57,8 +72,8 @@ struct FwdProblemDescription : ProblemDescriptionBase
     NetworkConfig MakeNetworkConfig() const override;
 
 protected:
-    TensorDescriptor iDesc;
-    TensorDescriptor oDesc;
+    TensorDescriptor inputDesc;
+    TensorDescriptor outputDesc;
 
     NetworkConfig MakeForwardNetworkConfig() const;
 };

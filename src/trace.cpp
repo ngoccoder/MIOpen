@@ -38,11 +38,11 @@ namespace miopen {
 namespace trace {
 
 size_t GetTraceForwardWorkspaceSize(Handle& handle,
-                                    const TensorDescriptor& iDesc,
-                                    const TensorDescriptor& oDesc)
+                                    const TensorDescriptor& inputDesc,
+                                    const TensorDescriptor& outputDesc)
 {
     auto ctx           = ExecutionContext{&handle};
-    const auto problem = trace::FwdProblemDescription{iDesc, oDesc};
+    const auto problem = trace::FwdProblemDescription{inputDesc, outputDesc};
 
     const auto algo    = AlgorithmName{"TraceForward"};
     const auto solvers = solver::SolverContainer<solver::trace::TraceForward>{};
@@ -53,6 +53,8 @@ size_t GetTraceForwardWorkspaceSize(Handle& handle,
 }
 
 miopenStatus_t TraceForward(Handle& handle,
+                            Data_t workspace,
+                            size_t workspaceSizeInBytes,
                             const TensorDescriptor& inputDesc,
                             ConstData_t input,
                             const TensorDescriptor& outputDesc,
@@ -61,12 +63,14 @@ miopenStatus_t TraceForward(Handle& handle,
     const auto problem = trace::FwdProblemDescription{inputDesc, outputDesc};
 
     const auto invoke_params = [&]() {
-        auto tmp       = trace::FwdInvokeParams{};
-        tmp.type       = InvokeType::Run;
-        tmp.inputDesc  = &inputDesc;
-        tmp.outputDesc = &outputDesc;
-        tmp.input      = input;
-        tmp.output     = output;
+        auto tmp           = trace::FwdInvokeParams{};
+        tmp.type           = InvokeType::Run;
+        tmp.inputDesc      = &inputDesc;
+        tmp.outputDesc     = &outputDesc;
+        tmp.input          = input;
+        tmp.output         = output;
+        tmp.workspace      = workspace;
+        tmp.workspace_size = workspaceSizeInBytes;
         return tmp;
     }();
 

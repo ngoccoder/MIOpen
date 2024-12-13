@@ -31,14 +31,17 @@
 #include <miopen/miopen.h>
 #include <miopen/tensor_ops.hpp>
 
-extern "C" miopenStatus_t miopenGetTraceForwardWorkspaceSize(
-    miopenHandle_t handle, const miopenTensorDescriptor_t inputDesc, size_t* sizeInBytes)
+extern "C" miopenStatus_t
+miopenGetTraceForwardWorkspaceSize(miopenHandle_t handle,
+                                   const miopenTensorDescriptor_t inputDesc,
+                                   const miopenTensorDescriptor_t outputDesc,
+                                   size_t* sizeInBytes)
 {
     MIOPEN_LOG_FUNCTION(handle, inputDesc, sizeInBytes);
 
     return miopen::try_([&] {
         miopen::deref(sizeInBytes) = miopen::trace::GetTraceForwardWorkspaceSize(
-            miopen::deref(handle), miopen::deref(inputDesc));
+            miopen::deref(handle), miopen::deref(inputDesc), miopen::deref(outputDesc));
     });
 }
 

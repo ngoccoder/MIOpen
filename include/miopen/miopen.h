@@ -8014,11 +8014,15 @@ MIOPEN_EXPORT miopenStatus_t miopenMultiMarginLossForward(miopenHandle_t handle,
  *
  * @param handle                   MIOpen Handle (input)
  * @param inputDesc                    Tensor descriptor for input tensor (input)
+ * @param outputDesc                    Tensor descriptor for output tensor (input)
  * @param sizeInBytes              Pointer to data to return the minimum workspace size
  * @return                         miopenStatus_t
  */
-MIOPEN_EXPORT miopenStatus_t miopenGetTraceForwardWorkspaceSize(
-    miopenHandle_t handle, const miopenTensorDescriptor_t inputDesc, size_t* sizeInBytes);
+MIOPEN_EXPORT miopenStatus_t
+miopenGetTraceForwardWorkspaceSize(miopenHandle_t handle,
+                                   const miopenTensorDescriptor_t inputDesc,
+                                   const miopenTensorDescriptor_t outputDesc,
+                                   size_t* sizeInBytes);
 
 /** @addtogroup trace
  *

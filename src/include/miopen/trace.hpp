@@ -35,7 +35,8 @@ struct TensorDescriptor;
 namespace trace {
 
 MIOPEN_INTERNALS_EXPORT size_t GetTraceForwardWorkspaceSize(Handle& handle,
-                                                            const TensorDescriptor& inputDesc);
+                                                            const TensorDescriptor& inputDesc,
+                                                            const TensorDescriptor& outputDesc);
 
 MIOPEN_INTERNALS_EXPORT miopenStatus_t TraceForward(Handle& handle,
                                                     Data_t workspace,
