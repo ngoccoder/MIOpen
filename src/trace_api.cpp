@@ -66,3 +66,20 @@ extern "C" miopenStatus_t miopenTraceForward(miopenHandle_t handle,
                                     DataCast(output));
     });
 }
+
+extern "C" miopenStatus_t miopenTraceBackward(miopenHandle_t handle,
+                                              const miopenTensorDescriptor_t outputGradDesc,
+                                              const void* outputGrad,
+                                              const miopenTensorDescriptor_t inputGradDesc,
+                                              void* inputGrad)
+{
+    MIOPEN_LOG_FUNCTION(handle, outputGradDesc, outputGrad, inputGradDesc, inputGrad);
+
+    return miopen::try_([&] {
+        miopen::trace::TraceBackward(miopen::deref(handle),
+                                     miopen::deref(outputGradDesc),
+                                     DataCast(outputGrad),
+                                     miopen::deref(inputGradDesc),
+                                     DataCast(inputGrad));
+    });
+}

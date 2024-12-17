@@ -46,6 +46,12 @@ MIOPEN_INTERNALS_EXPORT miopenStatus_t TraceForward(Handle& handle,
                                                     const TensorDescriptor& outputDesc,
                                                     Data_t output);
 
+MIOPEN_INTERNALS_EXPORT miopenStatus_t TraceBackward(Handle& handle,
+                                                     const TensorDescriptor& outputGradDesc,
+                                                     ConstData_t outputGrad,
+                                                     const TensorDescriptor& inputGradDesc,
+                                                     Data_t inputGrad);
+
 } // namespace trace
 
 } // namespace miopen

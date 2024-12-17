@@ -23,7 +23,6 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#include <cstdio>
 #ifndef MIOPEN_DONT_USE_HIP_RUNTIME_HEADERS
 #include <hip/hip_fp16.h>
 #include <hip/hip_runtime.h>
@@ -48,7 +47,7 @@ TraceForward_kernel(const TIO* input, FLOAT_ACCUM* workspace, size_t N, tensor_v
         tensor_layout_t<2> diag_layout = {gid, gid};
         auto input_idx                 = input_tv.get_tensor_view_idx(diag_layout);
         // local_mem[lid] = static_cast<FLOAT_ACCUM>(input[input_idx]);
-        workspace[gid] = static_cast<FLOAT_ACCUM>(input[input_idx]);
+        workspace[gid] = CVT_FLOAT2ACCUM(input[input_idx]);
         // printf("local_mem[%d] = %f\n", lid, static_cast<float>(local_mem[lid]));
     }
     else

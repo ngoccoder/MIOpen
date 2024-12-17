@@ -24,43 +24,61 @@
  *
  *******************************************************************************/
 
-#include <miopen/trace/problem_description.hpp>
-#include <miopen/names.hpp>
-
-#include <sstream>
-
-namespace miopen {
+#include "trace.hpp"
+using float16 = half_float::half;
 
 namespace trace {
 
-NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
-{
-    auto input_dtype = inputDesc.GetType();
-    auto size        = inputDesc.GetElementSize();
+using GPU_Trace_fwd_FP32  = TraceFwdTest<float>;
+using GPU_Trace_fwd_FP16  = TraceFwdTest<float16>;
+using GPU_Trace_fwd_BFP16 = TraceFwdTest<bfloat16>;
 
-    std::ostringstream ss;
-
-    ss << "trace_fwd";
-    ss << "i_dtype" << input_dtype;
-    ss << "size" << size;
-
-    return NetworkConfig{ss.str()};
-}
-
-NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
-{
-    auto input_dtype = inputGradDesc.GetType();
-    auto size        = inputGradDesc.GetElementSize();
-
-    std::ostringstream ss;
-
-    ss << "trace_bwd";
-    ss << "i_dtype" << input_dtype;
-    ss << "size" << size;
-
-    return NetworkConfig{ss.str()};
-}
+using GPU_Trace_bwd_FP32  = TraceBwdTest<float>;
+using GPU_Trace_bwd_FP16  = TraceBwdTest<float16>;
+using GPU_Trace_bwd_BFP16 = TraceBwdTest<bfloat16>;
 
 } // namespace trace
+using namespace trace;
 
-} // namespace miopen
+TEST_P(GPU_Trace_fwd_FP32, Test)
+{
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_Trace_fwd_FP16, Test)
+{
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_Trace_fwd_BFP16, Test)
+{
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_Trace_bwd_FP32, Test)
+{
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_Trace_bwd_FP16, Test)
+{
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_Trace_bwd_BFP16, Test)
+{
+    RunTest();
+    Verify();
+};
+
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Trace_fwd_FP32, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Trace_fwd_FP16, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Trace_fwd_BFP16, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Trace_bwd_FP32, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Trace_bwd_FP16, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Trace_bwd_BFP16, testing::ValuesIn(GenFullTestCases()));

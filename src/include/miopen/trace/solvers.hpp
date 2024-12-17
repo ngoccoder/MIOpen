@@ -56,6 +56,20 @@ struct TraceForward final : TraceForwardSolverBase
     bool MayNeedWorkspace() const override { return true; }
 };
 
+using TraceBackwardSolverBase =
+    NonTunableSolverBase<ExecutionContext, miopen::trace::BwdProblemDescription>;
+
+struct TraceBackward final : TraceBackwardSolverBase
+{
+    const std::string& SolverDbId() const override { return GetSolverDbId<TraceForward>(); }
+
+    bool IsApplicable(const ExecutionContext& context,
+                      const miopen::trace::BwdProblemDescription& problem) const override;
+
+    ConvSolution GetSolution(const ExecutionContext& context,
+                             const miopen::trace::BwdProblemDescription& problem) const override;
+};
+
 } // namespace trace
 
 } // namespace solver

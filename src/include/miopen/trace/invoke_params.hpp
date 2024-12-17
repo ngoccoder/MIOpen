@@ -50,6 +50,23 @@ struct FwdInvokeParams : public miopen::InvokeParams
     Data_t GetWorkspace() const { return workspace; }
 };
 
+struct BwdInvokeParams : public miopen::InvokeParams
+{
+    BwdInvokeParams() = default;
+
+    const TensorDescriptor* inputGradDesc  = nullptr;
+    const TensorDescriptor* outputGradDesc = nullptr;
+
+    ConstData_t outputGrad = nullptr;
+    Data_t inputGrad       = nullptr;
+
+    Data_t workspace           = nullptr;
+    std::size_t workspace_size = 0;
+
+    std::size_t GetWorkspaceSize() const { return workspace_size; }
+    Data_t GetWorkspace() const { return workspace; }
+};
+
 } // namespace trace
 
 } // namespace miopen

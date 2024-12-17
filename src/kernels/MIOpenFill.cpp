@@ -23,19 +23,22 @@
  * SOFTWARE.
  *
  *******************************************************************************/
+#ifndef MIOPEN_DONT_USE_HIP_RUNTIME_HEADERS
+#include <hip/hip_fp16.h>
+#include <hip/hip_runtime.h>
+#endif
 
-#include "trace_driver.hpp"
-#include "registry_driver_maker.hpp"
-
-static Driver* makeDriver(const std::string& base_arg)
+template <typename TIO>
+__device__ void FillZeroKernel(TIO* output, long size)
 {
-    if(base_arg == "trace")
-        return new TraceDriver<float, float>();
-    if(base_arg == "tracefp16")
-        return new TraceDriver<float16, float>();
-    if(base_arg == "tracebfp16")
-        return new TraceDriver<bfloat16, float>();
-    return nullptr;
+    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
+    if(gid >= size)
+        return;
+
+    output[gid] = static_cast<TIO>(0);
 }
 
-REGISTER_DRIVER_MAKER(makeDriver);
+extern "C" __global__ void FillZero(IO_TYPE* output, long size)
+{
+    FillZeroKernel<IO_TYPE>(output, size);
+}

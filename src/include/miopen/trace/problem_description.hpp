@@ -74,8 +74,48 @@ struct FwdProblemDescription : ProblemDescriptionBase
 protected:
     TensorDescriptor inputDesc;
     TensorDescriptor outputDesc;
+};
 
-    NetworkConfig MakeForwardNetworkConfig() const;
+struct BwdProblemDescription : ProblemDescriptionBase
+{
+    BwdProblemDescription(const TensorDescriptor& outputGradDesc_,
+                          const TensorDescriptor& inputGradDesc_)
+        : outputGradDesc(outputGradDesc_), inputGradDesc(inputGradDesc_)
+    {
+        if(inputGradDesc.GetNumDims() != 2)
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Input grad tensor must be 2D.");
+        }
+
+        if(outputGradDesc.GetNumDims() != 1)
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Output grad tensor must be 1D.");
+        }
+
+        if(!IsSameType())
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "Input grad and output grad tensor must have same type.");
+        }
+    }
+
+    const TensorDescriptor& GetInputGradDesc() const { return inputGradDesc; }
+    const TensorDescriptor& GetOutputGradDesc() const { return outputGradDesc; }
+
+    bool IsSameType() const
+    {
+        if(inputGradDesc.GetType() != outputGradDesc.GetType())
+        {
+            return false;
+        }
+        return true;
+    }
+
+    NetworkConfig MakeNetworkConfig() const override;
+
+protected:
+    TensorDescriptor outputGradDesc;
+    TensorDescriptor inputGradDesc;
 };
 
 } // namespace trace

@@ -151,26 +151,23 @@ ConvSolution TraceForward::GetSolution(const ExecutionContext& /*context*/,
         */
 
         /* Reduce sum (FLOAT_ACCUM to TIO) */
-        if(_size > 1)
-        {
-            size_t xlocalsize = LOCAL_SIZE_REDUCE;
-            size_t xgridsize  = AlignUp(_size, xlocalsize);
+        size_t xlocalsize = LOCAL_SIZE_REDUCE;
+        size_t xgridsize  = AlignUp(_size, xlocalsize);
 
-            auto kernel        = KernelInfo{};
-            kernel.kernel_file = "MIOpenReduceSum.cpp";
-            kernel.kernel_name = "ReduceSum";
+        auto kernel        = KernelInfo{};
+        kernel.kernel_file = "MIOpenReduceSum.cpp";
+        kernel.kernel_name = "ReduceSum";
 
-            kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
+        kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
-            kernel.l_wk.push_back(xlocalsize);
-            kernel.l_wk.push_back(1);
-            kernel.l_wk.push_back(1);
-            kernel.g_wk.push_back(xgridsize);
-            kernel.g_wk.push_back(1);
-            kernel.g_wk.push_back(1);
+        kernel.l_wk.push_back(xlocalsize);
+        kernel.l_wk.push_back(1);
+        kernel.l_wk.push_back(1);
+        kernel.g_wk.push_back(xgridsize);
+        kernel.g_wk.push_back(1);
+        kernel.g_wk.push_back(1);
 
-            result.construction_params.push_back(kernel);
-        }
+        result.construction_params.push_back(kernel);
     }
 
     result.invoker_factory = [dtype, N](const std::vector<Kernel>& kernels) {

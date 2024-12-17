@@ -8048,6 +8048,21 @@ MIOPEN_EXPORT miopenStatus_t miopenTraceForward(miopenHandle_t handle,
                                                 const miopenTensorDescriptor_t outputDesc,
                                                 void* output);
 
+/*! @brief Execute Trace backward layer
+ *
+ * @param handle                   MIOpen handle (input)
+ * @param outputGradDesc                    Tensor descriptor for output grad tensor (input)
+ * @param outputGrad                        Output grad tensor (input)
+ * @param inputGradDesc                    Tensor descriptor for input grad tensor (input)
+ * @param inputGrad                        Input grad tensor (output)
+ * @return                         miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenTraceBackward(miopenHandle_t handle,
+                                                 const miopenTensorDescriptor_t outputGradDesc,
+                                                 const void* outputGrad,
+                                                 const miopenTensorDescriptor_t inputGradDesc,
+                                                 void* inputGrad);
+
 /** @} */
 // CLOSEOUT TRACE DOXYGEN GROUP
 #endif // MIOPEN_BETA_API

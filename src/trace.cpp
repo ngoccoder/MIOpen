@@ -82,6 +82,32 @@ miopenStatus_t TraceForward(Handle& handle,
     return miopenStatusSuccess;
 }
 
+miopenStatus_t TraceBackward(Handle& handle,
+                             const TensorDescriptor& outputGradDesc,
+                             ConstData_t outputGrad,
+                             const TensorDescriptor& inputGradDesc,
+                             Data_t inputGrad)
+{
+    const auto problem = miopen::trace::BwdProblemDescription{outputGradDesc, inputGradDesc};
+
+    const auto invoke_params = [&]() {
+        auto tmp           = trace::BwdInvokeParams{};
+        tmp.type           = InvokeType::Run;
+        tmp.inputGradDesc  = &inputGradDesc;
+        tmp.outputGradDesc = &outputGradDesc;
+        tmp.inputGrad      = inputGrad;
+        tmp.outputGrad     = outputGrad;
+        return tmp;
+    }();
+
+    const auto algo    = AlgorithmName{"TraceBackward"};
+    const auto solvers = solver::SolverContainer<solver::trace::TraceBackward>{};
+
+    solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
+
+    return miopenStatusSuccess;
+}
+
 } // namespace trace
 
 } // namespace miopen
