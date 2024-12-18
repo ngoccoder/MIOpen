@@ -26,9 +26,9 @@
 #pragma once
 
 #include <miopen/miopen.h>
+#include <miopen/tensor_view_utils.hpp>
 
 #include "ford.hpp"
-#include "miopen/tensor_view_utils.hpp"
 #include "tensor_holder.hpp"
 #include "tensor_view.hpp"
 
@@ -47,7 +47,6 @@ void cpu_trace_forward(const tensor<T>& input, tensor<T>& ref_output)
         tensor_layout_t<2> input_layout = {i, i};
         size_t input_idx                = input_tv.get_tensor_view_idx(input_layout);
         T val                           = input[input_idx];
-        // std::cout << "input[" << i << ", " << i << "] = " << val << std::endl;
         res += val;
     }
     ref_output[0] = static_cast<T>(res);

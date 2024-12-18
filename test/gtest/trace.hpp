@@ -26,7 +26,6 @@
 
 #include "cpu_trace.hpp"
 #include "get_handle.hpp"
-#include "miopen/trace.hpp"
 #include "tensor_holder.hpp"
 #include "verify.hpp"
 #include "random.hpp"
@@ -36,6 +35,7 @@
 #include <limits>
 
 #include <miopen/miopen.h>
+#include <miopen/trace.hpp>
 
 struct TraceTestCase
 {
@@ -163,9 +163,6 @@ protected:
     {
         double threshold = GetTolerance();
         auto error       = miopen::rms_range(ref_output, output);
-
-        std::cout << "output cpu = " << ref_output[0] << " vs output gpu = " << output[0]
-                  << std::endl;
 
         EXPECT_TRUE(error < threshold * 10) << "Error output beyond tolerance Error: " << error
                                             << ",  Tolerance: " << threshold * 10;

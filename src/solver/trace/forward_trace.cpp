@@ -176,34 +176,6 @@ ConvSolution TraceForward::GetSolution(const ExecutionContext& /*context*/,
         }
     }
 
-    //{
-    //    /* Phase 2: Reduce sum (FLOAT_ACCUM to FLOAT_ACCUM) */
-    //    // auto _size = (N + LOCAL_SIZE - 1) / LOCAL_SIZE;
-    //    auto _size = N;
-    //
-    //    while(_size > LOCAL_SIZE_REDUCE)
-    //    {
-    //        size_t xlocalsize = LOCAL_SIZE_REDUCE;
-    //        size_t xgridsize  = AlignUp(_size, xlocalsize);
-    //
-    //        auto kernel        = KernelInfo{};
-    //        kernel.kernel_file = "MIOpenReduceSum.cpp";
-    //        kernel.kernel_name = "ReduceSumFLOATACCUM";
-    //
-    //        kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
-    //
-    //        kernel.l_wk.push_back(xlocalsize);
-    //        kernel.l_wk.push_back(1);
-    //        kernel.l_wk.push_back(1);
-    //        kernel.g_wk.push_back(xgridsize);
-    //        kernel.g_wk.push_back(1);
-    //        kernel.g_wk.push_back(1);
-    //
-    //        result.construction_params.push_back(kernel);
-    //        _size = (_size + LOCAL_SIZE_REDUCE - 1) / LOCAL_SIZE_REDUCE;
-    //    }
-    //}
-
     result.invoker_factory = [dtype, N](const std::vector<Kernel>& kernels) {
         return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
             decltype(auto) params = raw_params.CastTo<miopen::trace::FwdInvokeParams>();
@@ -228,9 +200,8 @@ ConvSolution TraceForward::GetSolution(const ExecutionContext& /*context*/,
                     hipEventRecord(start.get(), handle_.GetStream());
                 }
 
+                /* Phase 1: Get diagonal. */
                 {
-                    /* Phase 1: Calculate loss elementwise. */
-
                     decltype(auto) kernel = handle_.Run(kernels.front());
                     kernel(params.input, params.workspace, N, input_tv, true);
                 }

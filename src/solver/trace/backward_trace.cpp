@@ -24,9 +24,8 @@
  *
  *******************************************************************************/
 
-#include "miopen/errors.hpp"
-#include <miopen/common.hpp>
 #include <miopen/datatype.hpp>
+#include <miopen/errors.hpp>
 #include <miopen/hipoc_kernel.hpp>
 #include <miopen/kernel_build_params.hpp>
 #include <miopen/kernel_info.hpp>

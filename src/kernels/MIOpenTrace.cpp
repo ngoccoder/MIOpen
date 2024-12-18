@@ -42,17 +42,15 @@ __device__ void TraceForward_kernel(
 
     __shared__ FLOAT_ACCUM local_mem[LOCAL_SIZE];
 
-    if(gid < N) // gid < input_tv.size[1] ?
+    if(gid < N)
     {
         tensor_layout_t<2> diag_layout = {gid, gid};
         auto input_idx                 = input_tv.get_tensor_view_idx(diag_layout);
         local_mem[lid]                 = CVT_FLOAT2ACCUM(input[input_idx]);
-        // workspace[gid] = CVT_FLOAT2ACCUM(input[input_idx]);
     }
     else
     {
         local_mem[lid] = 0;
-        // workspace[gid] = 0;
     }
 
     __syncthreads();

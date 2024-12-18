@@ -703,7 +703,6 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
 
     Register(registry, ++id, Primitive::Trace, trace::TraceBackward{}.SolverDbId());
     Register(registry, ++id, Primitive::Trace, trace::TraceForward{}.SolverDbId());
-
     // IMPORTANT: New solvers should be added to the end of the function!
 }
 

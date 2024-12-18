@@ -27,7 +27,6 @@
 
 #include "InputFlags.hpp"
 #include "driver.hpp"
-#include "miopen/tensor_view_utils.hpp"
 #include "tensor_driver.hpp"
 #include "tensor_view.hpp"
 #include "timer.hpp"
@@ -38,10 +37,11 @@
 
 #include <cstddef>
 #include <memory>
+#include <vector>
+
 #include <miopen/errors.hpp>
 #include <miopen/miopen.h>
-
-#include <vector>
+#include <miopen/tensor_view_utils.hpp>
 
 template <typename Tgpu, typename Tcheck>
 int mloTraceForwardRunHost(const miopenTensorDescriptor_t inputDesc,

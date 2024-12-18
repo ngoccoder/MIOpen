@@ -24,8 +24,8 @@
  *
  *******************************************************************************/
 
-#include <miopen/trace/problem_description.hpp>
 #include <miopen/names.hpp>
+#include <miopen/trace/problem_description.hpp>
 
 #include <sstream>
 
@@ -36,27 +36,30 @@ namespace trace {
 NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {
     auto input_dtype = inputDesc.GetType();
-    auto size        = inputDesc.GetElementSize();
+    auto input_len   = inputDesc.GetLengths();
+    auto N           = std::min(input_len[0], input_len[1]);
 
     std::ostringstream ss;
 
     ss << "trace_fwd";
     ss << "i_dtype" << input_dtype;
-    ss << "size" << size;
+    ss << "N" << N;
 
     return NetworkConfig{ss.str()};
 }
 
 NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
 {
-    auto input_dtype = inputGradDesc.GetType();
-    auto size        = inputGradDesc.GetElementSize();
+    auto input_grad_dtype = inputGradDesc.GetType();
+    auto input_grad_numel = inputGradDesc.GetElementSize();
+    auto N                = inputGradDesc.GetLengths()[0];
 
     std::ostringstream ss;
 
     ss << "trace_bwd";
-    ss << "i_dtype" << input_dtype;
-    ss << "size" << size;
+    ss << "i_dtype" << input_grad_dtype;
+    ss << "size" << input_grad_numel;
+    ss << "N" << N;
 
     return NetworkConfig{ss.str()};
 }

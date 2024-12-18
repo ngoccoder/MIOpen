@@ -24,13 +24,12 @@
  *
  *******************************************************************************/
 
-#include "miopen/trace/problem_description.hpp"
-
 #include <miopen/common.hpp>
 #include <miopen/find_solution.hpp>
 #include <miopen/trace.hpp>
 #include <miopen/tensor.hpp>
 #include <miopen/trace/invoke_params.hpp>
+#include <miopen/trace/problem_description.hpp>
 #include <miopen/trace/solvers.hpp>
 
 namespace miopen {
