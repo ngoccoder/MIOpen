@@ -40,7 +40,6 @@
 #include <memory>
 #include <miopen/errors.hpp>
 #include <miopen/miopen.h>
-#include <miopen/tensor.hpp>
 
 #include <vector>
 
@@ -77,8 +76,7 @@ int mloTraceBackwardRunHost(const miopenTensorDescriptor_t outputGradDesc,
     auto input_grad_len = miopen::deref(inputGradDesc).GetLengths();
     size_t N            = input_grad_len[0];
 
-    for(size_t i = 0; i < N; i++)
-    {
+    par_ford(N)([&](size_t i) {
         size_t idx = i % (input_grad_tv.size[1] + 1);
 
         if(idx != input_grad_tv.size[1])
@@ -89,7 +87,7 @@ int mloTraceBackwardRunHost(const miopenTensorDescriptor_t outputGradDesc,
             inputGradHost[input_grad_tv.get_tensor_view_idx(ingrad_layout)] =
                 static_cast<Tcheck>(val);
         }
-    }
+    });
 
     return 0;
 }
@@ -412,8 +410,6 @@ int TraceDriver<Tgpu, Tref>::VerifyForward()
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(outHost, out);
 
-    std::cout << "Output host = " << outHost[0] << " output = " << out[0] << std::endl;
-
     if(!std::isfinite(error) || error > tolerance)
     {
         std::cout << "Forward Trace FAILED: " << error << " > " << tolerance << std::endl;
@@ -434,8 +430,6 @@ int TraceDriver<Tgpu, Tref>::VerifyBackward()
     RunBackwardCPU();
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(inGradHost, in_grad);
-
-    // std::cout << "Output host = " << outHost[0] << " output = " << out[0] << std::endl;
 
     if(!std::isfinite(error) || error > tolerance)
     {

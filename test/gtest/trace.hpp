@@ -78,14 +78,14 @@ inline std::vector<TraceTestCase> GenFullTestCases()
 { // n c d h w dim
     // clang-format off
     return {
-        {{1, 8}, false},
-        {{8, 4}, false},
-        {{257, 16}, false},
-        {{128, 640}, false},
-        {{256, 128}, true},
-        {{256, 256}, true},
-        {{1, 10}, true},
-        {{34, 20}, true},
+        {{1, 8}, false},                      // non-cont small case
+        {{8, 4}, false},                      // non-cont small case
+        {{512, 512}, false},                  // non-cont large case 
+        {{384, 640}, false},                  // non-cont large case
+        {{512, 768}, true},                   // cont large case
+        {{1024, 1024}, true},                 // cont large case
+        {{1, 10}, true},                      // cont small case
+        {{34, 20}, true},                     // cont small case
     };
     // clang-format on
 }
@@ -164,7 +164,8 @@ protected:
         double threshold = GetTolerance();
         auto error       = miopen::rms_range(ref_output, output);
 
-        std::cout << "CPU output = " << ref_output[0] << " GPU output = " << output[0] << std::endl;
+        std::cout << "output cpu = " << ref_output[0] << " vs output gpu = " << output[0]
+                  << std::endl;
 
         EXPECT_TRUE(error < threshold * 10) << "Error output beyond tolerance Error: " << error
                                             << ",  Tolerance: " << threshold * 10;
@@ -237,16 +238,6 @@ protected:
     {
         double threshold = GetTolerance();
         auto error       = miopen::rms_range(ref_input_grad, input_grad);
-
-        auto input_grad_sz = input_grad.GetSize();
-        // for (size_t i = 0; i < input_grad_sz; i++)
-        //{
-        //    std::cout << "input grad host [" << i << "] = " << ref_input_grad[i]
-        //              << ", input grad dev [" << i << "] = " << input_grad[i] << std::endl;
-        //}
-
-        // std::cout << "CPU output = " << ref_output[0] << " GPU output = " << output[0] <<
-        // std::endl;
 
         EXPECT_TRUE(error < threshold * 10) << "Error output beyond tolerance Error: " << error
                                             << ",  Tolerance: " << threshold * 10;

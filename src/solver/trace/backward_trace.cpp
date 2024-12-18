@@ -76,7 +76,8 @@ ConvSolution TraceBackward::GetSolution(const ExecutionContext& /*context*/,
         KernelBuildParameters{{"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
                               {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
                               {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
-                              {"IO_TYPE", io_dtype == "bfloat16" ? "ushort" : io_dtype}};
+                              {"IO_TYPE", io_dtype == "bfloat16" ? "ushort" : io_dtype},
+                              {"O_TYPE", io_dtype == "bfloat16" ? "ushort" : io_dtype}};
 
     /* Phase 1: Fill input grad with zeros */
     {

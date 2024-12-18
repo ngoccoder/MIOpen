@@ -26,10 +26,10 @@
 
 #include <miopen/errors.hpp>
 #include <miopen/handle.hpp>
-#include <miopen/trace.hpp>
 #include <miopen/logger.hpp>
 #include <miopen/miopen.h>
 #include <miopen/tensor_ops.hpp>
+#include <miopen/trace.hpp>
 
 extern "C" miopenStatus_t
 miopenGetTraceForwardWorkspaceSize(miopenHandle_t handle,

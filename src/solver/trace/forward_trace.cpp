@@ -67,19 +67,13 @@ ConvSolution TraceForward::GetSolution(const ExecutionContext& /*context*/,
     auto result = ConvSolution{miopenStatusSuccess};
 
     auto dtype     = problem.GetOutputDesc().GetType();
-    auto io_dtype  = miopen::GetDataType(dtype);
+    auto i_dtype   = miopen::GetDataType(dtype);
     auto input_len = problem.GetInputDesc().GetLengths();
     size_t N       = std::min(input_len[0], input_len[1]);
 
-    const auto build_params =
-        KernelBuildParameters{{"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
-                              {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
-                              {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
-                              {"IO_TYPE", io_dtype == "bfloat16" ? "ushort" : io_dtype},
-                              {"REDUCE_SIZE", LOCAL_SIZE_REDUCE}};
-
+    // 1 kernel
+    if(N <= LOCAL_SIZE)
     {
-        /* Phase 1: Get diagonal to workspace */
         size_t xlocalsize = LOCAL_SIZE;
         size_t xgridsize  = AlignUp(N, xlocalsize);
 
@@ -87,6 +81,12 @@ ConvSolution TraceForward::GetSolution(const ExecutionContext& /*context*/,
         kernel.kernel_file = "MIOpenTrace.cpp";
         kernel.kernel_name = "TraceForward";
 
+        const auto build_params =
+            KernelBuildParameters{{"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
+                                  {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
+                                  {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
+                                  {"IO_TYPE", i_dtype == "bfloat16" ? "ushort" : i_dtype},
+                                  {"O_TYPE", i_dtype == "bfloat16" ? "ushort" : i_dtype}};
         kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
         kernel.l_wk.push_back(xlocalsize);
@@ -98,20 +98,24 @@ ConvSolution TraceForward::GetSolution(const ExecutionContext& /*context*/,
 
         result.construction_params.push_back(kernel);
     }
-
+    else
     {
-        /* Phase 2: Reduce sum (FLOAT_ACCUM to FLOAT_ACCUM) */
-        // auto _size = (N + LOCAL_SIZE - 1) / LOCAL_SIZE;
-        auto _size = N;
+        const auto build_params =
+            KernelBuildParameters{{"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
+                                  {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
+                                  {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
+                                  {"IO_TYPE", i_dtype == "bfloat16" ? "ushort" : i_dtype},
+                                  {"O_TYPE", "FLOAT_ACCUM"},
+                                  {"REDUCE_SIZE", LOCAL_SIZE_REDUCE}};
 
-        while(_size > LOCAL_SIZE_REDUCE)
+        /* Phase 1: Get diagonal to workspace */
         {
-            size_t xlocalsize = LOCAL_SIZE_REDUCE;
-            size_t xgridsize  = AlignUp(_size, xlocalsize);
+            size_t xlocalsize = LOCAL_SIZE;
+            size_t xgridsize  = AlignUp(N, xlocalsize);
 
             auto kernel        = KernelInfo{};
-            kernel.kernel_file = "MIOpenReduceSum.cpp";
-            kernel.kernel_name = "ReduceSumFLOATACCUM";
+            kernel.kernel_file = "MIOpenTrace.cpp";
+            kernel.kernel_name = "TraceForward";
 
             kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
@@ -123,18 +127,41 @@ ConvSolution TraceForward::GetSolution(const ExecutionContext& /*context*/,
             kernel.g_wk.push_back(1);
 
             result.construction_params.push_back(kernel);
-            _size = (_size + LOCAL_SIZE_REDUCE - 1) / LOCAL_SIZE_REDUCE;
         }
 
-        /*
-        do
+        /* Phase 2: Reduce sum (FLOAT_ACCUM to FLOAT_ACCUM) */
         {
+            auto _size = (N + LOCAL_SIZE - 1) / LOCAL_SIZE;
+
+            while(_size > LOCAL_SIZE_REDUCE)
+            {
+                size_t xlocalsize = LOCAL_SIZE_REDUCE;
+                size_t xgridsize  = AlignUp(_size, xlocalsize);
+
+                auto kernel        = KernelInfo{};
+                kernel.kernel_file = "MIOpenReduceSum.cpp";
+                kernel.kernel_name = "ReduceSumFLOATACCUM";
+
+                kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
+
+                kernel.l_wk.push_back(xlocalsize);
+                kernel.l_wk.push_back(1);
+                kernel.l_wk.push_back(1);
+                kernel.g_wk.push_back(xgridsize);
+                kernel.g_wk.push_back(1);
+                kernel.g_wk.push_back(1);
+
+                result.construction_params.push_back(kernel);
+                _size = (_size + LOCAL_SIZE_REDUCE - 1) / LOCAL_SIZE_REDUCE;
+            }
+
+            /* Reduce sum (FLOAT_ACCUM to TIO) */
             size_t xlocalsize = LOCAL_SIZE_REDUCE;
             size_t xgridsize  = AlignUp(_size, xlocalsize);
 
             auto kernel        = KernelInfo{};
             kernel.kernel_file = "MIOpenReduceSum.cpp";
-            kernel.kernel_name = "ReduceSumFLOATACCUM";
+            kernel.kernel_name = "ReduceSum";
 
             kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
@@ -146,89 +173,103 @@ ConvSolution TraceForward::GetSolution(const ExecutionContext& /*context*/,
             kernel.g_wk.push_back(1);
 
             result.construction_params.push_back(kernel);
-            _size = (_size + LOCAL_SIZE_REDUCE - 1) / LOCAL_SIZE_REDUCE;
-        } while(_size > LOCAL_SIZE_REDUCE);
-        */
-
-        /* Reduce sum (FLOAT_ACCUM to TIO) */
-        size_t xlocalsize = LOCAL_SIZE_REDUCE;
-        size_t xgridsize  = AlignUp(_size, xlocalsize);
-
-        auto kernel        = KernelInfo{};
-        kernel.kernel_file = "MIOpenReduceSum.cpp";
-        kernel.kernel_name = "ReduceSum";
-
-        kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
-
-        kernel.l_wk.push_back(xlocalsize);
-        kernel.l_wk.push_back(1);
-        kernel.l_wk.push_back(1);
-        kernel.g_wk.push_back(xgridsize);
-        kernel.g_wk.push_back(1);
-        kernel.g_wk.push_back(1);
-
-        result.construction_params.push_back(kernel);
+        }
     }
+
+    //{
+    //    /* Phase 2: Reduce sum (FLOAT_ACCUM to FLOAT_ACCUM) */
+    //    // auto _size = (N + LOCAL_SIZE - 1) / LOCAL_SIZE;
+    //    auto _size = N;
+    //
+    //    while(_size > LOCAL_SIZE_REDUCE)
+    //    {
+    //        size_t xlocalsize = LOCAL_SIZE_REDUCE;
+    //        size_t xgridsize  = AlignUp(_size, xlocalsize);
+    //
+    //        auto kernel        = KernelInfo{};
+    //        kernel.kernel_file = "MIOpenReduceSum.cpp";
+    //        kernel.kernel_name = "ReduceSumFLOATACCUM";
+    //
+    //        kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
+    //
+    //        kernel.l_wk.push_back(xlocalsize);
+    //        kernel.l_wk.push_back(1);
+    //        kernel.l_wk.push_back(1);
+    //        kernel.g_wk.push_back(xgridsize);
+    //        kernel.g_wk.push_back(1);
+    //        kernel.g_wk.push_back(1);
+    //
+    //        result.construction_params.push_back(kernel);
+    //        _size = (_size + LOCAL_SIZE_REDUCE - 1) / LOCAL_SIZE_REDUCE;
+    //    }
+    //}
 
     result.invoker_factory = [dtype, N](const std::vector<Kernel>& kernels) {
         return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
             decltype(auto) params = raw_params.CastTo<miopen::trace::FwdInvokeParams>();
+            auto input_tv         = get_inner_expanded_tv<2>(deref(params.inputDesc));
 
-            auto elapsed = 0.f;
-            HipEventPtr start, stop;
-
-            const bool profiling = handle_.IsProfilingEnabled();
-            if(profiling)
+            if(N <= LOCAL_SIZE)
             {
-                handle_.EnableProfiling(false);
-                start = miopen::make_hip_event();
-                stop  = miopen::make_hip_event();
-                hipEventRecord(start.get(), handle_.GetStream());
-            }
-
-            {
-                /* Phase 1: Calculate loss elementwise. */
-                auto input_tv = get_inner_expanded_tv<2>(deref(params.inputDesc));
-                std::cout << "N = " << N << std::endl;
-
                 decltype(auto) kernel = handle_.Run(kernels.front());
-                kernel(params.input, params.workspace, N, input_tv);
+                kernel(params.input, params.output, N, input_tv, false);
             }
-
-            /* Phase 2: Reduce. */
-            if(kernels.size() > 1)
+            else
             {
-                auto _size      = N;
-                auto reduce_in  = params.workspace;
-                auto reduce_out = static_cast<Data_t>(static_cast<char*>(params.workspace) +
-                                                      N * get_data_size(dtype));
+                auto elapsed = 0.f;
+                HipEventPtr start, stop;
 
-                for(size_t i = 1; i < kernels.size() - 1; ++i)
-                {
-                    decltype(auto) kernel = handle_.Run(kernels[i]);
-
-                    kernel(reduce_in, reduce_out, _size);
-                    std::swap(reduce_in, reduce_out);
-
-                    _size = (_size + LOCAL_SIZE_REDUCE - 1) / LOCAL_SIZE_REDUCE;
-                }
-
-                decltype(auto) kernel = handle_.Run(kernels.back());
-                kernel(reduce_in, params.output, _size);
-
+                const bool profiling = handle_.IsProfilingEnabled();
                 if(profiling)
                 {
-                    hipEventRecord(stop.get(), handle_.GetStream());
-                    hipEventSynchronize(stop.get());
-                    hipEventElapsedTime(&elapsed, start.get(), stop.get());
+                    handle_.EnableProfiling(false);
+                    start = miopen::make_hip_event();
+                    stop  = miopen::make_hip_event();
+                    hipEventRecord(start.get(), handle_.GetStream());
+                }
 
-                    // Clean up
-                    hipEventDestroy(start.get());
-                    hipEventDestroy(stop.get());
-                    handle_.ResetKernelTime();
-                    handle_.AccumKernelTime(elapsed);
+                {
+                    /* Phase 1: Calculate loss elementwise. */
 
-                    handle_.EnableProfiling(true);
+                    decltype(auto) kernel = handle_.Run(kernels.front());
+                    kernel(params.input, params.workspace, N, input_tv, true);
+                }
+
+                /* Phase 2: Reduce. */
+                if(kernels.size() > 1)
+                {
+                    auto _size      = (N + LOCAL_SIZE - 1) / LOCAL_SIZE;
+                    auto reduce_in  = params.workspace;
+                    auto reduce_out = static_cast<Data_t>(static_cast<char*>(params.workspace) +
+                                                          N * get_data_size(dtype));
+
+                    for(size_t i = 1; i < kernels.size() - 1; ++i)
+                    {
+                        decltype(auto) kernel = handle_.Run(kernels[i]);
+
+                        kernel(reduce_in, reduce_out, _size);
+                        std::swap(reduce_in, reduce_out);
+
+                        _size = (_size + LOCAL_SIZE_REDUCE - 1) / LOCAL_SIZE_REDUCE;
+                    }
+
+                    decltype(auto) kernel = handle_.Run(kernels.back());
+                    kernel(reduce_in, params.output, _size);
+
+                    if(profiling)
+                    {
+                        hipEventRecord(stop.get(), handle_.GetStream());
+                        hipEventSynchronize(stop.get());
+                        hipEventElapsedTime(&elapsed, start.get(), stop.get());
+
+                        // Clean up
+                        hipEventDestroy(start.get());
+                        hipEventDestroy(stop.get());
+                        handle_.ResetKernelTime();
+                        handle_.AccumKernelTime(elapsed);
+
+                        handle_.EnableProfiling(true);
+                    }
                 }
             }
         };

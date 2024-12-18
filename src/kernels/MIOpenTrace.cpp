@@ -33,53 +33,49 @@
 
 #define LOCAL_SIZE 256
 
-template <typename TIO>
-__device__ void
-TraceForward_kernel(const TIO* input, FLOAT_ACCUM* workspace, size_t N, tensor_view_t<2> input_tv)
+template <typename TI, typename TO>
+__device__ void TraceForward_kernel(
+    const TI* input, TO* output, size_t N, tensor_view_t<2> input_tv, bool isReduced)
 {
     const size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
-    // const size_t lid = threadIdx.x;
+    const size_t lid = threadIdx.x;
 
-    //__shared__ FLOAT_ACCUM local_mem[LOCAL_SIZE];
+    __shared__ FLOAT_ACCUM local_mem[LOCAL_SIZE];
 
     if(gid < N) // gid < input_tv.size[1] ?
     {
         tensor_layout_t<2> diag_layout = {gid, gid};
         auto input_idx                 = input_tv.get_tensor_view_idx(diag_layout);
-        // local_mem[lid] = static_cast<FLOAT_ACCUM>(input[input_idx]);
-        workspace[gid] = CVT_FLOAT2ACCUM(input[input_idx]);
-        // printf("local_mem[%d] = %f\n", lid, static_cast<float>(local_mem[lid]));
+        local_mem[lid]                 = CVT_FLOAT2ACCUM(input[input_idx]);
+        // workspace[gid] = CVT_FLOAT2ACCUM(input[input_idx]);
     }
     else
     {
-        // local_mem[lid] = 0;
-        workspace[gid] = 0;
+        local_mem[lid] = 0;
+        // workspace[gid] = 0;
     }
 
-    /*
     __syncthreads();
 
-    for (size_t i = blockDim.x / 2; i > 0; i >>= 1)
+    for(size_t i = blockDim.x / 2; i > 0; i >>= 1)
     {
-        if (lid < i)
+        if(lid < i)
         {
             local_mem[lid] += local_mem[lid + i];
         }
         __syncthreads();
     }
 
-    if (lid == 0) {
-        workspace[blockIdx.x] = local_mem[0];
-        printf("[kernel at block %d]N = %d\n", blockIdx.x, N);
-        printf("workspace[%d] = %f\n", blockIdx.x, static_cast<float>(workspace[blockIdx.x]));
+    if(lid == 0)
+    {
+        output[blockIdx.x] = isReduced ? local_mem[0] : CVT_ACCUM2FLOAT(local_mem[0]);
     }
-    */
 }
 
-extern "C" __global__ void
-TraceForward(const IO_TYPE* input, FLOAT_ACCUM* workspace, size_t N, tensor_view_t<2> input_tv)
+extern "C" __global__ void TraceForward(
+    const IO_TYPE* input, O_TYPE* output, size_t N, tensor_view_t<2> input_tv, bool isReduced)
 {
-    TraceForward_kernel<IO_TYPE>(input, workspace, N, input_tv);
+    TraceForward_kernel<IO_TYPE, O_TYPE>(input, output, N, input_tv, isReduced);
 }
 
 template <typename TIO>
