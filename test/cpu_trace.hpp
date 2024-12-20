@@ -55,18 +55,16 @@ void cpu_trace_forward(const tensor<T>& input, tensor<T>& ref_output)
 template <class T>
 void cpu_trace_backward(const tensor<T>& output_grad, tensor<T>& ref_input_grad)
 {
-    tensor_view_t<2> input_grad_tv  = miopen::get_inner_expanded_tv<2>(ref_input_grad.desc);
-    tensor_view_t<1> output_grad_tv = miopen::get_inner_expanded_tv<1>(output_grad.desc);
-    auto input_grad_len             = ref_input_grad.desc.GetLengths();
-    size_t N                        = input_grad_len[0];
+    tensor_view_t<2> input_grad_tv = miopen::get_inner_expanded_tv<2>(ref_input_grad.desc);
+    auto input_grad_len            = ref_input_grad.desc.GetLengths();
+    size_t N                       = input_grad_len[0];
 
     par_ford(N)([&](size_t i) {
         size_t idx = i % (input_grad_tv.size[1] + 1);
 
         if(idx != input_grad_tv.size[1])
         {
-            tensor_layout_t<1> outgrad_layout = {0};
-            T val = output_grad[output_grad_tv.get_tensor_view_idx(outgrad_layout)];
+            T val                                                            = output_grad[0];
             tensor_layout_t<2> ingrad_layout                                 = {i, idx};
             ref_input_grad[input_grad_tv.get_tensor_view_idx(ingrad_layout)] = static_cast<T>(val);
         }

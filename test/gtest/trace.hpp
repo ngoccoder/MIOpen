@@ -148,7 +148,7 @@ protected:
                                              output.desc,
                                              output_dev.get());
 
-        EXPECT_EQ(status, miopenStatusSuccess);
+        ASSERT_EQ(status, miopenStatusSuccess);
 
         output.data = handle.Read<T>(output_dev, output.data.size());
     }
@@ -162,7 +162,8 @@ protected:
     void Verify()
     {
         double threshold = GetTolerance();
-        auto error       = miopen::rms_range(ref_output, output);
+        EXPECT_EQ(miopen::range_distance(ref_output), miopen::range_distance(output));
+        auto error = miopen::rms_range(ref_output, output);
 
         EXPECT_TRUE(error < threshold * 10) << "Error output beyond tolerance Error: " << error
                                             << ",  Tolerance: " << threshold * 10;
@@ -220,7 +221,7 @@ protected:
         status = miopen::trace::TraceBackward(
             handle, output_grad.desc, output_grad_dev.get(), input_grad.desc, input_grad_dev.get());
 
-        EXPECT_EQ(status, miopenStatusSuccess);
+        ASSERT_EQ(status, miopenStatusSuccess);
 
         input_grad.data = handle.Read<T>(input_grad_dev, input_grad.data.size());
     }
@@ -234,7 +235,8 @@ protected:
     void Verify()
     {
         double threshold = GetTolerance();
-        auto error       = miopen::rms_range(ref_input_grad, input_grad);
+        ASSERT_EQ(miopen::range_distance(ref_input_grad), miopen::range_distance(input_grad));
+        auto error = miopen::rms_range(ref_input_grad, input_grad);
 
         EXPECT_TRUE(error < threshold * 10) << "Error output beyond tolerance Error: " << error
                                             << ",  Tolerance: " << threshold * 10;

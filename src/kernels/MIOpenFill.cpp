@@ -29,7 +29,7 @@
 #endif
 
 template <typename TIO>
-__device__ void FillZeroKernel(TIO* output, long size)
+__device__ void FillZeroKernel(TIO* output, uint64_t size)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
     if(gid >= size)
@@ -38,7 +38,7 @@ __device__ void FillZeroKernel(TIO* output, long size)
     output[gid] = static_cast<TIO>(0);
 }
 
-extern "C" __global__ void FillZero(IO_TYPE* output, long size)
+extern "C" __global__ void FillZero(IO_TYPE* output, uint64_t size)
 {
     FillZeroKernel<IO_TYPE>(output, size);
 }

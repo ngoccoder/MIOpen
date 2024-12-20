@@ -80,7 +80,6 @@ template <typename TIO>
 __device__ void TraceBackward_kernel(const TIO* output_grad,
                                      TIO* input_grad,
                                      size_t N,
-                                     tensor_view_t<1> output_grad_tv,
                                      tensor_view_t<2> input_grad_tv)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -91,8 +90,7 @@ __device__ void TraceBackward_kernel(const TIO* output_grad,
 
     if(idx != input_grad_tv.size[1])
     {
-        tensor_layout_t<1> outgrad_layout = {0};
-        TIO val = output_grad[output_grad_tv.get_tensor_view_idx(outgrad_layout)];
+        TIO val                                                      = output_grad[0];
         tensor_layout_t<2> ingrad_layout                             = {gid, idx};
         input_grad[input_grad_tv.get_tensor_view_idx(ingrad_layout)] = val;
     }
@@ -101,8 +99,7 @@ __device__ void TraceBackward_kernel(const TIO* output_grad,
 extern "C" __global__ void TraceBackward(const IO_TYPE* output_grad,
                                          IO_TYPE* input_grad,
                                          size_t N,
-                                         tensor_view_t<1> output_grad_tv,
                                          tensor_view_t<2> input_grad_tv)
 {
-    TraceBackward_kernel<IO_TYPE>(output_grad, input_grad, N, output_grad_tv, input_grad_tv);
+    TraceBackward_kernel<IO_TYPE>(output_grad, input_grad, N, input_grad_tv);
 }

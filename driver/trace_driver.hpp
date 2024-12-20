@@ -65,24 +65,20 @@ int mloTraceForwardRunHost(const miopenTensorDescriptor_t inputDesc,
 }
 
 template <typename Tgpu, typename Tcheck>
-int mloTraceBackwardRunHost(const miopenTensorDescriptor_t outputGradDesc,
-                            const Tgpu* outputGrad,
+int mloTraceBackwardRunHost(const Tgpu* outputGrad,
                             const miopenTensorDescriptor_t inputGradDesc,
                             Tcheck* inputGradHost)
 {
     tensor_view_t<2> input_grad_tv = miopen::get_inner_expanded_tv<2>(miopen::deref(inputGradDesc));
-    tensor_view_t<1> output_grad_tv =
-        miopen::get_inner_expanded_tv<1>(miopen::deref(outputGradDesc));
-    auto input_grad_len = miopen::deref(inputGradDesc).GetLengths();
-    size_t N            = input_grad_len[0];
+    auto input_grad_len            = miopen::deref(inputGradDesc).GetLengths();
+    size_t N                       = input_grad_len[0];
 
     par_ford(N)([&](size_t i) {
         size_t idx = i % (input_grad_tv.size[1] + 1);
 
         if(idx != input_grad_tv.size[1])
         {
-            tensor_layout_t<1> outgrad_layout = {0};
-            Tgpu val = outputGrad[output_grad_tv.get_tensor_view_idx(outgrad_layout)];
+            Tgpu val                         = outputGrad[0];
             tensor_layout_t<2> ingrad_layout = {i, idx};
             inputGradHost[input_grad_tv.get_tensor_view_idx(ingrad_layout)] =
                 static_cast<Tcheck>(val);
@@ -191,7 +187,7 @@ int TraceDriver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
 
     if(forw != 0 && forw != 1)
     {
-        MIOPEN_THROW("Invalid Forward Mode");
+        MIOPEN_THROW("Invalid Forward|Backward Mode");
     }
 
     return miopenStatusSuccess;
@@ -280,11 +276,17 @@ int TraceDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
     }
 
     if(in_dev->ToGPU(GetStream(), in.data()) != 0)
+    {
         std::cerr << "Error copying (in) to GPU, size: " << in_dev->GetSize() << std::endl;
+        return miopenStatusInternalError;
+    }
 
     if(out_grad_dev->ToGPU(GetStream(), out_grad.data()) != 0)
+    {
         std::cerr << "Error copying (out_grad) to GPU, size: " << out_grad_dev->GetSize()
                   << std::endl;
+        return miopenStatusInternalError;
+    }
 
     return miopenStatusSuccess;
 }
@@ -330,7 +332,10 @@ int TraceDriver<Tgpu, Tref>::RunForwardGPU()
     }
 
     if(out_dev->FromGPU(GetStream(), out.data()) != 0)
+    {
         std::cerr << "Error copying (out_dev) from GPU, size: " << out_dev->GetSize() << std::endl;
+        return miopenStatusInternalError;
+    }
 
     return miopenStatusSuccess;
 }
@@ -338,9 +343,10 @@ int TraceDriver<Tgpu, Tref>::RunForwardGPU()
 template <typename Tgpu, typename Tref>
 int TraceDriver<Tgpu, Tref>::RunForwardCPU()
 {
-    mloTraceForwardRunHost<Tgpu, Tref>(inputDesc, in.data(), outHost.data());
+    auto status = mloTraceForwardRunHost<Tgpu, Tref>(inputDesc, in.data(), outHost.data());
+    MIOPEN_THROW_IF(status != miopenStatusSuccess, "Error in mloTraceForwardRunHost");
 
-    return miopenStatusSuccess;
+    return status;
 }
 
 template <typename Tgpu, typename Tref>
@@ -382,8 +388,11 @@ int TraceDriver<Tgpu, Tref>::RunBackwardGPU()
     }
 
     if(in_grad_dev->FromGPU(GetStream(), in_grad.data()) != 0)
+    {
         std::cerr << "Error copying (in_grad_dev) from GPU, size: " << in_grad_dev->GetSize()
                   << std::endl;
+        return miopenStatusInternalError;
+    }
 
     return miopenStatusSuccess;
 }
@@ -391,9 +400,10 @@ int TraceDriver<Tgpu, Tref>::RunBackwardGPU()
 template <typename Tgpu, typename Tref>
 int TraceDriver<Tgpu, Tref>::RunBackwardCPU()
 {
-    mloTraceBackwardRunHost(outputGradDesc, out_grad.data(), inputGradDesc, inGradHost.data());
+    auto status = mloTraceBackwardRunHost(out_grad.data(), inputGradDesc, inGradHost.data());
+    MIOPEN_THROW_IF(status != miopenStatusSuccess, "Error in mloTraceBackwardRunHost");
 
-    return miopenStatusSuccess;
+    return status;
 }
 
 template <typename Tgpu, typename Tref>

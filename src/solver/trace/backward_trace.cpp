@@ -145,11 +145,10 @@ ConvSolution TraceBackward::GetSolution(const ExecutionContext& /*context*/,
 
             /* Phase 2: Trace backward. */
             {
-                auto output_grad_tv = get_inner_expanded_tv<1>(deref(params.outputGradDesc));
-                auto input_grad_tv  = get_inner_expanded_tv<2>(deref(params.inputGradDesc));
+                auto input_grad_tv = get_inner_expanded_tv<2>(deref(params.inputGradDesc));
 
                 decltype(auto) kernel = handle_.Run(kernels.back());
-                kernel(params.outputGrad, params.inputGrad, N, output_grad_tv, input_grad_tv);
+                kernel(params.outputGrad, params.inputGrad, N, input_grad_tv);
             }
 
             if(reset_profiling_state)
