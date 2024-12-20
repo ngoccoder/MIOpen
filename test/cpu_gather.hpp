@@ -48,13 +48,7 @@ void cpu_gathernd_backward(const tensor<T>& outputGrad,
         slice_size *= param_grad_len[i];
     }
 
-    size_t param_grad_shape_prefix[9];
     size_t batch_strides[9];
-
-    for(size_t i = 0; i < slice_dim; i++)
-    {
-        param_grad_shape_prefix[i] = param_grad_len[i];
-    }
 
     for(int dim = slice_dim - 1; dim >= 0; dim--)
     {
@@ -64,7 +58,7 @@ void cpu_gathernd_backward(const tensor<T>& outputGrad,
         }
         else
         {
-            batch_strides[dim] = batch_strides[dim + 1] * param_grad_shape_prefix[dim + 1];
+            batch_strides[dim] = batch_strides[dim + 1] * param_grad_len[dim + 1];
         }
     }
 
@@ -81,7 +75,7 @@ void cpu_gathernd_backward(const tensor<T>& outputGrad,
         {
             size_t offset = slice_dim * indices_idx + dim;
             size_t ix_d   = indices[offset];
-            out_of_bounds |= ix_d >= param_grad_shape_prefix[dim];
+            out_of_bounds |= ix_d >= param_grad_len[dim];
             param_grad_idx += ix_d * batch_strides[dim] * slice_size;
         }
 

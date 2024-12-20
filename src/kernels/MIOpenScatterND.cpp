@@ -51,13 +51,7 @@ __device__ void ScatterNDAddForward_Kernel(const TIO* input,
     if(indices_idx >= num_indices)
         return;
 
-    size_t output_shape_prefix[9];
     size_t batch_strides[9];
-
-    for(int j = 0; j < slice_dim; j++)
-    {
-        output_shape_prefix[j] = shape.size[j];
-    }
 
     for(int dim = slice_dim - 1; dim >= 0; dim--)
     {
@@ -67,15 +61,15 @@ __device__ void ScatterNDAddForward_Kernel(const TIO* input,
         }
         else
         {
-            batch_strides[dim] = batch_strides[dim + 1] * output_shape_prefix[dim + 1];
+            batch_strides[dim] = batch_strides[dim + 1] * shape.size[dim + 1];
         }
     }
 
-    for(int dim = 0; dim < slice_dim; dim++)
+    for(size_t dim = 0; dim < slice_dim; dim++)
     {
         size_t offset = slice_dim * indices_idx + dim;
         size_t ix_d   = indices[offset];
-        out_of_bounds = ix_d >= output_shape_prefix[dim];
+        out_of_bounds = ix_d >= shape.size[dim];
         i += ix_d * batch_strides[dim] * slice_size;
     }
 

@@ -113,7 +113,7 @@ int GatherDriver<Tgpu, Tref, Tindex>::ParseCmdLineArgs(int argc, char* argv[])
     inflags.Parse(argc, argv);
 
     forw = inflags.GetValueInt("forw");
-    MIOPEN_THROW_IF(forw != 0, "Incorrect Forward Mode");
+    MIOPEN_THROW_IF(forw != 2, "Incorrect Mode");
 
     if(inflags.GetValueInt("time") == 1)
     {
@@ -184,8 +184,7 @@ int GatherDriver<Tgpu, Tref, Tindex>::GetandSetData()
 template <typename Tgpu, typename Tref, typename Tindex>
 int GatherDriver<Tgpu, Tref, Tindex>::AddCmdLineArgs()
 {
-    inflags.AddInputFlag(
-        "forw", 'F', "0", "Run both Forward and Backward (0) (Default = 0)", "int");
+    inflags.AddInputFlag("forw", 'F', "2", "Run only Backward (2) (Default = 2)", "int");
     inflags.AddTensorFlag("param_grad_shape",
                           'P',
                           "2x6x8x4",
@@ -215,7 +214,7 @@ int GatherDriver<Tgpu, Tref, Tindex>::AllocateBuffersAndCopy()
 {
     uint32_t ctx = 0;
 
-    if(forw == 0)
+    if(forw == 2)
     {
         size_t paramGrad_sz = GetTensorSpace(paramGradTensor);
         size_t outGrad_sz   = GetTensorSpace(outputGradTensor);

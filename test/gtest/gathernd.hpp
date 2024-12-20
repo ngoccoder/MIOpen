@@ -162,7 +162,8 @@ protected:
     void Verify()
     {
         double threshold = GetTolerance();
-        auto error       = miopen::rms_range(ref_paramGrad, paramGrad);
+        ASSERT_EQ(miopen::range_distance(ref_paramGrad), miopen::range_distance(paramGrad));
+        auto error = miopen::rms_range(ref_paramGrad, paramGrad);
         EXPECT_LT(error, threshold) << "Error output (param grad) beyond tolerance Error:" << error
                                     << ",  Threshold: " << threshold << std::endl;
     }

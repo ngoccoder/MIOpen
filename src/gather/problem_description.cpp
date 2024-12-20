@@ -77,9 +77,8 @@ NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
 {
     std::ostringstream ss;
 
-    ss << "gathernd";
+    ss << "gather";
     ss << "dtype" << paramGradDesc.GetType();
-    ss << "index_type" << indicesDesc.GetType();
     ss << "param_size" << paramGradDesc.GetElementSize();
     ss << "outgrad_size" << outputGradDesc.GetElementSize();
     ss << "mode " << gatherDesc.getMode();
