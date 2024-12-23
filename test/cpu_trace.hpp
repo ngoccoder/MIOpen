@@ -47,7 +47,7 @@ void cpu_trace_forward(const tensor<T>& input, tensor<T>& ref_output)
         tensor_layout_t<2> input_layout = {i, i};
         size_t input_idx                = input_tv.get_tensor_view_idx(input_layout);
         T val                           = input[input_idx];
-        res += val;
+        res += static_cast<double>(input[input_idx]);
     }
     ref_output[0] = static_cast<T>(res);
 }

@@ -238,8 +238,8 @@ protected:
         ASSERT_EQ(miopen::range_distance(ref_input_grad), miopen::range_distance(input_grad));
         auto error = miopen::rms_range(ref_input_grad, input_grad);
 
-        EXPECT_TRUE(error < threshold * 10) << "Error output beyond tolerance Error: " << error
-                                            << ",  Tolerance: " << threshold * 10;
+        EXPECT_LT(error, threshold * 10) << "Error output beyond tolerance Error: " << error
+                                         << ",  Tolerance: " << threshold * 10;
     }
 
     TraceTestCase trace_config;

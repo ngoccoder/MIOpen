@@ -56,8 +56,7 @@ int mloTraceForwardRunHost(const miopenTensorDescriptor_t inputDesc,
     {
         tensor_layout_t<2> input_layout = {i, i};
         size_t input_idx                = input_tv.get_tensor_view_idx(input_layout);
-        Tgpu val                        = input[input_idx];
-        res += val;
+        res += static_cast<double>(input[input_idx]);
     }
     outputHost[0] = static_cast<Tcheck>(res);
 
