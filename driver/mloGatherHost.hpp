@@ -56,7 +56,7 @@ int mloGatherNDBackwardRunHost(const miopenTensorDescriptor_t outputGradDesc,
 
     for(int dim = slice_dim - 1; dim >= 0; dim--)
     {
-        if(dim == slice_dim - 1)
+        if(static_cast<size_t>(dim) == slice_dim - 1)
         {
             batch_strides[dim] = 1;
         }

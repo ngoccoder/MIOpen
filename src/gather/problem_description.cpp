@@ -79,6 +79,7 @@ NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
 
     ss << "gather";
     ss << "dtype" << paramGradDesc.GetType();
+    ss << "indices_type" << indicesDesc.GetType();
     ss << "param_size" << paramGradDesc.GetElementSize();
     ss << "outgrad_size" << outputGradDesc.GetElementSize();
     ss << "mode " << gatherDesc.getMode();
