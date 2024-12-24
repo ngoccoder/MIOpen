@@ -72,6 +72,7 @@
  * @defgroup ReduceCalculation
  * @defgroup RotaryPositionalEmbeddings
  * @defgroup ReLU
+ * @defgroup embedding
  *
  */
 
@@ -8001,6 +8002,40 @@ MIOPEN_EXPORT miopenStatus_t miopenMultiMarginLossForward(miopenHandle_t handle,
 
 /** @} */
 // CLOSEOUT LossFunction DOXYGEN GROUP
+#endif // MIOPEN_BETA_API
+
+#ifdef MIOPEN_BETA_API
+/** @addtogroup embedding
+ *
+ *  @{
+ */
+
+/*! @brief Execute a Embedding backward layer
+ *
+ * @param handle                   MIOpen handle (input)
+ * @param inputDesc                Tensor descriptor for input tensor (input)
+ * @param input                    Input tensor (input)
+ * @param outputGradDesc           Tensor descriptor for delta output tensor (input)
+ * @param outputGrad               Delta output tensor (input)
+ * @param weightGradDesc           Tensor descriptor for delta input tensor (input)
+ * @param weightGrad               Delta input tensor (output)
+ * @return                         miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenEmbeddingBackward(miopenHandle_t handle,
+                                                     const miopenTensorDescriptor_t inputDesc,
+                                                     const void* input,
+                                                     const miopenTensorDescriptor_t outputGradDesc,
+                                                     const void* outputGrad,
+                                                     const miopenTensorDescriptor_t weightGradDesc,
+                                                     void* weightGrad,
+                                                     uint32_t num_embeddings,
+                                                     uint32_t embedding_dim,
+                                                     uint32_t padding_idx,
+                                                     float max_norm,
+                                                     float norm_type);
+
+/** @} */
+// CLOSEOUT EMBEDDING DOXYGEN GROUP
 #endif // MIOPEN_BETA_API
 
 #ifdef __cplusplus
