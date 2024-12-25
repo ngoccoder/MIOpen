@@ -43,7 +43,6 @@ __device__ void EmbeddingBackwardKernel(const TID* input,
                                         tensor_view_t<4> input_tv,
                                         tensor_view_t<4> output_grad_tv,
                                         tensor_view_t<2> weight_grad_tv,
-                                        long embedding_base_idx,
                                         long num_embeddings,
                                         long padding_idx)
 {
@@ -66,7 +65,6 @@ __device__ void EmbeddingBackwardKernel(const TID* input,
 
         if(embedding_idx == padding_idx)
             continue;
-        embedding_idx -= embedding_base_idx;
 
         if(embedding_idx >= 0 && embedding_idx < num_embeddings)
         {
@@ -87,7 +85,6 @@ __device__ void EmbeddingBackwardContiguousAtomicKernel(const int64_t* input,
                                                         const int32_t* indices_freq,
                                                         size_t embedding_dim,
                                                         size_t input_size,
-                                                        int64_t embedding_base_idx,
                                                         int64_t num_embeddings,
                                                         int64_t padding_idx)
 {
@@ -100,7 +97,6 @@ __device__ void EmbeddingBackwardContiguousAtomicKernel(const int64_t* input,
 
     if(embedding_idx == padding_idx)
         return;
-    embedding_idx -= embedding_base_idx;
 
     if(embedding_idx >= 0 && embedding_idx < num_embeddings)
     {
@@ -117,7 +113,6 @@ extern "C" __global__ void EmbeddingBackwardContiguousAtomic(const int64_t* inpu
                                                              const int32_t* indices_freq,
                                                              size_t embedding_dim,
                                                              size_t input_size,
-                                                             int64_t embedding_base_idx,
                                                              int64_t num_embeddings,
                                                              int64_t padding_idx)
 {
@@ -127,7 +122,6 @@ extern "C" __global__ void EmbeddingBackwardContiguousAtomic(const int64_t* inpu
                                                      indices_freq,
                                                      embedding_dim,
                                                      input_size,
-                                                     embedding_base_idx,
                                                      num_embeddings,
                                                      padding_idx);
 }
@@ -139,7 +133,6 @@ __device__ void EmbeddingBackwardAtomicKernel(const int64_t* input,
                                               const int32_t* indices_freq,
                                               size_t embedding_dim,
                                               size_t input_size,
-                                              int64_t embedding_base_idx,
                                               int64_t num_embeddings,
                                               int64_t padding_idx,
                                               tensor_view_t<4> input_tv,
@@ -161,7 +154,6 @@ __device__ void EmbeddingBackwardAtomicKernel(const int64_t* input,
 
     if(embedding_idx == padding_idx)
         return;
-    embedding_idx -= embedding_base_idx;
 
     if(embedding_idx >= 0 && embedding_idx < num_embeddings)
     {
@@ -181,7 +173,6 @@ extern "C" __global__ void EmbeddingBackwardAtomic(const int64_t* input,
                                                    const int32_t* indices_freq,
                                                    size_t embedding_dim,
                                                    size_t input_size,
-                                                   int64_t embedding_base_idx,
                                                    int64_t num_embeddings,
                                                    int64_t padding_idx,
                                                    tensor_view_t<4> input_tv,
@@ -194,7 +185,6 @@ extern "C" __global__ void EmbeddingBackwardAtomic(const int64_t* input,
                                            indices_freq,
                                            embedding_dim,
                                            input_size,
-                                           embedding_base_idx,
                                            num_embeddings,
                                            padding_idx,
                                            input_tv,
@@ -210,7 +200,6 @@ EmbeddingBackwardSmallNumEmbeddingsTraverseContiguousKernel(const int64_t* input
                                                             const int32_t* indices_freq,
                                                             size_t embedding_dim,
                                                             size_t input_size,
-                                                            int64_t embedding_base_idx,
                                                             int64_t num_embeddings,
                                                             int64_t padding_idx,
                                                             int32_t alpha)
@@ -231,7 +220,6 @@ EmbeddingBackwardSmallNumEmbeddingsTraverseContiguousKernel(const int64_t* input
         int64_t embedding_idx = input[i];
         if(embedding_idx == padding_idx)
             continue;
-        embedding_idx -= embedding_base_idx;
         if(embedding_idx >= 0 && embedding_idx < num_embeddings)
         {
             if(embedding_idx == target_embedding_idx)
@@ -254,7 +242,6 @@ EmbeddingBackwardSmallNumEmbeddingsTraverseContiguous(const int64_t* input,
                                                       const int32_t* indices_freq,
                                                       size_t embedding_dim,
                                                       size_t input_size,
-                                                      int64_t embedding_base_idx,
                                                       int64_t num_embeddings,
                                                       int64_t padding_idx,
                                                       int32_t alpha)
@@ -265,7 +252,6 @@ EmbeddingBackwardSmallNumEmbeddingsTraverseContiguous(const int64_t* input,
                                                                          indices_freq,
                                                                          embedding_dim,
                                                                          input_size,
-                                                                         embedding_base_idx,
                                                                          num_embeddings,
                                                                          padding_idx,
                                                                          alpha);
@@ -278,7 +264,6 @@ __device__ void EmbeddingBackwardSmallNumEmbeddingsTraverseKernel(const int64_t*
                                                                   const int32_t* indices_freq,
                                                                   size_t embedding_dim,
                                                                   size_t input_size,
-                                                                  int64_t embedding_base_idx,
                                                                   int64_t num_embeddings,
                                                                   int64_t padding_idx,
                                                                   int32_t alpha,
@@ -308,7 +293,6 @@ __device__ void EmbeddingBackwardSmallNumEmbeddingsTraverseKernel(const int64_t*
 
         if(embedding_idx == padding_idx)
             continue;
-        embedding_idx -= embedding_base_idx;
         if(embedding_idx >= 0 && embedding_idx < num_embeddings)
         {
             if(embedding_idx == target_embedding_idx)

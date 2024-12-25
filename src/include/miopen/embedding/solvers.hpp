@@ -25,26 +25,32 @@
  *******************************************************************************/
 #pragma once
 
-#include <miopen/common.hpp>
+#include <miopen/solver.hpp>
+#include <miopen/embedding/problem_description.hpp>
 
 namespace miopen {
 
-struct Handle;
-struct TensorDescriptor;
+namespace solver {
 
 namespace embedding {
 
-MIOPEN_INTERNALS_EXPORT miopenStatus_t EmbeddingBackward(Handle& handle,
-                                                         const TensorDescriptor& inputDesc,
-                                                         ConstData_t input,
-                                                         const TensorDescriptor& outputGradDesc,
-                                                         ConstData_t outputGrad,
-                                                         const TensorDescriptor& weightGradDesc,
-                                                         Data_t weightGrad,
-                                                         bool scale_grad_by_freq,
-                                                         ConstData_t scale_freq,
-                                                         int64_t padding_idx);
+using EmbeddingBackwardSolverBase =
+    NonTunableSolverBase<ExecutionContext, miopen::embedding::BwdProblemDescription>;
+
+struct EmbeddingBackward final : EmbeddingBackwardSolverBase
+{
+    const std::string& SolverDbId() const override { return GetSolverDbId<EmbeddingBackward>(); }
+
+    bool IsApplicable(const ExecutionContext& context,
+                      const miopen::embedding::BwdProblemDescription& problem) const override;
+
+    ConvSolution
+    GetSolution(const ExecutionContext& context,
+                const miopen::embedding::BwdProblemDescription& problem) const override;
+};
 
 } // namespace embedding
+
+} // namespace solver
 
 } // namespace miopen

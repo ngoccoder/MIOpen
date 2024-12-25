@@ -117,6 +117,8 @@ set( MIOpen_Source
     driver_arguments.cpp
     dropout.cpp
     dropout_api.cpp
+    embedding/problem_description.cpp
+    embedding_api.cpp
     env.cpp
     execution_context.cpp
     expanduser.cpp
@@ -300,6 +302,7 @@ set( MIOpen_Source
     solver/conv_ck_igemm_fwd_bias_res_add_activ_fused.cpp
     solver/conv_ocl_dir2Dfwd_fused.cpp
     solver/conv_winoRxS_fused.cpp
+    solver/embedding/backward_embedding.cpp
     solver/glu/backward_glu.cpp
     solver/glu/forward_glu.cpp
     solver/groupnorm/forward_groupnorm.cpp
@@ -528,6 +531,8 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenConvDirUni.cl
         kernels/MIOpenConvDirBatchNormActiv.cl
         kernels/MIOpenConvDirGenFwd.cl
+        kernels/MIOpenEmbedding.cpp
+        kernels/MIOpenFill.cpp
         kernels/MIOpenGLU.cpp
         kernels/MIOpenGroupNorm.cpp
         kernels/MIOpenGetitem.cpp
@@ -666,6 +671,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         adam.cpp
         addlayernorm.cpp
         cat.cpp
+        embedding.cpp
         exec_utils.cpp
         groupnorm.cpp
         getitem.cpp

@@ -24,8 +24,9 @@
  *
  *******************************************************************************/
 
+#include "miopen/common.hpp"
 #include <cstdint>
-#include <miopen/glu.hpp>
+#include <miopen/embedding.hpp>
 #include <miopen/errors.hpp>
 #include <miopen/handle.hpp>
 #include <miopen/logger.hpp>
@@ -38,22 +39,29 @@ extern "C" miopenStatus_t miopenEmbeddingBackward(miopenHandle_t handle,
                                                   const void* outputGrad,
                                                   const miopenTensorDescriptor_t weightGradDesc,
                                                   void* weightGrad,
-                                                  uint32_t num_embeddings,
-                                                  uint32_t embedding_dim,
-                                                  uint32_t padding_idx,
-                                                  float max_norm,
-                                                  float norm_type)
+                                                  bool scale_grad_by_freq,
+                                                  void* scale_freq,
+                                                  int64_t padding_idx)
 {
-    MIOPEN_LOG_FUNCTION(
-        handle, inputDesc, input, outputGradDesc, outputGrad, inputGradDesc, inputGrad, dim);
+    MIOPEN_LOG_FUNCTION(handle,
+                        inputDesc,
+                        input,
+                        outputGradDesc,
+                        outputGrad,
+                        weightGradDesc,
+                        weightGrad,
+                        scale_grad_by_freq,
+                        padding_idx);
     return miopen::try_([&] {
-        miopen::glu::GLUBackward(miopen::deref(handle),
-                                 miopen::deref(inputDesc),
-                                 DataCast(input),
-                                 miopen::deref(outputGradDesc),
-                                 DataCast(outputGrad),
-                                 miopen::deref(inputGradDesc),
-                                 DataCast(inputGrad),
-                                 dim);
+        miopen::embedding::EmbeddingBackward(miopen::deref(handle),
+                                             miopen::deref(inputDesc),
+                                             DataCast(input),
+                                             miopen::deref(outputGradDesc),
+                                             DataCast(outputGrad),
+                                             miopen::deref(weightGradDesc),
+                                             DataCast(weightGrad),
+                                             scale_grad_by_freq,
+                                             DataCast(scale_freq),
+                                             padding_idx);
     });
 }

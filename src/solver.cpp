@@ -29,6 +29,7 @@
 #include <miopen/batchnorm/solvers.hpp>
 #include <miopen/cat/solvers.hpp>
 #include <miopen/conv/solvers.hpp>
+#include <miopen/embedding/solvers.hpp>
 #include <miopen/fusion/solvers.hpp>
 #include <miopen/glu/solvers.hpp>
 #include <miopen/groupnorm/solvers.hpp>
@@ -699,6 +700,8 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
              ++id,
              Primitive::MultiMarginLoss,
              multimarginloss::MultiMarginLossForward{}.SolverDbId());
+
+    Register(registry, ++id, Primitive::Embedding, embedding::EmbeddingBackward{}.SolverDbId());
 
     // IMPORTANT: New solvers should be added to the end of the function!
 }

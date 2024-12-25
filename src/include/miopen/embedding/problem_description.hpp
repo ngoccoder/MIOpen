@@ -25,25 +25,52 @@
  *******************************************************************************/
 #pragma once
 
-#include <miopen/common.hpp>
+#include <miopen/errors.hpp>
+#include <miopen/miopen.h>
+#include <miopen/problem_description_base.hpp>
+#include <miopen/tensor.hpp>
 
 namespace miopen {
 
-struct Handle;
-struct TensorDescriptor;
+struct NetworkConfig;
 
 namespace embedding {
 
-MIOPEN_INTERNALS_EXPORT miopenStatus_t EmbeddingBackward(Handle& handle,
-                                                         const TensorDescriptor& inputDesc,
-                                                         ConstData_t input,
-                                                         const TensorDescriptor& outputGradDesc,
-                                                         ConstData_t outputGrad,
-                                                         const TensorDescriptor& weightGradDesc,
-                                                         Data_t weightGrad,
-                                                         bool scale_grad_by_freq,
-                                                         ConstData_t scale_freq,
-                                                         int64_t padding_idx);
+struct BwdProblemDescription : ProblemDescriptionBase
+{
+    BwdProblemDescription(const TensorDescriptor& inputDesc_,
+                          const TensorDescriptor& outputGradDesc_,
+                          const TensorDescriptor& weightGradDesc_)
+        : inputDesc(inputDesc_), outputGradDesc(outputGradDesc_), weightGradDesc(weightGradDesc_)
+    {
+    }
+
+    const TensorDescriptor& GetInputDesc() const { return inputDesc; }
+    const TensorDescriptor& GetOutputGradDesc() const { return outputGradDesc; }
+    const TensorDescriptor& GetWeightGradDesc() const { return weightGradDesc; }
+
+    bool IsSameType() const
+    {
+        if(outputGradDesc.GetType() != weightGradDesc.GetType())
+        {
+            return false;
+        }
+        return true;
+    }
+
+    bool isAllContiguous() const
+    {
+        return inputDesc.IsContiguous() && outputGradDesc.IsContiguous() &&
+               weightGradDesc.IsContiguous();
+    }
+
+    NetworkConfig MakeNetworkConfig() const override;
+
+protected:
+    TensorDescriptor inputDesc;
+    TensorDescriptor outputGradDesc;
+    TensorDescriptor weightGradDesc;
+};
 
 } // namespace embedding
 

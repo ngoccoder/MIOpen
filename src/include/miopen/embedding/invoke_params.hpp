@@ -23,27 +23,36 @@
  * SOFTWARE.
  *
  *******************************************************************************/
+
 #pragma once
 
+#include <cstdint>
 #include <miopen/common.hpp>
+#include <miopen/invoke_params.hpp>
+#include <miopen/tensor.hpp>
 
 namespace miopen {
 
-struct Handle;
-struct TensorDescriptor;
-
 namespace embedding {
 
-MIOPEN_INTERNALS_EXPORT miopenStatus_t EmbeddingBackward(Handle& handle,
-                                                         const TensorDescriptor& inputDesc,
-                                                         ConstData_t input,
-                                                         const TensorDescriptor& outputGradDesc,
-                                                         ConstData_t outputGrad,
-                                                         const TensorDescriptor& weightGradDesc,
-                                                         Data_t weightGrad,
-                                                         bool scale_grad_by_freq,
-                                                         ConstData_t scale_freq,
-                                                         int64_t padding_idx);
+struct BwdInvokeParams : public miopen::InvokeParams
+{
+    BwdInvokeParams() = default;
+
+    const TensorDescriptor* inputDesc      = nullptr;
+    const TensorDescriptor* outputGradDesc = nullptr;
+    const TensorDescriptor* weightGradDesc = nullptr;
+
+    ConstData_t input       = nullptr;
+    ConstData_t outputGrad  = nullptr;
+    Data_t weightGrad       = nullptr;
+    ConstData_t scale_freq  = nullptr;
+    bool scale_grad_by_freq = false;
+    int64_t padding_idx     = 0;
+
+    std::size_t GetWorkspaceSize() const { return 0; }
+    Data_t GetWorkspace() const { return nullptr; }
+};
 
 } // namespace embedding
 

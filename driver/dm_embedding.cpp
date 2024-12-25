@@ -23,28 +23,18 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#pragma once
+#include "registry_driver_maker.hpp"
+#include "embedding_driver.hpp"
 
-#include <miopen/common.hpp>
+static Driver* makeDriver(const std::string& base_arg)
+{
+    if(base_arg == "embedding")
+        return new GLUDriver<float, float>();
+    if(base_arg == "embeddingfp16")
+        return new GLUDriver<float16, float>();
+    if(base_arg == "embeddingbfp16")
+        return new GLUDriver<bfloat16, float>();
+    return nullptr;
+}
 
-namespace miopen {
-
-struct Handle;
-struct TensorDescriptor;
-
-namespace embedding {
-
-MIOPEN_INTERNALS_EXPORT miopenStatus_t EmbeddingBackward(Handle& handle,
-                                                         const TensorDescriptor& inputDesc,
-                                                         ConstData_t input,
-                                                         const TensorDescriptor& outputGradDesc,
-                                                         ConstData_t outputGrad,
-                                                         const TensorDescriptor& weightGradDesc,
-                                                         Data_t weightGrad,
-                                                         bool scale_grad_by_freq,
-                                                         ConstData_t scale_freq,
-                                                         int64_t padding_idx);
-
-} // namespace embedding
-
-} // namespace miopen
+REGISTER_DRIVER_MAKER(makeDriver);

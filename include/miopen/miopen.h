@@ -8010,15 +8010,20 @@ MIOPEN_EXPORT miopenStatus_t miopenMultiMarginLossForward(miopenHandle_t handle,
  *  @{
  */
 
-/*! @brief Execute a Embedding backward layer
+/*! @brief Execute an Embedding backward layer
  *
  * @param handle                   MIOpen handle (input)
  * @param inputDesc                Tensor descriptor for input tensor (input)
  * @param input                    Input tensor (input)
- * @param outputGradDesc           Tensor descriptor for delta output tensor (input)
- * @param outputGrad               Delta output tensor (input)
- * @param weightGradDesc           Tensor descriptor for delta input tensor (input)
- * @param weightGrad               Delta input tensor (output)
+ * @param outputGradDesc           Tensor descriptor for output gradient tensor (input)
+ * @param outputGrad               Output gradient tensor (input)
+ * @param weightGradDesc           Tensor descriptor for weight gradient tensor (input)
+ * @param weightGrad               Weight gradient tensor (output)
+ * @param scale_grad_by_freq       If given, this will scale gradients by the inverse of frequency
+ * of the words in the mini-batch (input)
+ * @param scale_freq               Tensor for scaling frequency (input)
+ * @param padding_idx              If specified, the entries at padding_idx do not contribute to the
+ * gradient (input)
  * @return                         miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t miopenEmbeddingBackward(miopenHandle_t handle,
@@ -8028,11 +8033,9 @@ MIOPEN_EXPORT miopenStatus_t miopenEmbeddingBackward(miopenHandle_t handle,
                                                      const void* outputGrad,
                                                      const miopenTensorDescriptor_t weightGradDesc,
                                                      void* weightGrad,
-                                                     uint32_t num_embeddings,
-                                                     uint32_t embedding_dim,
-                                                     uint32_t padding_idx,
-                                                     float max_norm,
-                                                     float norm_type);
+                                                     bool scale_grad_by_freq,
+                                                     void* scale_freq,
+                                                     int64_t padding_idx);
 
 /** @} */
 // CLOSEOUT EMBEDDING DOXYGEN GROUP
