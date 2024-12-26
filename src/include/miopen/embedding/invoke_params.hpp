@@ -43,12 +43,12 @@ struct BwdInvokeParams : public miopen::InvokeParams
     const TensorDescriptor* outputGradDesc = nullptr;
     const TensorDescriptor* weightGradDesc = nullptr;
 
-    ConstData_t input       = nullptr;
-    ConstData_t outputGrad  = nullptr;
-    Data_t weightGrad       = nullptr;
-    ConstData_t scale_freq  = nullptr;
-    bool scale_grad_by_freq = false;
-    int64_t padding_idx     = 0;
+    ConstData_t input        = nullptr;
+    ConstData_t outputGrad   = nullptr;
+    Data_t weightGrad        = nullptr;
+    ConstData_t indices_freq = nullptr;
+    bool scale_grad_by_freq  = false;
+    int64_t padding_idx      = 0;
 
     std::size_t GetWorkspaceSize() const { return 0; }
     Data_t GetWorkspace() const { return nullptr; }

@@ -29,11 +29,11 @@
 static Driver* makeDriver(const std::string& base_arg)
 {
     if(base_arg == "embedding")
-        return new GLUDriver<float, float>();
+        return new EmbeddingDriver<float, float>();
     if(base_arg == "embeddingfp16")
-        return new GLUDriver<float16, float>();
+        return new EmbeddingDriver<float16, float>();
     if(base_arg == "embeddingbfp16")
-        return new GLUDriver<bfloat16, float>();
+        return new EmbeddingDriver<bfloat16, float>();
     return nullptr;
 }
 

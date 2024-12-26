@@ -24,8 +24,8 @@
  *
  *******************************************************************************/
 
-#include "miopen/common.hpp"
 #include <cstdint>
+#include <miopen/common.hpp>
 #include <miopen/embedding.hpp>
 #include <miopen/errors.hpp>
 #include <miopen/handle.hpp>
@@ -40,7 +40,7 @@ extern "C" miopenStatus_t miopenEmbeddingBackward(miopenHandle_t handle,
                                                   const miopenTensorDescriptor_t weightGradDesc,
                                                   void* weightGrad,
                                                   bool scale_grad_by_freq,
-                                                  void* scale_freq,
+                                                  void* indices_freq,
                                                   int64_t padding_idx)
 {
     MIOPEN_LOG_FUNCTION(handle,
@@ -51,6 +51,7 @@ extern "C" miopenStatus_t miopenEmbeddingBackward(miopenHandle_t handle,
                         weightGradDesc,
                         weightGrad,
                         scale_grad_by_freq,
+                        indices_freq,
                         padding_idx);
     return miopen::try_([&] {
         miopen::embedding::EmbeddingBackward(miopen::deref(handle),
@@ -61,7 +62,7 @@ extern "C" miopenStatus_t miopenEmbeddingBackward(miopenHandle_t handle,
                                              miopen::deref(weightGradDesc),
                                              DataCast(weightGrad),
                                              scale_grad_by_freq,
-                                             DataCast(scale_freq),
+                                             DataCast(indices_freq),
                                              padding_idx);
     });
 }

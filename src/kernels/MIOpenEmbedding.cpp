@@ -23,15 +23,14 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#include "hip_atomic.hpp"
-#include "tensor_view.hpp"
-#include <cstdint>
 #ifndef MIOPEN_DONT_USE_HIP_RUNTIME_HEADERS
 #include <hip/hip_fp16.h>
 #include <hip/hip_runtime.h>
 #endif
 
 #include "float_types.h"
+#include "hip_atomic.hpp"
+#include "tensor_view.hpp"
 
 template <typename TIO, typename TID>
 __device__ void EmbeddingBackwardKernel(const TID* input,
@@ -73,7 +72,7 @@ __device__ void EmbeddingBackwardKernel(const TID* input,
             tensor_layout_t<2> weight_grad_layout = {embedding_idx, gid};
             size_t weight_grad_idx = weight_grad_tv.get_tensor_view_idx(weight_grad_layout);
             tensor_layout_t<4> output_grad_layout(output_grad_tv, embedding_dim * i + gid);
-            weight_grad[weight_grad_idx] = weight_grad[weight_grad_idx] + output
+            weight_grad[weight_grad_idx] = weight_grad[weight_grad_idx];
         }
     }
 }
@@ -100,8 +99,8 @@ __device__ void EmbeddingBackwardContiguousAtomicKernel(const int64_t* input,
 
     if(embedding_idx >= 0 && embedding_idx < num_embeddings)
     {
-        TIO scale =
-            indices_freq ? (static_cast<TIO>(1.0f) / static_cast<TIO>(indices_freq[i])) : 1.0f;
+        TIO scale = indices_freq ? (static_cast<TIO>(1.0f) / static_cast<TIO>(indices_freq[i]))
+                                 : static_cast<TIO>(1.0f);
         atomic_add_g(&weight_grad[embedding_idx * embedding_dim + j],
                      output_grad[embedding_dim * i + j] * scale);
     }
@@ -157,8 +156,8 @@ __device__ void EmbeddingBackwardAtomicKernel(const int64_t* input,
 
     if(embedding_idx >= 0 && embedding_idx < num_embeddings)
     {
-        TIO scale =
-            indices_freq ? (static_cast<TIO>(1.0f) / static_cast<TIO>(indices_freq[i])) : 1.0f;
+        TIO scale = indices_freq ? (static_cast<TIO>(1.0f) / static_cast<TIO>(indices_freq[i]))
+                                 : static_cast<TIO>(1.0f);
         tensor_layout_t<2> weight_grad_layout = {embedding_idx, j};
         size_t weight_grad_idx = weight_grad_tv.get_tensor_view_idx(weight_grad_layout);
         tensor_layout_t<4> output_grad_layout(output_grad_tv, embedding_dim * i + j);
@@ -209,7 +208,7 @@ EmbeddingBackwardSmallNumEmbeddingsTraverseContiguousKernel(const int64_t* input
     size_t i                     = gid / embedding_size;
     size_t inner_embedding_space = gid % embedding_size;
     int32_t target_embedding_idx = inner_embedding_space / embedding_dim;
-    int j                        = inner_embedding_space % embedding_dim;
+    size_t j                     = inner_embedding_space % embedding_dim;
     if(i >= input_size)
         return;
 
@@ -226,7 +225,7 @@ EmbeddingBackwardSmallNumEmbeddingsTraverseContiguousKernel(const int64_t* input
             {
                 TIO scale = indices_freq
                                 ? (static_cast<TIO>(1.0f) / static_cast<TIO>(indices_freq[i]))
-                                : 1.0f;
+                                : static_cast<TIO>(1.0f);
                 weight_grad_sum += output_grad[i * embedding_dim + j] * scale;
             }
         }
@@ -276,7 +275,7 @@ __device__ void EmbeddingBackwardSmallNumEmbeddingsTraverseKernel(const int64_t*
     size_t i                     = gid / embedding_size;
     size_t inner_embedding_space = gid % embedding_size;
     int32_t target_embedding_idx = inner_embedding_space / embedding_dim;
-    int j                        = inner_embedding_space % embedding_dim;
+    size_t j                     = inner_embedding_space % embedding_dim;
     if(i >= input_size)
         return;
 
@@ -299,7 +298,7 @@ __device__ void EmbeddingBackwardSmallNumEmbeddingsTraverseKernel(const int64_t*
             {
                 TIO scale = indices_freq
                                 ? (static_cast<TIO>(1.0f) / static_cast<TIO>(indices_freq[i]))
-                                : 1.0f;
+                                : static_cast<TIO>(1.0f);
                 tensor_layout_t<4> output_grad_layout(output_grad_tv, embedding_dim * i + j);
                 weight_grad_sum +=
                     output_grad[output_grad_tv.get_tensor_view_idx(output_grad_layout)] * scale;
@@ -309,4 +308,32 @@ __device__ void EmbeddingBackwardSmallNumEmbeddingsTraverseKernel(const int64_t*
 
     atomic_add_g(&weight_grad[weight_grad_tv.get_tensor_view_idx({target_embedding_idx, j})],
                  weight_grad_sum);
+}
+
+extern "C" __global__ void
+EmbeddingBackwardSmallNumEmbeddingsTraverse(const int64_t* input,
+                                            const IO_TYPE* output_grad,
+                                            IO_TYPE* weight_grad,
+                                            const int32_t* indices_freq,
+                                            size_t embedding_dim,
+                                            size_t input_size,
+                                            int64_t num_embeddings,
+                                            int64_t padding_idx,
+                                            int32_t alpha,
+                                            tensor_view_t<4> input_tv,
+                                            tensor_view_t<4> output_grad_tv,
+                                            tensor_view_t<2> weight_grad_tv)
+{
+    EmbeddingBackwardSmallNumEmbeddingsTraverseKernel<IO_TYPE>(input,
+                                                               output_grad,
+                                                               weight_grad,
+                                                               indices_freq,
+                                                               embedding_dim,
+                                                               input_size,
+                                                               num_embeddings,
+                                                               padding_idx,
+                                                               alpha,
+                                                               input_tv,
+                                                               output_grad_tv,
+                                                               weight_grad_tv);
 }

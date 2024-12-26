@@ -145,7 +145,7 @@ private:
     std::unique_ptr<GPUMem> outGrad_dev;
     std::unique_ptr<GPUMem> weightGrad_dev;
 
-    std::vector<Tgpu> in;
+    std::vector<int64_t> in;
     std::vector<Tgpu> outGrad;
     std::vector<Tgpu> weightGrad;
     std::vector<Tref> weightGradHost;
@@ -154,7 +154,7 @@ private:
     std::unique_ptr<GPUMem> indices_freq_dev;
 
     int64_t padding_idx;
-    bool is_indices_freq;
+    bool scale_grad_by_freq;
 };
 
 template <typename Tgpu, typename Tref>
@@ -174,9 +174,9 @@ int EmbeddingDriver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
         MIOPEN_THROW("Invalid Forward|Backward Mode");
     }
 
-    isContiguous    = inflags.GetValueInt("is_contiguous") == 1 ? true : false;
-    padding_idx     = inflags.GetValueInt("padding_idx");
-    is_indices_freq = inflags.GetValueInt("indices_freq") == 1 ? true : false;
+    isContiguous       = inflags.GetValueInt("is_contiguous") == 1 ? true : false;
+    padding_idx        = inflags.GetValueInt("padding_idx");
+    scale_grad_by_freq = inflags.GetValueInt("scale_grad_by_freq") == 1 ? true : false;
 
     return miopenStatusSuccess;
 }
@@ -228,7 +228,7 @@ int EmbeddingDriver<Tgpu, Tref>::AddCmdLineArgs()
                           "1024x1024",
                           "The dimensional lengths of the weight tensor (Default=1024x1024)");
     inflags.AddInputFlag(
-        "indices_freq",
+        "scale_grad_by_freq",
         'N',
         "0",
         "If true (1), scale gradients by the inverse of frequency of the words (Default=0)",
@@ -252,6 +252,7 @@ int EmbeddingDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 
     size_t in_sz = GetTensorSpace(inputTensor);
 
+    // TODO: add indices_freq
     if(forw == 2)
     {
         size_t outGrad_sz    = GetTensorSpace(outputTensorGrad);
@@ -317,6 +318,8 @@ int EmbeddingDriver<Tgpu, Tref>::RunBackwardGPU()
                                                         outGrad_dev->GetMem(),
                                                         weightTensorGrad,
                                                         weightGrad_dev->GetMem(),
+                                                        scale_grad_by_freq,
+                                                        indices_freq.data(),
                                                         padding_idx);
 
         MIOPEN_THROW_IF(status != miopenStatusSuccess, "Error in miopenEmbeddingBackward");
@@ -389,7 +392,7 @@ int EmbeddingDriver<Tgpu, Tref>::VerifyBackward()
     }
     else
     {
-        std::cout << "Backward Embegludding OK on CPU reference (" << error << " < " << tolerance
+        std::cout << "Backward Embedding OK on CPU reference (" << error << " < " << tolerance
                   << ')' << std::endl;
     }
 

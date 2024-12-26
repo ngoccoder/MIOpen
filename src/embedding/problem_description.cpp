@@ -23,27 +23,29 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#pragma once
 
-#include <miopen/common.hpp>
+#include <miopen/names.hpp>
+#include <miopen/embedding/problem_description.hpp>
+
+#include <sstream>
 
 namespace miopen {
 
-struct Handle;
-struct TensorDescriptor;
-
 namespace embedding {
 
-MIOPEN_INTERNALS_EXPORT miopenStatus_t EmbeddingBackward(Handle& handle,
-                                                         const TensorDescriptor& inputDesc,
-                                                         ConstData_t input,
-                                                         const TensorDescriptor& outputGradDesc,
-                                                         ConstData_t outputGrad,
-                                                         const TensorDescriptor& weightGradDesc,
-                                                         Data_t weightGrad,
-                                                         bool scale_grad_by_freq,
-                                                         ConstData_t indices_freq,
-                                                         int64_t padding_idx);
+NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
+{
+    auto weight_grad_dtype = weightGradDesc.GetType();
+    auto output_numel      = outputGradDesc.GetElementSize();
+
+    std::ostringstream ss;
+
+    ss << "embedding_bwd";
+    ss << "i_dtype" << weight_grad_dtype;
+    ss << "output_size" << output_numel;
+
+    return NetworkConfig{ss.str()};
+}
 
 } // namespace embedding
 

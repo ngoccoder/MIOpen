@@ -44,6 +44,7 @@ miopenStatus_t EmbeddingBackward(Handle& handle,
                                  const TensorDescriptor& weightGradDesc,
                                  Data_t weightGrad,
                                  bool scale_grad_by_freq,
+                                 ConstData_t indices_freq,
                                  int64_t padding_idx)
 {
     const auto problem =
@@ -59,6 +60,7 @@ miopenStatus_t EmbeddingBackward(Handle& handle,
         tmp.outputGrad         = outputGrad;
         tmp.weightGrad         = weightGrad;
         tmp.scale_grad_by_freq = scale_grad_by_freq;
+        tmp.indices_freq       = indices_freq;
         tmp.padding_idx        = padding_idx;
         return tmp;
     }();
