@@ -32,51 +32,6 @@
 #include "hip_atomic.hpp"
 #include "tensor_view.hpp"
 
-template <typename TIO, typename TID>
-__device__ void EmbeddingBackwardKernel(const TID* input,
-                                        const TIO* output_grad,
-                                        TIO* weight_grad,
-                                        int* indices_freq,
-                                        size_t embedding_dim,
-                                        size_t input_size,
-                                        tensor_view_t<4> input_tv,
-                                        tensor_view_t<4> output_grad_tv,
-                                        tensor_view_t<2> weight_grad_tv,
-                                        long num_embeddings,
-                                        long padding_idx)
-{
-    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
-    if(gid >= embedding_dim)
-        return;
-
-    for(size_t i = 0; i < input_size; i++)
-    {
-        size_t n3   = i % input_tv.size[3];
-        size_t n012 = i / input_tv.size[3];
-        size_t n2   = n012 % input_tv.size[2];
-        size_t n01  = n012 / input_tv.size[2];
-        size_t n1   = n01 % input_tv.size[1];
-        size_t n0   = n01 / input_tv.size[1];
-
-        tensor_layout_t<4> input_layout = {n0, n1, n2, n3};
-        size_t input_idx                = input_tv.get_tensor_view_idx(input_layout);
-        TID embedding_idx               = input[input_idx];
-
-        if(embedding_idx == padding_idx)
-            continue;
-
-        if(embedding_idx >= 0 && embedding_idx < num_embeddings)
-        {
-            TIO scale =
-                indices_freq ? (static_cast<TIO>(1) / static_cast<TIO>(indices_freq[i])) : 1.0;
-            tensor_layout_t<2> weight_grad_layout = {embedding_idx, gid};
-            size_t weight_grad_idx = weight_grad_tv.get_tensor_view_idx(weight_grad_layout);
-            tensor_layout_t<4> output_grad_layout(output_grad_tv, embedding_dim * i + gid);
-            weight_grad[weight_grad_idx] = weight_grad[weight_grad_idx];
-        }
-    }
-}
-
 template <typename TIO>
 __device__ void EmbeddingBackwardContiguousAtomicKernel(const int64_t* input,
                                                         const TIO* output_grad,
@@ -99,10 +54,11 @@ __device__ void EmbeddingBackwardContiguousAtomicKernel(const int64_t* input,
 
     if(embedding_idx >= 0 && embedding_idx < num_embeddings)
     {
-        TIO scale = indices_freq ? (static_cast<TIO>(1.0f) / static_cast<TIO>(indices_freq[i]))
-                                 : static_cast<TIO>(1.0f);
-        atomic_add_g(&weight_grad[embedding_idx * embedding_dim + j],
-                     output_grad[embedding_dim * i + j] * scale);
+        FLOAT_ACCUM scale = indices_freq
+                                ? (CVT_FLOAT2ACCUM(1.0f) / CVT_FLOAT2ACCUM(indices_freq[i]))
+                                : CVT_FLOAT2ACCUM(1.0f);
+        FLOAT_ACCUM val   = CVT_FLOAT2ACCUM(output_grad[embedding_dim * i + j]) * scale;
+        atomic_add_g(&weight_grad[embedding_idx * embedding_dim + j], val);
     }
 }
 
@@ -147,22 +103,23 @@ __device__ void EmbeddingBackwardAtomicKernel(const int64_t* input,
     size_t n2 = n012 % input_tv.size[2], n01 = n012 / input_tv.size[2];
     size_t n1 = n01 % input_tv.size[1], n0 = n01 / input_tv.size[1];
 
-    tensor_layout_t<4> input_layout = {n0, n1, n2, n3};
-    size_t input_idx                = input_tv.get_tensor_view_idx(input_layout);
-    int64_t embedding_idx           = input[input_idx];
+    size_t input_idx      = input_tv.get_tensor_view_idx({n0, n1, n2, n3});
+    int64_t embedding_idx = input[input_idx];
 
     if(embedding_idx == padding_idx)
         return;
 
     if(embedding_idx >= 0 && embedding_idx < num_embeddings)
     {
-        TIO scale = indices_freq ? (static_cast<TIO>(1.0f) / static_cast<TIO>(indices_freq[i]))
-                                 : static_cast<TIO>(1.0f);
-        tensor_layout_t<2> weight_grad_layout = {embedding_idx, j};
-        size_t weight_grad_idx = weight_grad_tv.get_tensor_view_idx(weight_grad_layout);
-        tensor_layout_t<4> output_grad_layout(output_grad_tv, embedding_dim * i + j);
-        atomic_add_g(&weight_grad[weight_grad_idx],
-                     output_grad[output_grad_tv.get_tensor_view_idx(output_grad_layout)] * scale);
+        FLOAT_ACCUM scale      = indices_freq
+                                     ? (CVT_FLOAT2ACCUM(1.0f) / CVT_FLOAT2ACCUM(indices_freq[i]))
+                                     : CVT_FLOAT2ACCUM(1.0f);
+        size_t weight_grad_idx = weight_grad_tv.get_tensor_view_idx({embedding_idx, j});
+        tensor_layout_t<4> output_grad_layout(output_grad_tv, gid);
+        FLOAT_ACCUM val =
+            CVT_FLOAT2ACCUM(output_grad[output_grad_tv.get_tensor_view_idx(output_grad_layout)]) *
+            scale;
+        atomic_add_g(&weight_grad[weight_grad_idx], val);
     }
 }
 
@@ -212,7 +169,7 @@ EmbeddingBackwardSmallNumEmbeddingsTraverseContiguousKernel(const int64_t* input
     if(i >= input_size)
         return;
 
-    TIO weight_grad_sum = 0;
+    FLOAT_ACCUM weight_grad_sum = 0;
 
     for(; i < input_size; i += alpha)
     {
@@ -223,10 +180,10 @@ EmbeddingBackwardSmallNumEmbeddingsTraverseContiguousKernel(const int64_t* input
         {
             if(embedding_idx == target_embedding_idx)
             {
-                TIO scale = indices_freq
-                                ? (static_cast<TIO>(1.0f) / static_cast<TIO>(indices_freq[i]))
-                                : static_cast<TIO>(1.0f);
-                weight_grad_sum += output_grad[i * embedding_dim + j] * scale;
+                FLOAT_ACCUM scale = indices_freq
+                                        ? (CVT_FLOAT2ACCUM(1.0f) / CVT_FLOAT2ACCUM(indices_freq[i]))
+                                        : CVT_FLOAT2ACCUM(1.0f);
+                weight_grad_sum += CVT_FLOAT2ACCUM(output_grad[i * embedding_dim + j]) * scale;
             }
         }
     }
@@ -279,7 +236,7 @@ __device__ void EmbeddingBackwardSmallNumEmbeddingsTraverseKernel(const int64_t*
     if(i >= input_size)
         return;
 
-    TIO weight_grad_sum = 0;
+    FLOAT_ACCUM weight_grad_sum = 0;
 
     for(; i < input_size; i += alpha)
     {
@@ -296,12 +253,14 @@ __device__ void EmbeddingBackwardSmallNumEmbeddingsTraverseKernel(const int64_t*
         {
             if(embedding_idx == target_embedding_idx)
             {
-                TIO scale = indices_freq
-                                ? (static_cast<TIO>(1.0f) / static_cast<TIO>(indices_freq[i]))
-                                : static_cast<TIO>(1.0f);
+                FLOAT_ACCUM scale = indices_freq
+                                        ? (CVT_FLOAT2ACCUM(1.0f) / CVT_FLOAT2ACCUM(indices_freq[i]))
+                                        : CVT_FLOAT2ACCUM(1.0f);
                 tensor_layout_t<4> output_grad_layout(output_grad_tv, embedding_dim * i + j);
                 weight_grad_sum +=
-                    output_grad[output_grad_tv.get_tensor_view_idx(output_grad_layout)] * scale;
+                    CVT_FLOAT2ACCUM(
+                        output_grad[output_grad_tv.get_tensor_view_idx(output_grad_layout)]) *
+                    scale;
             }
         }
     }

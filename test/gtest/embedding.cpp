@@ -24,35 +24,36 @@
  *
  *******************************************************************************/
 
-#include <miopen/embedding/problem_description.hpp>
-#include <miopen/names.hpp>
-
-#include <sstream>
-
-namespace miopen {
+#include "embedding.hpp"
+using float16 = half_float::half;
 
 namespace embedding {
 
-NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
-{
-    auto weight_grad_dtype = weightGradDesc.GetType();
-    auto weight_grad_numel = weightGradDesc.GetElementSize();
-    auto output_numel      = outputGradDesc.GetElementSize();
-    auto weight_len        = weightGradDesc.GetLengths();
-
-    std::ostringstream ss;
-
-    ss << "embedding_bwd";
-    ss << "weight_dtype" << weight_grad_dtype;
-    ss << "cont" << isAllContiguous();
-    ss << "num_embedding" << weight_len[0];
-    ss << "embedding_dim" << weight_len[1];
-    ss << "output_size" << output_numel;
-    ss << "weight_size" << weight_grad_numel;
-
-    return NetworkConfig{ss.str()};
-}
+using GPU_Embedding_bwd_FP32  = EmbeddingBwdTest<float>;
+using GPU_Embedding_bwd_FP16  = EmbeddingBwdTest<float16>;
+using GPU_Embedding_bwd_BFP16 = EmbeddingBwdTest<bfloat16>;
 
 } // namespace embedding
+using namespace embedding;
 
-} // namespace miopen
+TEST_P(GPU_Embedding_bwd_FP32, Test)
+{
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_Embedding_bwd_FP16, Test)
+{
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_Embedding_bwd_BFP16, Test)
+{
+    RunTest();
+    Verify();
+};
+
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Embedding_bwd_FP32, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Embedding_bwd_FP16, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Embedding_bwd_BFP16, testing::ValuesIn(GenFullTestCases()));

@@ -38,6 +38,7 @@
 #include <cstdlib>
 #include <limits>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include <../test/verify.hpp>
@@ -77,11 +78,14 @@ int mloEmbeddingBackward(const miopenTensorDescriptor_t inputDesc,
 
         if(embedding_idx >= 0 && embedding_idx < num_embeddings)
         {
-            Tcheck scale           = indices_freq
-                                         ? (static_cast<Tcheck>(1.0f) / static_cast<Tcheck>(indices_freq[i]))
-                                         : 1.0f;
+            Tcheck scale =
+                indices_freq
+                    ? (static_cast<Tcheck>(1.0f) / static_cast<Tcheck>(indices_freq[input_idx]))
+                    : 1.0f;
             size_t weight_grad_idx = weightGrad_tv.get_tensor_view_idx({embedding_idx, j});
             tensor_layout_t<4> outGrad_layout(outGrad_tv, o);
+            // std::cout << "[cput] idx for weight grad: " << weight_grad_idx << " gid = " << o <<
+            // "emb_idx = " << embedding_idx << " j = " << j << std::endl;
             weightGradHost[weight_grad_idx] +=
                 outputGrad[outGrad_tv.get_tensor_view_idx(outGrad_layout)] * scale;
         }
@@ -219,13 +223,11 @@ template <typename Tgpu, typename Tref>
 int EmbeddingDriver<Tgpu, Tref>::AddCmdLineArgs()
 {
     inflags.AddInputFlag("forw", 'F', "2", "Run only Backward (2) (Default=2)", "int");
-    inflags.AddTensorFlag("input_dims",
-                          'I',
-                          "256x512",
-                          "The dimensional lengths of the input tensor (Default=256x512)");
+    inflags.AddTensorFlag(
+        "input_dims", 'I', "4x4", "The dimensional lengths of the input tensor (Default=256x512)");
     inflags.AddTensorFlag("weight_dims",
                           'W',
-                          "1024x1024",
+                          "33x1",
                           "The dimensional lengths of the weight tensor (Default=1024x1024)");
     inflags.AddInputFlag(
         "scale_grad_by_freq",
@@ -250,7 +252,8 @@ int EmbeddingDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 {
     uint32_t ctx = 0;
 
-    size_t in_sz = GetTensorSpace(inputTensor);
+    size_t in_sz    = GetTensorSpace(inputTensor);
+    auto weight_len = miopen::deref(weightTensorGrad).GetLengths();
 
     // TODO: add indices_freq
     if(forw == 2)
@@ -259,7 +262,7 @@ int EmbeddingDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
         size_t weightGrad_sz = GetTensorSpace(weightTensorGrad);
 
         // GPU allocation
-        in_dev         = std::unique_ptr<GPUMem>(new GPUMem(ctx, in_sz, sizeof(Tgpu)));
+        in_dev         = std::unique_ptr<GPUMem>(new GPUMem(ctx, in_sz, sizeof(int64_t)));
         outGrad_dev    = std::unique_ptr<GPUMem>(new GPUMem(ctx, outGrad_sz, sizeof(Tgpu)));
         weightGrad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, weightGrad_sz, sizeof(Tgpu)));
 
@@ -273,18 +276,50 @@ int EmbeddingDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 
         for(int i = 0; i < in_sz; i++)
         {
-            in[i] = prng::gen_A_to_B(static_cast<int64_t>(0.0), static_cast<int64_t>(1.0));
+            in[i] = prng::gen_A_to_B(static_cast<int64_t>(0.0),
+                                     static_cast<int64_t>(weight_len[0] - 1));
         }
-        for(int i = 0; i < weightGrad_sz; i++)
+        for(int i = 0; i < outGrad_sz; i++)
         {
-            weightGrad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+            outGrad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
         }
 
         if(in_dev->ToGPU(GetStream(), in.data()) != 0)
+        {
             std::cerr << "Error copying (input) to GPU, size: " << in_dev->GetSize() << std::endl;
+            return miopenStatusInternalError;
+        }
         if(outGrad_dev->ToGPU(GetStream(), outGrad.data()) != 0)
+        {
             std::cerr << "Error copying (output gradient) to GPU, size: " << outGrad_dev->GetSize()
                       << std::endl;
+            return miopenStatusInternalError;
+        }
+
+        if(scale_grad_by_freq)
+        {
+            auto input_numel = miopen::deref(inputTensor).GetElementSize();
+            indices_freq     = std::vector<int32_t>(in_sz, static_cast<int32_t>(0));
+
+            std::unordered_map<int64_t, int> counts;
+            for(auto idx : in)
+            {
+                counts[idx]++;
+            }
+            for(size_t i = 0; i < input_numel; i++)
+            {
+                indices_freq[i] = counts[in[i]];
+            }
+
+            indices_freq_dev =
+                std::unique_ptr<GPUMem>(new GPUMem(ctx, input_numel, sizeof(int32_t)));
+            if(indices_freq_dev->ToGPU(GetStream(), indices_freq.data()) != 0)
+            {
+                std::cerr << "Error copying (indices_freq) to GPU, size: "
+                          << indices_freq_dev->GetSize() << std::endl;
+                return miopenStatusInternalError;
+            }
+        }
     }
 
     return miopenStatusSuccess;
@@ -345,8 +380,11 @@ int EmbeddingDriver<Tgpu, Tref>::RunBackwardGPU()
     }
 
     if(weightGrad_dev->FromGPU(GetStream(), weightGrad.data()) != 0)
+    {
         std::cerr << "Error copying (weightGrad_dev) from GPU, size: " << weightGrad_dev->GetSize()
                   << std::endl;
+        return miopenStatusInternalError;
+    }
 
     return miopenStatusSuccess;
 }
@@ -385,6 +423,14 @@ int EmbeddingDriver<Tgpu, Tref>::VerifyBackward()
     RunBackwardCPU();
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(weightGradHost, weightGrad);
+
+    // auto weightGradSize = weightGrad.size();
+    // for(int i = 0; i < weightGradSize; i++)
+    //{
+    //    std::cout << "weightGradHost[" << i << "] = " << weightGradHost[i] << " weightGrad[" << i
+    //              << "] = " << weightGrad[i] << std::endl;
+    //}
+
     if(!std::isfinite(error) || error > tolerance)
     {
         std::cout << "Backward Embedding FAILED: " << error << " > " << tolerance << std::endl;
