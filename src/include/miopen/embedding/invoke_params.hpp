@@ -47,7 +47,6 @@ struct BwdInvokeParams : public miopen::InvokeParams
     ConstData_t outputGrad   = nullptr;
     Data_t weightGrad        = nullptr;
     ConstData_t indices_freq = nullptr;
-    bool scale_grad_by_freq  = false;
     int64_t padding_idx      = 0;
 
     std::size_t GetWorkspaceSize() const { return 0; }

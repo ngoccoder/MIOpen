@@ -25,8 +25,8 @@
  *******************************************************************************/
 #pragma once
 
-#include <miopen/solver.hpp>
 #include <miopen/embedding/problem_description.hpp>
+#include <miopen/solver.hpp>
 
 namespace miopen {
 

@@ -8192,9 +8192,8 @@ MIOPEN_EXPORT miopenStatus_t miopenMultiMarginLossForward(miopenHandle_t handle,
  * @param outputGrad               Output gradient tensor (input)
  * @param weightGradDesc           Tensor descriptor for weight gradient tensor (input)
  * @param weightGrad               Weight gradient tensor (output)
- * @param scale_grad_by_freq       If given, this will scale gradients by the inverse of frequency
- * of the words in the mini-batch (input)
- * @param indices_freq             Tensor for scaling frequency (input)
+ * @param indices_freq             If given, this will scale gradients by the inverse of frequency
+ * (input)
  * @param padding_idx              If specified, the entries at padding_idx do not contribute to the
  * gradient (input)
  * @return                         miopenStatus_t
@@ -8206,8 +8205,7 @@ MIOPEN_EXPORT miopenStatus_t miopenEmbeddingBackward(miopenHandle_t handle,
                                                      const void* outputGrad,
                                                      const miopenTensorDescriptor_t weightGradDesc,
                                                      void* weightGrad,
-                                                     bool scale_grad_by_freq,
-                                                     void* indices_freq,
+                                                     const void* indices_freq,
                                                      int64_t padding_idx);
 
 /** @} */

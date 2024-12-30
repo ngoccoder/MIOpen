@@ -39,8 +39,7 @@ extern "C" miopenStatus_t miopenEmbeddingBackward(miopenHandle_t handle,
                                                   const void* outputGrad,
                                                   const miopenTensorDescriptor_t weightGradDesc,
                                                   void* weightGrad,
-                                                  bool scale_grad_by_freq,
-                                                  void* indices_freq,
+                                                  const void* indices_freq,
                                                   int64_t padding_idx)
 {
     MIOPEN_LOG_FUNCTION(handle,
@@ -50,7 +49,6 @@ extern "C" miopenStatus_t miopenEmbeddingBackward(miopenHandle_t handle,
                         outputGrad,
                         weightGradDesc,
                         weightGrad,
-                        scale_grad_by_freq,
                         indices_freq,
                         padding_idx);
     return miopen::try_([&] {
@@ -61,7 +59,6 @@ extern "C" miopenStatus_t miopenEmbeddingBackward(miopenHandle_t handle,
                                              DataCast(outputGrad),
                                              miopen::deref(weightGradDesc),
                                              DataCast(weightGrad),
-                                             scale_grad_by_freq,
                                              DataCast(indices_freq),
                                              padding_idx);
     });

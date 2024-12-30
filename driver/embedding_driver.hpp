@@ -28,7 +28,6 @@
 
 #include "InputFlags.hpp"
 #include "driver.hpp"
-#include "miopen/tensor_view_utils.hpp"
 #include "tensor_driver.hpp"
 #include "tensor_view.hpp"
 #include "timer.hpp"
@@ -45,6 +44,7 @@
 
 #include <miopen/errors.hpp>
 #include <miopen/miopen.h>
+#include <miopen/tensor_view_utils.hpp>
 
 template <typename Tgpu, typename Tcheck>
 int mloEmbeddingBackward(const miopenTensorDescriptor_t inputDesc,
@@ -81,11 +81,9 @@ int mloEmbeddingBackward(const miopenTensorDescriptor_t inputDesc,
             Tcheck scale =
                 indices_freq
                     ? (static_cast<Tcheck>(1.0f) / static_cast<Tcheck>(indices_freq[input_idx]))
-                    : 1.0f;
+                    : static_cast<Tcheck>(1.0f);
             size_t weight_grad_idx = weightGrad_tv.get_tensor_view_idx({embedding_idx, j});
             tensor_layout_t<4> outGrad_layout(outGrad_tv, o);
-            // std::cout << "[cput] idx for weight grad: " << weight_grad_idx << " gid = " << o <<
-            // "emb_idx = " << embedding_idx << " j = " << j << std::endl;
             weightGradHost[weight_grad_idx] +=
                 outputGrad[outGrad_tv.get_tensor_view_idx(outGrad_layout)] * scale;
         }
@@ -222,10 +220,10 @@ int EmbeddingDriver<Tgpu, Tref>::AddCmdLineArgs()
 {
     inflags.AddInputFlag("forw", 'F', "2", "Run only Backward (2) (Default=2)", "int");
     inflags.AddTensorFlag(
-        "input_dims", 'I', "4x4", "The dimensional lengths of the input tensor (Default=256x512)");
+        "input_dims", 'I', "40x40", "The dimensional lengths of the input tensor (Default=40x40)");
     inflags.AddTensorFlag("weight_dims",
                           'W',
-                          "33x1",
+                          "1024x1024",
                           "The dimensional lengths of the weight tensor (Default=1024x1024)");
     inflags.AddInputFlag(
         "scale_grad_by_freq",
@@ -351,7 +349,6 @@ int EmbeddingDriver<Tgpu, Tref>::RunBackwardGPU()
                                                         outGrad_dev->GetMem(),
                                                         weightTensorGrad,
                                                         weightGrad_dev->GetMem(),
-                                                        scale_grad_by_freq,
                                                         indices_freq.data(),
                                                         padding_idx);
 
@@ -421,13 +418,6 @@ int EmbeddingDriver<Tgpu, Tref>::VerifyBackward()
     RunBackwardCPU();
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(weightGradHost, weightGrad);
-
-    // auto weightGradSize = weightGrad.size();
-    // for(int i = 0; i < weightGradSize; i++)
-    //{
-    //    std::cout << "weightGradHost[" << i << "] = " << weightGradHost[i] << " weightGrad[" << i
-    //              << "] = " << weightGrad[i] << std::endl;
-    //}
 
     if(!std::isfinite(error) || error > tolerance)
     {

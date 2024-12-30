@@ -41,7 +41,6 @@ MIOPEN_INTERNALS_EXPORT miopenStatus_t EmbeddingBackward(Handle& handle,
                                                          ConstData_t outputGrad,
                                                          const TensorDescriptor& weightGradDesc,
                                                          Data_t weightGrad,
-                                                         bool scale_grad_by_freq,
                                                          ConstData_t indices_freq,
                                                          int64_t padding_idx);
 

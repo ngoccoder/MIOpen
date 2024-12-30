@@ -26,7 +26,6 @@
 
 #include "cpu_embedding.hpp"
 #include "get_handle.hpp"
-#include "miopen/allocator.hpp"
 #include "tensor_holder.hpp"
 #include "verify.hpp"
 #include "random.hpp"
@@ -35,11 +34,12 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <limits>
-
-#include <miopen/embedding.hpp>
-#include <miopen/miopen.h>
 #include <unordered_map>
 #include <vector>
+
+#include <miopen/allocator.hpp>
+#include <miopen/embedding.hpp>
+#include <miopen/miopen.h>
 
 struct EmbeddingTestCase
 {
@@ -183,7 +183,6 @@ protected:
                                                       outputGrad_dev.get(),
                                                       weightGrad.desc,
                                                       weightGrad_dev.get(),
-                                                      embedding_config.scale_grad_by_freq,
                                                       indices_freq_dev.get(),
                                                       embedding_config.padding_idx);
 
@@ -204,8 +203,8 @@ protected:
         EXPECT_EQ(miopen::range_distance(ref_weightGrad), miopen::range_distance(weightGrad));
         auto error = miopen::rms_range(ref_weightGrad, weightGrad);
 
-        EXPECT_TRUE(error < threshold * 10) << "Error output beyond tolerance Error: " << error
-                                            << ",  Tolerance: " << threshold * 10;
+        EXPECT_LT(error, threshold * 10) << "Error output beyond tolerance Error: " << error
+                                         << ",  Tolerance: " << threshold * 10;
     }
 
     EmbeddingTestCase embedding_config;

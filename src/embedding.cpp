@@ -43,7 +43,6 @@ miopenStatus_t EmbeddingBackward(Handle& handle,
                                  ConstData_t outputGrad,
                                  const TensorDescriptor& weightGradDesc,
                                  Data_t weightGrad,
-                                 bool scale_grad_by_freq,
                                  ConstData_t indices_freq,
                                  int64_t padding_idx)
 {
@@ -51,17 +50,16 @@ miopenStatus_t EmbeddingBackward(Handle& handle,
         miopen::embedding::BwdProblemDescription{inputDesc, outputGradDesc, weightGradDesc};
 
     const auto invoke_params = [&]() {
-        auto tmp               = embedding::BwdInvokeParams{};
-        tmp.type               = InvokeType::Run;
-        tmp.inputDesc          = &inputDesc;
-        tmp.outputGradDesc     = &outputGradDesc;
-        tmp.weightGradDesc     = &weightGradDesc;
-        tmp.input              = input;
-        tmp.outputGrad         = outputGrad;
-        tmp.weightGrad         = weightGrad;
-        tmp.scale_grad_by_freq = scale_grad_by_freq;
-        tmp.indices_freq       = indices_freq;
-        tmp.padding_idx        = padding_idx;
+        auto tmp           = embedding::BwdInvokeParams{};
+        tmp.type           = InvokeType::Run;
+        tmp.inputDesc      = &inputDesc;
+        tmp.outputGradDesc = &outputGradDesc;
+        tmp.weightGradDesc = &weightGradDesc;
+        tmp.input          = input;
+        tmp.outputGrad     = outputGrad;
+        tmp.weightGrad     = weightGrad;
+        tmp.indices_freq   = indices_freq;
+        tmp.padding_idx    = padding_idx;
         return tmp;
     }();
 
