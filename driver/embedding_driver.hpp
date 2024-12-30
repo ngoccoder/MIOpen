@@ -192,14 +192,12 @@ int EmbeddingDriver<Tgpu, Tref>::GetandSetData()
     auto in_stride          = ComputeStrides(in_len);
     SetTensorNd(inputTensor, in_len, in_stride, data_type);
 
-    auto weight_len    = inflags.GetValueTensor("weight_dims").lengths;
-    auto weight_stride = ComputeStrides(weight_len);
-    SetTensorNd(weightTensorGrad, weight_len, weight_stride, data_type);
+    auto weight_len = inflags.GetValueTensor("weight_dims").lengths;
+    SetTensorNd(weightTensorGrad, weight_len, data_type);
 
     std::vector<int> out_len = in_len;
     out_len.push_back(weight_len.back());
-    auto out_stride = ComputeStrides(out_len);
-    SetTensorNd(outputTensorGrad, out_len, out_stride, data_type);
+    SetTensorNd(outputTensorGrad, out_len, data_type);
 
     return miopenStatusSuccess;
 }

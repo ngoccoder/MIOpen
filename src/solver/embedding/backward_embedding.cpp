@@ -25,13 +25,13 @@
  *******************************************************************************/
 
 #include <miopen/datatype.hpp>
+#include <miopen/embedding/invoke_params.hpp>
+#include <miopen/embedding/problem_description.hpp>
+#include <miopen/embedding/solvers.hpp>
 #include <miopen/errors.hpp>
 #include <miopen/hipoc_kernel.hpp>
 #include <miopen/kernel_build_params.hpp>
 #include <miopen/kernel_info.hpp>
-#include <miopen/embedding/invoke_params.hpp>
-#include <miopen/embedding/problem_description.hpp>
-#include <miopen/embedding/solvers.hpp>
 #include <miopen/miopen.h>
 #include <miopen/mlo_internal.hpp>
 #include <miopen/tensor_view_utils.hpp>

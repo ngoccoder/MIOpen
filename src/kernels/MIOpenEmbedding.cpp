@@ -112,7 +112,7 @@ __device__ void EmbeddingBackwardAtomicKernel(const int64_t* input,
     if(embedding_idx >= 0 && embedding_idx < num_embeddings)
     {
         FLOAT_ACCUM scale      = indices_freq
-                                     ? (CVT_FLOAT2ACCUM(1.0f) / CVT_FLOAT2ACCUM(indices_freq[i]))
+                                     ? (CVT_FLOAT2ACCUM(1.0f) / CVT_FLOAT2ACCUM(indices_freq[input_idx]))
                                      : CVT_FLOAT2ACCUM(1.0f);
         size_t weight_grad_idx = weight_grad_tv.get_tensor_view_idx({embedding_idx, j});
         tensor_layout_t<4> output_grad_layout(output_grad_tv, gid);
@@ -253,9 +253,10 @@ __device__ void EmbeddingBackwardSmallNumEmbeddingsTraverseKernel(const int64_t*
         {
             if(embedding_idx == target_embedding_idx)
             {
-                FLOAT_ACCUM scale = indices_freq
-                                        ? (CVT_FLOAT2ACCUM(1.0f) / CVT_FLOAT2ACCUM(indices_freq[i]))
-                                        : CVT_FLOAT2ACCUM(1.0f);
+                FLOAT_ACCUM scale =
+                    indices_freq
+                        ? (CVT_FLOAT2ACCUM(1.0f) / CVT_FLOAT2ACCUM(indices_freq[input_idx]))
+                        : CVT_FLOAT2ACCUM(1.0f);
                 tensor_layout_t<4> output_grad_layout(output_grad_tv, embedding_dim * i + j);
                 weight_grad_sum +=
                     CVT_FLOAT2ACCUM(

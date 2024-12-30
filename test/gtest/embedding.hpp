@@ -108,6 +108,10 @@ inline std::vector<EmbeddingTestCase> GenFullTestCases()
         {{32, 32, 64}, {64, 64}, false, 0, false}, // non-cont large weight grad
         {{32, 32, 64}, {64, 64}, true, 0, true}, // cont large weight grad (scale)
         {{32, 32, 64}, {64, 64}, true, 0, false}, // non-cont large weight grad (scale)
+        {{64, 64, 128}, {1024, 1024}, false, 0, true}, // cont large weight grad
+        {{64, 64, 128}, {1024, 1024}, false, 0, false}, // non-cont large weight grad
+        {{64, 64, 128}, {1024, 1024}, true, 0, true}, // cont large weight grad (scale)
+        {{64, 64, 128}, {1024, 1024}, true, 0, false}, // non-cont large weight grad (scale)
     };
     // clang-format on
 }
