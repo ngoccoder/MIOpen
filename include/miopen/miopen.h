@@ -26,6 +26,7 @@
 #ifndef MIOPEN_GUARD_MIOPEN_H_
 #define MIOPEN_GUARD_MIOPEN_H_
 
+#include <cstdint>
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wextern-c-compat"
@@ -72,6 +73,7 @@
  * @defgroup ReduceCalculation
  * @defgroup RotaryPositionalEmbeddings
  * @defgroup ReLU
+ * @defgroup embedding
  *
  */
 
@@ -8174,6 +8176,54 @@ MIOPEN_EXPORT miopenStatus_t miopenMultiMarginLossForward(miopenHandle_t handle,
 
 /** @} */
 // CLOSEOUT LossFunction DOXYGEN GROUP
+#endif // MIOPEN_BETA_API
+
+#ifdef MIOPEN_BETA_API
+
+/*! @ingroup embedding
+ * @enum miopenEmbeddingBagMode_t
+ * Mode for embedding bag function
+ */
+typedef enum
+{
+    MIOPEN_EMBEDDING_BAG_SUM  = 0, /*!< output tensor elements are summed up */
+    MIOPEN_EMBEDDING_BAG_MEAN = 1, /*!< output tensor elements are summed up and divided with total
+                                       number of elements to get mean value */
+    MIOPEN_EMBEDDING_BAG_MAX = 2   /*!< output tensor elements are reduced using max */
+} miopenEmbeddingBagMode_t;
+
+/** @addtogroup embedding
+ *
+ *  @{
+ */
+
+/*! @brief Execute an EmbeddingBag forward layer
+ *
+ * @param handle                   MIOpen handle (input)
+ * @param inputDesc                Tensor descriptor for input tensor (input)
+ * @param input                    Input tensor (input)
+ * @param outputGradDesc           Tensor descriptor for output gradient tensor (input)
+ * @param outputGrad               Output gradient tensor (input)
+ * @param weightGradDesc           Tensor descriptor for weight gradient tensor (input)
+ * @param weightGrad               Weight gradient tensor (output)
+ * @param indices_freq             If given, this will scale gradients by the inverse of frequency
+ * (input)
+ * @param padding_idx              If specified, the entries at padding_idx do not contribute to the
+ * gradient (input)
+ * @return                         miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenEmbeddingBagForward(miopenHandle_t handle,
+                                                       const miopenTensorDescriptor_t inputDesc,
+                                                       const void* input,
+                                                       const miopenTensorDescriptor_t weightDesc,
+                                                       const void* weight,
+                                                       const miopenTensorDescriptor_t outputDesc,
+                                                       void* output,
+                                                       const void* perSampleWeight,
+                                                       miopenEmbeddingBagMode_t mode);
+
+/** @} */
+// CLOSEOUT EMBEDDING DOXYGEN GROUP
 #endif // MIOPEN_BETA_API
 
 #ifdef __cplusplus
