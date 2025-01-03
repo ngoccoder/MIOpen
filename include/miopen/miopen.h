@@ -8182,7 +8182,7 @@ MIOPEN_EXPORT miopenStatus_t miopenMultiMarginLossForward(miopenHandle_t handle,
 
 /*! @ingroup embedding
  * @enum miopenEmbeddingBagMode_t
- * Mode for embedding bag function
+ * Mode for EmbeddingBag function
  */
 typedef enum
 {
@@ -8202,25 +8202,30 @@ typedef enum
  * @param handle                   MIOpen handle (input)
  * @param inputDesc                Tensor descriptor for input tensor (input)
  * @param input                    Input tensor (input)
- * @param outputGradDesc           Tensor descriptor for output gradient tensor (input)
- * @param outputGrad               Output gradient tensor (input)
- * @param weightGradDesc           Tensor descriptor for weight gradient tensor (input)
- * @param weightGrad               Weight gradient tensor (output)
- * @param indices_freq             If given, this will scale gradients by the inverse of frequency
- * (input)
- * @param padding_idx              If specified, the entries at padding_idx do not contribute to the
- * gradient (input)
+ * @param weightDesc               Tensor descriptor for weight tensor (input)
+ * @param weight                   Weight tensor (input)
+ * @param offsetsDesc              Tensor descriptor for offsets tensor (input)
+ * @param offsets                  Offsets tensor (input)
+ * @param perSampleWeightDesc      Tensor descriptor for per sample weight tensor (input)
+ * @param perSampleWeight          Per sample weight tensor (input)
+ * @param outputDesc               Tensor descriptor for output tensor (input)
+ * @param output                   Output tensor (output)
+ * @param mode                     Mode for EmbeddingBag function (input)
  * @return                         miopenStatus_t
  */
-MIOPEN_EXPORT miopenStatus_t miopenEmbeddingBagForward(miopenHandle_t handle,
-                                                       const miopenTensorDescriptor_t inputDesc,
-                                                       const void* input,
-                                                       const miopenTensorDescriptor_t weightDesc,
-                                                       const void* weight,
-                                                       const miopenTensorDescriptor_t outputDesc,
-                                                       void* output,
-                                                       const void* perSampleWeight,
-                                                       miopenEmbeddingBagMode_t mode);
+MIOPEN_EXPORT miopenStatus_t
+miopenEmbeddingBagForward(miopenHandle_t handle,
+                          const miopenTensorDescriptor_t inputDesc,
+                          const void* input,
+                          const miopenTensorDescriptor_t weightDesc,
+                          const void* weight,
+                          const miopenTensorDescriptor_t offsetsDesc,
+                          const void* offsets,
+                          const miopenTensorDescriptor_t perSampleWeightDesc,
+                          const void* perSampleWeight,
+                          const miopenTensorDescriptor_t outputDesc,
+                          void* output,
+                          miopenEmbeddingBagMode_t mode);
 
 /** @} */
 // CLOSEOUT EMBEDDING DOXYGEN GROUP

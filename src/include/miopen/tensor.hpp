@@ -247,6 +247,7 @@ struct MIOPEN_INTERNALS_EXPORT TensorDescriptor : miopenTensorDescriptor
     bool AllDimsFitIntoInt() const;
     /// Checks only lengths.
     bool AllLengthsFitIntoInt() const;
+    bool IsDefined() const;
 
     bool operator==(const TensorDescriptor& rhs) const;
     bool operator!=(const TensorDescriptor& rhs) const;

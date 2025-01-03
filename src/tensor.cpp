@@ -771,6 +771,8 @@ bool TensorDescriptor::IsContiguous() const
     return true;
 }
 
+bool TensorDescriptor::IsDefined() const { return lens.size() != 0; }
+
 bool TensorDescriptor::AllLengthsFitIntoInt() const
 {
     if(!cached_lengths_fit_into_int)

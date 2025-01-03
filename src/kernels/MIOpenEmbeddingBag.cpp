@@ -30,6 +30,7 @@
 
 #include "float_types.h"
 #include "tensor_view.hpp"
+#include <limits>
 
 template <typename TIO>
 __device__ void EmbeddingBagForwardKernel(const int64_t* input,
@@ -64,14 +65,14 @@ __device__ void EmbeddingBagForwardKernel(const int64_t* input,
             TIO scale = per_sample_weights
                             ? per_sample_weights[per_sample_weights_tv.get_tensor_view_idx(
                                   {output_layout.layout[0], i})]
-                            : 1;
+                            : static_cast<TIO>(1);
             sum += weight[weight_tv.get_tensor_view_idx({embedding_idx, output_layout.layout[1]})] *
                    scale;
         }
     }
 
     output[output_tv.get_tensor_view_idx(output_layout)] =
-        (mode == 1) ? sum / input_tv.size[1] : sum;
+        (mode == 1) ? sum / static_cast<TIO>(input_tv.size[1]) : sum;
 }
 
 // for EMBEDDING_BAG_[SUM|MEAN] mode without offsets tensor
@@ -102,8 +103,6 @@ __device__ void EmbeddingBagWithOffsetsForwardKernel(const int64_t* input,
                                                      TIO* output,
                                                      const int64_t* offsets,
                                                      const TIO* per_sample_weights,
-                                                     int64_t* offset2bag,
-                                                     int64_t* bag_size,
                                                      int32_t mode,
                                                      tensor_view_t<1> input_tv,
                                                      tensor_view_t<2> weight_tv,
@@ -142,18 +141,13 @@ __device__ void EmbeddingBagWithOffsetsForwardKernel(const int64_t* input,
 
         if(embedding_idx >= 0 && embedding_idx < num_embeddings)
         {
-            TIO scale = per_sample_weights ? per_sample_weights[i] : 1;
+            TIO scale = per_sample_weights ? per_sample_weights[i] : static_cast<TIO>(1);
             sum += weight[weight_tv.get_tensor_view_idx({embedding_idx, feature_dim})] * scale;
-        }
-
-        if(offset2bag)
-        {
-            offset2bag[i - embedding_idx] = bag;
         }
     }
 
     output[output_tv.get_tensor_view_idx({bag, feature_dim})] =
-        (mode == 1) ? (divisor ? (sum / divisor) : 0) : sum;
+        (mode == 1) ? (divisor ? (sum / static_cast<TIO>(divisor)) : static_cast<TIO>(0)) : sum;
 }
 
 extern "C" __global__ void EmbeddingBagWithOffsetsForward(const int64_t* input,
@@ -161,8 +155,6 @@ extern "C" __global__ void EmbeddingBagWithOffsetsForward(const int64_t* input,
                                                           IO_TYPE* output,
                                                           const int64_t* offsets,
                                                           const IO_TYPE* per_sample_weights,
-                                                          int64_t* offset2bag,
-                                                          int64_t* bag_size,
                                                           int32_t mode,
                                                           tensor_view_t<1> input_tv,
                                                           tensor_view_t<2> weight_tv,
@@ -174,8 +166,6 @@ extern "C" __global__ void EmbeddingBagWithOffsetsForward(const int64_t* input,
                                                   output,
                                                   offsets,
                                                   per_sample_weights,
-                                                  offset2bag,
-                                                  bag_size,
                                                   mode,
                                                   input_tv,
                                                   weight_tv,
@@ -187,11 +177,9 @@ template <typename TIO>
 __device__ void EmbeddingBagMaxForwardKernel(const int64_t* input,
                                              const TIO* weight,
                                              TIO* output,
-                                             int64_t* max_indices,
                                              tensor_view_t<2> input_tv,
                                              tensor_view_t<2> weight_tv,
-                                             tensor_view_t<2> output_tv,
-                                             tensor_view_t<2> max_indices_tv)
+                                             tensor_view_t<2> output_tv)
 {
     /*
      * input = (N, A)
@@ -207,7 +195,6 @@ __device__ void EmbeddingBagMaxForwardKernel(const int64_t* input,
 
     auto num_embeddings = weight_tv.size[0];
     TIO m               = std::numeric_limits<TIO>::min();
-    int64_t mi          = 0;
     for(auto i = 0; i < input_tv.size[1]; i++)
     {
         int64_t embedding_idx = input[input_tv.get_tensor_view_idx({output_layout.layout[0], i})];
@@ -217,27 +204,22 @@ __device__ void EmbeddingBagMaxForwardKernel(const int64_t* input,
             TIO w = weight[weight_tv.get_tensor_view_idx({embedding_idx, output_layout.layout[1]})];
             if(w > m)
             {
-                m  = w;
-                mi = embedding_idx;
+                m = w;
             }
         }
     }
 
-    output[output_tv.get_tensor_view_idx(output_layout)]           = m;
-    max_indices[max_indices_tv.get_tensor_view_idx(output_layout)] = mi;
+    output[output_tv.get_tensor_view_idx(output_layout)] = m;
 }
 
 extern "C" __global__ void EmbeddingBagMaxForward(const int64_t* input,
                                                   const IO_TYPE* weight,
                                                   IO_TYPE* output,
-                                                  int64_t* max_indices,
                                                   tensor_view_t<2> input_tv,
                                                   tensor_view_t<2> weight_tv,
-                                                  tensor_view_t<2> output_tv,
-                                                  tensor_view_t<2> max_indices_tv)
+                                                  tensor_view_t<2> output_tv)
 {
-    EmbeddingBagForwardKernel<IO_TYPE>(
-        input, weight, output, max_indices, input_tv, weight_tv, output_tv, max_indices_tv);
+    EmbeddingBagMaxForwardKernel<IO_TYPE>(input, weight, output, input_tv, weight_tv, output_tv);
 }
 
 template <typename TIO>
@@ -245,14 +227,10 @@ __device__ void EmbeddingBagMaxWithOffsetsForwardKernel(const int64_t* input,
                                                         const TIO* weight,
                                                         TIO* output,
                                                         const int64_t* offsets,
-                                                        int64_t* offset2bag,
-                                                        int64_t* bag_size,
-                                                        int64_t* max_indices,
                                                         tensor_view_t<1> input_tv,
                                                         tensor_view_t<2> weight_tv,
                                                         tensor_view_t<2> output_tv,
-                                                        tensor_view_t<1> offsets_tv,
-                                                        tensor_view_t<2> max_indices_tv)
+                                                        tensor_view_t<1> offsets_tv)
 {
     /*
      * B = num_bags, M = num_embeddings, H = embedding_dim
@@ -260,7 +238,6 @@ __device__ void EmbeddingBagMaxWithOffsetsForwardKernel(const int64_t* input,
      * weight = (num_embeddings, H)
      * offsets = (B)
      * output = (B, H)
-     * max_indices = (B, H)
      * lws = {LOCAL_SIZE}
      * gws = {AlignUp(B * H, LOCAL_SIZE)}
      */
@@ -276,9 +253,7 @@ __device__ void EmbeddingBagMaxWithOffsetsForwardKernel(const int64_t* input,
     size_t input_start = offsets[bag];
     size_t input_end   = (bag + 1 < offsets_tv.size[0]) ? offsets[bag + 1] : input_tv.size[0];
 
-    TIO m             = std::numeric_limits<TIO>::min();
-    int64_t mi        = 0;
-    int64_t bag_size_ = 0;
+    TIO m = std::numeric_limits<TIO>::min();
 
     for(size_t i = input_start; i < input_end; i++)
     {
@@ -286,53 +261,27 @@ __device__ void EmbeddingBagMaxWithOffsetsForwardKernel(const int64_t* input,
 
         if(embedding_idx >= 0 && embedding_idx < weight_tv.size[0])
         {
-            bag_size++;
             TIO w = weight[weight_tv.get_tensor_view_idx({embedding_idx, feature_dim})];
             if(w > m)
             {
-                m  = w;
-                mi = input[i];
-            }
-            if(offset2bag)
-            {
-                offset2bag[i - embedding_idx] = bag;
+                m = w;
             }
         }
     }
 
-    if(bag_size)
-    {
-        bag_size[bag] = bag_size_;
-    }
-
     output[output_tv.get_tensor_view_idx({bag, feature_dim})] =
-        m == std::numeric_limits<TIO>::min() ? 0 : m;
-    max_indices[max_indices_tv.get_tensor_view_idx({bag, feature_dim})] = mi;
+        m == std::numeric_limits<TIO>::min() ? static_cast<TIO>(0) : m;
 }
 
 extern "C" __global__ void EmbeddingBagMaxWithOffsetsForward(const int64_t* input,
                                                              const IO_TYPE* weight,
                                                              IO_TYPE* output,
                                                              const int64_t* offsets,
-                                                             int64_t* offset2bag,
-                                                             int64_t* bag_size,
-                                                             int64_t* max_indices,
                                                              tensor_view_t<1> input_tv,
                                                              tensor_view_t<2> weight_tv,
                                                              tensor_view_t<2> output_tv,
-                                                             tensor_view_t<1> offsets_tv,
-                                                             tensor_view_t<2> max_indices_tv)
+                                                             tensor_view_t<1> offsets_tv)
 {
-    EmbeddingBagMaxWithOffsetsForwardKernel<IO_TYPE>(input,
-                                                     weight,
-                                                     output,
-                                                     offsets,
-                                                     offset2bag,
-                                                     bag_size,
-                                                     max_indices,
-                                                     input_tv,
-                                                     weight_tv,
-                                                     output_tv,
-                                                     offsets_tv,
-                                                     max_indices_tv);
+    EmbeddingBagMaxWithOffsetsForwardKernel<IO_TYPE>(
+        input, weight, output, offsets, input_tv, weight_tv, output_tv, offsets_tv);
 }
