@@ -55,24 +55,27 @@ __device__ void EmbeddingBagForwardKernel(const int64_t* input,
         return;
 
     int64_t num_embeddings = weight_tv.size[0];
-    TIO sum                = 0;
+    FLOAT_ACCUM sum        = 0;
     for(size_t i = 0; i < input_tv.size[1]; i++)
     {
         int64_t embedding_idx = input[input_tv.get_tensor_view_idx({output_layout.layout[0], i})];
 
         if(embedding_idx >= 0 && embedding_idx < num_embeddings)
         {
-            TIO scale = per_sample_weights
-                            ? per_sample_weights[per_sample_weights_tv.get_tensor_view_idx(
-                                  {output_layout.layout[0], i})]
-                            : static_cast<TIO>(1);
-            sum += weight[weight_tv.get_tensor_view_idx({embedding_idx, output_layout.layout[1]})] *
+            FLOAT_ACCUM scale =
+                per_sample_weights
+                    ? CVT_FLOAT2ACCUM(per_sample_weights[per_sample_weights_tv.get_tensor_view_idx(
+                          {output_layout.layout[0], i})])
+                    : CVT_FLOAT2ACCUM(1);
+            sum += CVT_FLOAT2ACCUM(weight[weight_tv.get_tensor_view_idx(
+                       {embedding_idx, output_layout.layout[1]})]) *
                    scale;
         }
     }
 
     output[output_tv.get_tensor_view_idx(output_layout)] =
-        (mode == 1) ? sum / static_cast<TIO>(input_tv.size[1]) : sum;
+        (mode == 1) ? CVT_ACCUM2FLOAT(sum) / CVT_ACCUM2FLOAT(input_tv.size[1])
+                    : CVT_ACCUM2FLOAT(sum);
 }
 
 // for EMBEDDING_BAG_[SUM|MEAN] mode without offsets tensor
@@ -128,26 +131,30 @@ __device__ void EmbeddingBagWithOffsetsForwardKernel(const int64_t* input,
     if(bag >= output_tv.size[0])
         return;
 
-    TIO sum = 0;
-
     int64_t input_start    = offsets[bag];
     int64_t input_end      = (bag + 1 < offsets_tv.size[0]) ? offsets[bag + 1] : input_tv.size[0];
     int32_t divisor        = (input_end - input_start);
     int64_t num_embeddings = weight_tv.size[0];
 
+    FLOAT_ACCUM sum = 0;
     for(int64_t i = input_start; i < input_end; i++)
     {
         int64_t embedding_idx = input[i];
 
         if(embedding_idx >= 0 && embedding_idx < num_embeddings)
         {
-            TIO scale = per_sample_weights ? per_sample_weights[i] : static_cast<TIO>(1);
-            sum += weight[weight_tv.get_tensor_view_idx({embedding_idx, feature_dim})] * scale;
+            FLOAT_ACCUM scale =
+                per_sample_weights ? CVT_FLOAT2ACCUM(per_sample_weights[i]) : CVT_FLOAT2ACCUM(1);
+            sum += CVT_FLOAT2ACCUM(
+                       weight[weight_tv.get_tensor_view_idx({embedding_idx, feature_dim})]) *
+                   scale;
         }
     }
 
     output[output_tv.get_tensor_view_idx({bag, feature_dim})] =
-        (mode == 1) ? (divisor ? (sum / static_cast<TIO>(divisor)) : static_cast<TIO>(0)) : sum;
+        (mode == 1)
+            ? (divisor ? (CVT_ACCUM2FLOAT(sum) / CVT_ACCUM2FLOAT(divisor)) : CVT_ACCUM2FLOAT(0))
+            : CVT_ACCUM2FLOAT(sum);
 }
 
 extern "C" __global__ void EmbeddingBagWithOffsetsForward(const int64_t* input,

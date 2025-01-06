@@ -24,35 +24,36 @@
  *
  *******************************************************************************/
 
-#include <miopen/embeddingbag/problem_description.hpp>
-#include <miopen/names.hpp>
-
-#include <sstream>
-
-namespace miopen {
+#include "embeddingbag.hpp"
+using float16 = half_float::half;
 
 namespace embeddingbag {
 
-NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
-{
-    auto weight_dtype  = weightDesc.GetType();
-    auto output_numel  = outputDesc.GetElementSize();
-    auto weight_len    = weightDesc.GetLengths();
-    auto offsets_numel = offsetsDesc.GetElementSize();
-
-    std::ostringstream ss;
-
-    ss << "embeddingbag_fwd";
-    ss << "weight_dtype" << weight_dtype;
-    ss << "num_embedding" << weight_len[0];
-    ss << "embedding_dim" << weight_len[1];
-    ss << "output_size" << output_numel;
-    ss << "mode" << mode;
-    ss << "offsets_size" << offsets_numel;
-
-    return NetworkConfig{ss.str()};
-}
+using GPU_EmbeddingBag_fwd_FP32  = EmbeddingBagFwdTest<float>;
+using GPU_EmbeddingBag_fwd_FP16  = EmbeddingBagFwdTest<float16>;
+using GPU_EmbeddingBag_fwd_BFP16 = EmbeddingBagFwdTest<bfloat16>;
 
 } // namespace embeddingbag
+using namespace embeddingbag;
 
-} // namespace miopen
+TEST_P(GPU_EmbeddingBag_fwd_FP32, Test)
+{
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_EmbeddingBag_fwd_FP16, Test)
+{
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_EmbeddingBag_fwd_BFP16, Test)
+{
+    RunTest();
+    Verify();
+};
+
+INSTANTIATE_TEST_SUITE_P(Full, GPU_EmbeddingBag_fwd_FP32, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_EmbeddingBag_fwd_FP16, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_EmbeddingBag_fwd_BFP16, testing::ValuesIn(GenFullTestCases()));
