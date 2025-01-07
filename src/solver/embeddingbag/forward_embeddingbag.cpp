@@ -58,7 +58,9 @@ bool EmbeddingBagForward::IsApplicable(
         return false;
     }
 
-    return true;
+    if()
+
+        return true;
 }
 
 ConvSolution

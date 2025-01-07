@@ -74,8 +74,7 @@ __device__ void EmbeddingBagForwardKernel(const int64_t* input,
     }
 
     output[output_tv.get_tensor_view_idx(output_layout)] =
-        (mode == 1) ? CVT_ACCUM2FLOAT(sum) / CVT_ACCUM2FLOAT(input_tv.size[1])
-                    : CVT_ACCUM2FLOAT(sum);
+        (mode == 1) ? CVT_ACCUM2FLOAT(sum / input_tv.size[1]) : CVT_ACCUM2FLOAT(sum);
 }
 
 // for EMBEDDING_BAG_[SUM|MEAN] mode without offsets tensor

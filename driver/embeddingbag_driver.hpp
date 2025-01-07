@@ -77,8 +77,8 @@ int mloEmbeddingBagForward(const miopenTensorDescriptor_t inputDesc,
             size_t input_start = offsets[bag];
             size_t input_end = (bag + 1 < offsets_tv.size[0]) ? offsets[bag + 1] : input_tv.size[0];
             auto divisor     = input_end - input_start;
-            Tgpu res         = (mode == MIOPEN_EMBEDDING_BAG_MAX) ? std::numeric_limits<Tgpu>::min()
-                                                                  : static_cast<Tgpu>(0);
+            double res =
+                (mode == MIOPEN_EMBEDDING_BAG_MAX) ? std::numeric_limits<double>::min() : 0;
 
             for(auto i = input_start; i < input_end; i++)
             {
@@ -86,7 +86,8 @@ int mloEmbeddingBagForward(const miopenTensorDescriptor_t inputDesc,
 
                 if(embedding_idx >= 0 && embedding_idx < num_embeddings)
                 {
-                    Tgpu w = weight[weight_tv.get_tensor_view_idx({embedding_idx, feature_dim})];
+                    double w = static_cast<double>(
+                        weight[weight_tv.get_tensor_view_idx({embedding_idx, feature_dim})]);
                     if(mode == MIOPEN_EMBEDDING_BAG_MAX)
                     {
                         res = std::max(res, w);
@@ -95,7 +96,7 @@ int mloEmbeddingBagForward(const miopenTensorDescriptor_t inputDesc,
                     {
                         Tgpu scale =
                             per_sample_weights ? per_sample_weights[i] : static_cast<Tgpu>(1);
-                        res += w * scale;
+                        res += w * static_cast<double>(scale);
                     }
                 }
             }
@@ -112,16 +113,16 @@ int mloEmbeddingBagForward(const miopenTensorDescriptor_t inputDesc,
         for(size_t o = 0; o < output_numel; o++)
         {
             tensor_layout_t<2> output_layout(output_tv, o);
-            Tgpu res = (mode == MIOPEN_EMBEDDING_BAG_MAX) ? std::numeric_limits<Tgpu>::min()
-                                                          : static_cast<Tgpu>(0);
+            double res =
+                (mode == MIOPEN_EMBEDDING_BAG_MAX) ? std::numeric_limits<double>::min() : 0;
             for(size_t i = 0; i < input_tv.size[1]; i++)
             {
                 int64_t embedding_idx =
                     input[input_tv.get_tensor_view_idx({output_layout.layout[0], i})];
                 if(embedding_idx >= 0 && embedding_idx < num_embeddings)
                 {
-                    Tgpu w = weight[weight_tv.get_tensor_view_idx(
-                        {embedding_idx, output_layout.layout[1]})];
+                    double w = static_cast<double>(weight[weight_tv.get_tensor_view_idx(
+                        {embedding_idx, output_layout.layout[1]})]);
                     if(mode == MIOPEN_EMBEDDING_BAG_MAX)
                     {
                         res = std::max(res, w);
@@ -133,9 +134,7 @@ int mloEmbeddingBagForward(const miopenTensorDescriptor_t inputDesc,
                                 ? per_sample_weights[per_sample_weights_tv.get_tensor_view_idx(
                                       {output_layout.layout[0], i})]
                                 : static_cast<Tgpu>(1);
-                        res += weight[weight_tv.get_tensor_view_idx(
-                                   {embedding_idx, output_layout.layout[1]})] *
-                               scale;
+                        res += w * static_cast<double>(scale);
                     }
                 }
             }
