@@ -58,9 +58,20 @@ bool EmbeddingBagForward::IsApplicable(
         return false;
     }
 
-    if()
+    if(problem.GetOffsetsDesc().IsDefined())
+    {
+        return false;
+    }
 
-        return true;
+    if(problem.GetMode() != MIOPEN_EMBEDDING_BAG_MAX)
+    {
+        int threshold = 1 << 19;
+        if(problem.GetWeightDesc().GetType() != miopenFloat ||
+           problem.GetOutputDesc().GetElementSize() < threshold)
+            return false;
+    }
+
+    return true;
 }
 
 ConvSolution
@@ -69,11 +80,10 @@ EmbeddingBagForward::GetSolution(const ExecutionContext& /*context*/,
 {
     auto result = ConvSolution{miopenStatusSuccess};
 
-    auto dtype            = problem.GetWeightDesc().GetType();
-    auto io_dtype         = miopen::GetDataType(dtype);
-    auto output_numel     = problem.GetOutputDesc().GetElementSize();
-    auto isOffsetsDefined = problem.GetOffsetsDesc().IsDefined();
-    auto mode             = problem.GetMode();
+    auto dtype        = problem.GetWeightDesc().GetType();
+    auto io_dtype     = miopen::GetDataType(dtype);
+    auto output_numel = problem.GetOutputDesc().GetElementSize();
+    auto mode         = problem.GetMode();
 
     auto kernel        = KernelInfo{};
     kernel.kernel_file = "MIOpenEmbeddingBag.cpp";
@@ -95,80 +105,36 @@ EmbeddingBagForward::GetSolution(const ExecutionContext& /*context*/,
     kernel.g_wk.push_back(1);
     kernel.g_wk.push_back(1);
 
-    if(isOffsetsDefined) // EmbeddingBag with offsets
-    {
-        kernel.kernel_name = (mode == MIOPEN_EMBEDDING_BAG_MAX)
-                                 ? "EmbeddingBagMaxWithOffsetsForward"
-                                 : "EmbeddingBagWithOffsetsForward";
-    }
-    else
-    {
-        kernel.kernel_name =
-            (mode == MIOPEN_EMBEDDING_BAG_MAX) ? "EmbeddingBagMaxForward" : "EmbeddingBagForward";
-    }
+    kernel.kernel_name =
+        (mode == MIOPEN_EMBEDDING_BAG_MAX) ? "EmbeddingBagMaxForward" : "EmbeddingBagForward";
 
     result.construction_params.push_back(kernel);
 
-    result.invoker_factory = [isOffsetsDefined, mode](const std::vector<Kernel>& kernels) {
+    result.invoker_factory = [mode](const std::vector<Kernel>& kernels) {
         return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
             decltype(auto) kernel = handle_.Run(kernels.front());
             decltype(auto) params = raw_params.CastTo<miopen::embeddingbag::FwdInvokeParams>();
 
-            if(isOffsetsDefined)
+            tensor_view_t<2> input_tv  = get_inner_expanded_tv<2>(deref(params.inputDesc));
+            tensor_view_t<2> weight_tv = get_inner_expanded_tv<2>(deref(params.weightDesc));
+            tensor_view_t<2> output_tv = get_inner_expanded_tv<2>(deref(params.outputDesc));
+            tensor_view_t<2> per_sample_weights_tv =
+                get_inner_expanded_tv<2>(deref(params.perSampleWeightDesc));
+            if(mode == MIOPEN_EMBEDDING_BAG_MAX)
             {
-                tensor_view_t<1> input_tv   = get_inner_expanded_tv<1>(deref(params.inputDesc));
-                tensor_view_t<1> offsets_tv = get_inner_expanded_tv<1>(deref(params.offsetsDesc));
-                tensor_view_t<2> weight_tv  = get_inner_expanded_tv<2>(deref(params.weightDesc));
-                tensor_view_t<2> output_tv  = get_inner_expanded_tv<2>(deref(params.outputDesc));
-                if(mode == MIOPEN_EMBEDDING_BAG_MAX)
-                {
-                    kernel(params.input,
-                           params.weight,
-                           params.output,
-                           params.offsets,
-                           input_tv,
-                           weight_tv,
-                           output_tv,
-                           offsets_tv);
-                }
-                else
-                {
-                    kernel(params.input,
-                           params.weight,
-                           params.output,
-                           params.offsets,
-                           params.perSampleWeight,
-                           static_cast<int32_t>(mode),
-                           input_tv,
-                           weight_tv,
-                           output_tv,
-                           offsets_tv);
-                }
+                kernel(params.input, params.weight, params.output, input_tv, weight_tv, output_tv);
             }
             else
             {
-                tensor_view_t<2> input_tv  = get_inner_expanded_tv<2>(deref(params.inputDesc));
-                tensor_view_t<2> weight_tv = get_inner_expanded_tv<2>(deref(params.weightDesc));
-                tensor_view_t<2> output_tv = get_inner_expanded_tv<2>(deref(params.outputDesc));
-                tensor_view_t<2> per_sample_weights_tv =
-                    get_inner_expanded_tv<2>(deref(params.perSampleWeightDesc));
-                if(mode == MIOPEN_EMBEDDING_BAG_MAX)
-                {
-                    kernel(
-                        params.input, params.weight, params.output, input_tv, weight_tv, output_tv);
-                }
-                else
-                {
-                    kernel(params.input,
-                           params.weight,
-                           params.output,
-                           params.perSampleWeight,
-                           static_cast<int32_t>(mode),
-                           input_tv,
-                           weight_tv,
-                           output_tv,
-                           per_sample_weights_tv);
-                }
+                kernel(params.input,
+                       params.weight,
+                       params.output,
+                       params.perSampleWeight,
+                       static_cast<int32_t>(mode),
+                       input_tv,
+                       weight_tv,
+                       output_tv,
+                       per_sample_weights_tv);
             }
         };
     };
