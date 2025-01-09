@@ -36,7 +36,6 @@ namespace embedding {
 NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
 {
     auto weight_grad_dtype = weightGradDesc.GetType();
-    auto weight_grad_numel = weightGradDesc.GetElementSize();
     auto output_numel      = outputGradDesc.GetElementSize();
     auto weight_len        = weightGradDesc.GetLengths();
 
@@ -48,7 +47,6 @@ NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
     ss << "num_embedding" << weight_len[0];
     ss << "embedding_dim" << weight_len[1];
     ss << "output_size" << output_numel;
-    ss << "weight_size" << weight_grad_numel;
 
     return NetworkConfig{ss.str()};
 }

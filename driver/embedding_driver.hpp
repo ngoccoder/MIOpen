@@ -57,7 +57,7 @@ int mloEmbeddingBackward(const miopenTensorDescriptor_t inputDesc,
                          int64_t padding_idx)
 {
     auto input_tv       = miopen::get_inner_expanded_tv<4>(miopen::deref(inputDesc));
-    auto outGrad_tv     = miopen::get_inner_expanded_tv<4>(miopen::deref(outputGradDesc));
+    auto outGrad_tv     = miopen::get_inner_expanded_tv<5>(miopen::deref(outputGradDesc));
     auto weightGrad_tv  = miopen::get_inner_expanded_tv<2>(miopen::deref(weightGradDesc));
     auto weightGrad_len = miopen::deref(weightGradDesc).GetLengths();
     auto embedding_dim  = weightGrad_len[1];
@@ -66,11 +66,9 @@ int mloEmbeddingBackward(const miopenTensorDescriptor_t inputDesc,
     for(size_t o = 0; o < outGrad_numel; o++)
     {
         size_t i = o / embedding_dim, j = o % embedding_dim;
-        size_t n3 = i % input_tv.size[3], n012 = i / input_tv.size[3];
-        size_t n2 = n012 % input_tv.size[2], n01 = n012 / input_tv.size[2];
-        size_t n1 = n01 % input_tv.size[1], n0 = n01 / input_tv.size[1];
 
-        size_t input_idx      = input_tv.get_tensor_view_idx({n0, n1, n2, n3});
+        tensor_layout_t<4> input_layout(input_tv, i);
+        size_t input_idx      = input_tv.get_tensor_view_idx(input_layout);
         int64_t embedding_idx = input[input_idx];
 
         if(embedding_idx == padding_idx)
@@ -83,7 +81,7 @@ int mloEmbeddingBackward(const miopenTensorDescriptor_t inputDesc,
                     ? (static_cast<Tcheck>(1.0f) / static_cast<Tcheck>(indices_freq[input_idx]))
                     : static_cast<Tcheck>(1.0f);
             size_t weight_grad_idx = weightGrad_tv.get_tensor_view_idx({embedding_idx, j});
-            tensor_layout_t<4> outGrad_layout(outGrad_tv, o);
+            tensor_layout_t<5> outGrad_layout(outGrad_tv, o);
             weightGradHost[weight_grad_idx] +=
                 outputGrad[outGrad_tv.get_tensor_view_idx(outGrad_layout)] * scale;
         }
@@ -111,15 +109,13 @@ public:
     InputFlags& GetInputFlags() override { return inflags; }
 
     int GetandSetData() override;
-    std::vector<int> GetInputTensorLengthsFromCmdLine();
-
     int AllocateBuffersAndCopy() override;
 
     int RunForwardGPU() override;
-    int RunForwardCPU(); // Verify implements it
+    int RunForwardCPU();
 
     int RunBackwardGPU() override;
-    int RunBackwardCPU(); // Verify implements it
+    int RunBackwardCPU();
 
     Tref GetTolerance();
 
@@ -176,9 +172,9 @@ int EmbeddingDriver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
         MIOPEN_THROW("Invalid Forward|Backward Mode");
     }
 
-    isContiguous       = inflags.GetValueInt("is_contiguous") == 1 ? true : false;
+    isContiguous       = inflags.GetValueInt("is_contiguous") == 0 ? false : true;
     padding_idx        = inflags.GetValueInt("padding_idx");
-    scale_grad_by_freq = inflags.GetValueInt("scale_grad_by_freq") == 1 ? true : false;
+    scale_grad_by_freq = inflags.GetValueInt("scale_grad_by_freq") == 0 ? false : true;
 
     return miopenStatusSuccess;
 }
@@ -251,7 +247,6 @@ int EmbeddingDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
     size_t in_sz    = GetTensorSpace(inputTensor);
     auto weight_len = miopen::deref(weightTensorGrad).GetLengths();
 
-    // TODO: add indices_freq
     if(forw == 2)
     {
         size_t outGrad_sz    = GetTensorSpace(outputTensorGrad);
@@ -297,7 +292,7 @@ int EmbeddingDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
             auto input_numel = miopen::deref(inputTensor).GetElementSize();
             indices_freq     = std::vector<int32_t>(in_sz, static_cast<int32_t>(0));
 
-            std::unordered_map<int64_t, int> counts;
+            std::unordered_map<int64_t, int32_t> counts;
             for(auto idx : in)
             {
                 counts[idx]++;

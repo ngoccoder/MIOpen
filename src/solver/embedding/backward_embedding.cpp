@@ -82,8 +82,7 @@ EmbeddingBackward::GetSolution(const ExecutionContext& /*context*/,
         KernelBuildParameters{{"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
                               {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
                               {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
-                              {"IO_TYPE", io_dtype == "bfloat16" ? "ushort" : io_dtype},
-                              {"O_TYPE", io_dtype == "bfloat16" ? "ushort" : io_dtype}};
+                              {"IO_TYPE", io_dtype == "bfloat16" ? "ushort" : io_dtype}};
 
     /* Phase 1: Fill weight grad with zeros */
     {
@@ -154,10 +153,9 @@ EmbeddingBackward::GetSolution(const ExecutionContext& /*context*/,
             float elapsed = 0.f;
             HipEventPtr start, stop;
 
-            bool reset_profiling_state = false;
-            if(handle_.IsProfilingEnabled())
+            const bool profiling = handle_.IsProfilingEnabled();
+            if(profiling)
             {
-                reset_profiling_state = true;
                 handle_.EnableProfiling(false);
                 start = miopen::make_hip_event();
                 stop  = miopen::make_hip_event();
@@ -237,12 +235,7 @@ EmbeddingBackward::GetSolution(const ExecutionContext& /*context*/,
                 }
             }
 
-            if(reset_profiling_state)
-            {
-                handle_.EnableProfiling(true);
-            }
-
-            if(handle_.IsProfilingEnabled())
+            if(profiling)
             {
                 hipEventRecord(stop.get(), handle_.GetStream());
                 hipEventSynchronize(stop.get());
@@ -253,6 +246,8 @@ EmbeddingBackward::GetSolution(const ExecutionContext& /*context*/,
                 hipEventDestroy(stop.get());
                 handle_.ResetKernelTime();
                 handle_.AccumKernelTime(elapsed);
+
+                handle_.EnableProfiling(true);
             }
         };
     };
