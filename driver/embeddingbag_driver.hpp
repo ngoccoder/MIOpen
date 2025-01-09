@@ -68,7 +68,7 @@ int mloEmbeddingBagForward(const miopenTensorDescriptor_t inputDesc,
     {
         tensor_view_t<1> input_tv   = miopen::get_inner_expanded_tv<1>(miopen::deref(inputDesc));
         tensor_view_t<1> offsets_tv = miopen::get_inner_expanded_tv<1>(miopen::deref(offsetsDesc));
-        for(size_t o = 0; o < output_numel; o++)
+        for(auto o = 0; o < output_numel; o++)
         {
             tensor_layout_t<2> output_layout(output_tv, o);
             size_t bag         = output_layout.layout[0];
@@ -110,7 +110,7 @@ int mloEmbeddingBagForward(const miopenTensorDescriptor_t inputDesc,
         tensor_view_t<2> input_tv = miopen::get_inner_expanded_tv<2>(miopen::deref(inputDesc));
         tensor_view_t<2> per_sample_weights_tv =
             miopen::get_inner_expanded_tv<2>(miopen::deref(perSampleWeightsDesc));
-        for(size_t o = 0; o < output_numel; o++)
+        for(auto o = 0; o < output_numel; o++)
         {
             tensor_layout_t<2> output_layout(output_tv, o);
             double res =
@@ -510,7 +510,7 @@ int EmbeddingBagDriver<Tgpu, Tref>::VerifyForward()
     if(!std::isfinite(error) || error > tolerance)
     {
         std::cout << "Forward EmbeddingBag FAILED: " << error << " > " << tolerance << std::endl;
-        return EC_VerifyBwd;
+        return EC_VerifyFwd;
     }
     else
     {

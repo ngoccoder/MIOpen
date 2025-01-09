@@ -28,6 +28,7 @@
 #include <miopen/miopen.h>
 #include <miopen/tensor_view_utils.hpp>
 
+#include "ford.hpp"
 #include "tensor_holder.hpp"
 #include "tensor_view.hpp"
 
@@ -92,7 +93,7 @@ void cpu_embeddingbag_forward(const tensor<int64_t>& input,
     {
         tensor_view_t<2> input_tv              = get_inner_expanded_tv<2>(input.desc);
         tensor_view_t<2> per_sample_weights_tv = get_inner_expanded_tv<2>(per_sample_weights.desc);
-        for(size_t o = 0; o < output_numel; o++)
+        for(auto o = 0; o < output_numel; o++)
         {
             tensor_layout_t<2> output_layout(output_tv, o);
             double res =

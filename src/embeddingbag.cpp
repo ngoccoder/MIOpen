@@ -26,46 +26,46 @@
 
 #include <miopen/common.hpp>
 #include <miopen/embeddingbag.hpp>
-#include <miopen/find_solution.hpp>
-#include <miopen/tensor.hpp>
 #include <miopen/embeddingbag/invoke_params.hpp>
 #include <miopen/embeddingbag/problem_description.hpp>
 #include <miopen/embeddingbag/solvers.hpp>
+#include <miopen/find_solution.hpp>
+#include <miopen/tensor.hpp>
 
 namespace miopen {
 
 namespace embeddingbag {
 
 miopenStatus_t EmbeddingBagForward(Handle& handle,
-                                    const TensorDescriptor& inputDesc,
-                                    ConstData_t input,
-                                    const TensorDescriptor& weightDesc,
-                                    ConstData_t weight,
-                                    const TensorDescriptor& offsetsDesc,
-                                    ConstData_t offsets,
-                                    const TensorDescriptor& perSampleWeightDesc,
-                                    ConstData_t perSampleWeight,
-                                    const TensorDescriptor& outputDesc,
-                                    Data_t output,
-                                    miopenEmbeddingBagMode_t mode)
+                                   const TensorDescriptor& inputDesc,
+                                   ConstData_t input,
+                                   const TensorDescriptor& weightDesc,
+                                   ConstData_t weight,
+                                   const TensorDescriptor& offsetsDesc,
+                                   ConstData_t offsets,
+                                   const TensorDescriptor& perSampleWeightDesc,
+                                   ConstData_t perSampleWeight,
+                                   const TensorDescriptor& outputDesc,
+                                   Data_t output,
+                                   miopenEmbeddingBagMode_t mode)
 {
-    const auto problem = embeddingbag::FwdProblemDescription{inputDesc, weightDesc, offsetsDesc, 
-                                                             perSampleWeightDesc, outputDesc, mode};
+    const auto problem = embeddingbag::FwdProblemDescription{
+        inputDesc, weightDesc, offsetsDesc, perSampleWeightDesc, outputDesc, mode};
 
     const auto invoke_params = [&]() {
-        auto tmp           = embeddingbag::FwdInvokeParams{};
-        tmp.type           = InvokeType::Run;
-        tmp.inputDesc      = &inputDesc;
-        tmp.weightDesc     = &weightDesc;
-        tmp.offsetsDesc    = &offsetsDesc;
+        auto tmp                = embeddingbag::FwdInvokeParams{};
+        tmp.type                = InvokeType::Run;
+        tmp.inputDesc           = &inputDesc;
+        tmp.weightDesc          = &weightDesc;
+        tmp.offsetsDesc         = &offsetsDesc;
         tmp.perSampleWeightDesc = &perSampleWeightDesc;
-        tmp.outputDesc     = &outputDesc;
-        tmp.input          = input;
-        tmp.weight         = weight;
-        tmp.offsets        = offsets;
-        tmp.perSampleWeight = perSampleWeight;
-        tmp.output         = output;
-        tmp.mode           = mode;
+        tmp.outputDesc          = &outputDesc;
+        tmp.input               = input;
+        tmp.weight              = weight;
+        tmp.offsets             = offsets;
+        tmp.perSampleWeight     = perSampleWeight;
+        tmp.output              = output;
+        tmp.mode                = mode;
         return tmp;
     }();
 

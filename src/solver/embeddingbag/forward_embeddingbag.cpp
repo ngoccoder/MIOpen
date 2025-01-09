@@ -63,14 +63,6 @@ bool EmbeddingBagForward::IsApplicable(
         return false;
     }
 
-    if(problem.GetMode() != MIOPEN_EMBEDDING_BAG_MAX)
-    {
-        int threshold = 1 << 19;
-        if(problem.GetWeightDesc().GetType() != miopenFloat ||
-           problem.GetOutputDesc().GetElementSize() < threshold)
-            return false;
-    }
-
     return true;
 }
 
