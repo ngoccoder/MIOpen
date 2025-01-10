@@ -25,12 +25,12 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef MLO_SOFTMAXHOST_H_
 #define MLO_SOFTMAXHOST_H_
 
+#include "miopen/errors.hpp"
+#include "miopen/tensor_view_utils.hpp"
+#include "tensor_view.hpp"
+#include <limits>
 #include <miopen/tensor.hpp>
 #include <miopen/tensor_extra.hpp>
-
-////////////////////////////////////////////////////////////
-//
-///////////////////////////////////////////////////////////
 
 #define NEGATIVE_INF_FP32 (-1e20)
 #define NEGATIVE_INF_FP16 (-1e5)
@@ -42,33 +42,30 @@ T logaddexp(T x, T y, T neg_inf)
     T b = std::min(x, y);
     T c = b - a;
 
-    return c <= neg_inf ? std::max(a, neg_inf) : std::max(T(a + log(T(1) + exp(b - a))), neg_inf);
+    return c <= neg_inf
+               ? std::max(a, neg_inf)
+               : std::max(static_cast<T>(a + log(static_cast<T>(1) + exp(b - a))), neg_inf);
 }
 
-template <typename Tgpu, typename Tcheck /* the data type used in CPU checkings (usually double) */>
-int mloSoftmaxForwardRunHost(miopenTensorDescriptor_t inputTensor,
-                             miopenTensorDescriptor_t outputTensor,
-                             Tgpu* in,
+template <typename Tgpu, typename Tcheck>
+int mloSoftmaxForwardRunHost(const miopenTensorDescriptor_t inputTensor,
+                             const miopenTensorDescriptor_t outputTensor,
+                             const Tgpu* in,
                              Tcheck* outhost,
                              float alpha,
                              float beta,
                              miopenSoftmaxAlgorithm_t algo,
                              miopenSoftmaxMode_t mode)
 {
-    int n, c, h, w, in_nstr, in_cstr, in_hstr, in_wstr;
-    int out_nstr, out_cstr, out_hstr, out_wstr;
+    int n, c, h, w;
     miopenGet4dTensorDescriptorLengths(inputTensor, &n, &c, &h, &w);
-    miopenGet4dTensorDescriptorStrides(inputTensor, &in_nstr, &in_cstr, &in_hstr, &in_wstr);
-    miopenGet4dTensorDescriptorStrides(outputTensor, &out_nstr, &out_cstr, &out_hstr, &out_wstr);
-    (void)in_wstr;
-    (void)out_wstr;
+    tensor_view_t<4> input_tv  = miopen::get_inner_expanded_tv<4>(miopen::deref(inputTensor));
+    tensor_view_t<4> output_tv = miopen::get_inner_expanded_tv<4>(miopen::deref(outputTensor));
 
-    Tcheck max_val = (sizeof(Tgpu) == 4) ? 3.402823466e+38f : 65504.;
+    Tcheck min_val = std::numeric_limits<Tcheck>::min();
     std::vector<Tcheck> channel_max((mode == MIOPEN_SOFTMAX_MODE_INSTANCE ? n : n * h * w),
-                                    static_cast<Tcheck>(-max_val));
+                                    min_val);
     std::vector<Tcheck> results(n * c * h * w, static_cast<Tcheck>(0.0));
-
-    int ret = 0;
 
     if(mode == MIOPEN_SOFTMAX_MODE_INSTANCE)
     {
@@ -81,7 +78,7 @@ int mloSoftmaxForwardRunHost(miopenTensorDescriptor_t inputTensor,
                         for(int s1 = 0; s1 < w; s1++)
                         {
                             results[(i * c + j) * h * w + s0 * w + s1] = static_cast<Tcheck>(
-                                in[i * in_nstr + j * in_cstr + s0 * in_hstr + s1]);
+                                in[input_tv.get_tensor_view_idx({i, j, s0, s1})]);
                         }
             }
             else
@@ -92,7 +89,7 @@ int mloSoftmaxForwardRunHost(miopenTensorDescriptor_t inputTensor,
                         {
                             channel_max[i] =
                                 std::max(static_cast<Tcheck>(
-                                             in[i * in_nstr + j * in_cstr + s0 * in_hstr + s1]),
+                                             in[input_tv.get_tensor_view_idx({i, j, s0, s1})]),
                                          channel_max[i]);
                         }
 
@@ -102,7 +99,7 @@ int mloSoftmaxForwardRunHost(miopenTensorDescriptor_t inputTensor,
                         {
                             results[(i * c + j) * h * w + s0 * w + s1] =
                                 static_cast<Tcheck>(
-                                    in[i * in_nstr + j * in_cstr + s0 * in_hstr + s1]) -
+                                    in[input_tv.get_tensor_view_idx({i, j, s0, s1})]) -
                                 channel_max[i];
                         }
             }
@@ -126,10 +123,10 @@ int mloSoftmaxForwardRunHost(miopenTensorDescriptor_t inputTensor,
                     for(int s0 = 0; s0 < h; s0++)
                         for(int s1 = 0; s1 < w; s1++)
                         {
-                            outhost[i * out_nstr + j * out_cstr + s0 * out_hstr + s1] =
+                            outhost[output_tv.get_tensor_view_idx({i, j, s0, s1})] =
                                 alpha *
                                     (results[(i * c + j) * h * w + s0 * w + s1] - channel_max[i]) +
-                                beta * outhost[i * out_nstr + j * out_cstr + s0 * out_hstr + s1];
+                                beta * outhost[output_tv.get_tensor_view_idx({i, j, s0, s1})];
                         }
             }
             else
@@ -148,10 +145,10 @@ int mloSoftmaxForwardRunHost(miopenTensorDescriptor_t inputTensor,
                     for(int s0 = 0; s0 < h; s0++)
                         for(int s1 = 0; s1 < w; s1++)
                         {
-                            outhost[i * out_nstr + j * out_cstr + s0 * out_hstr + s1] =
+                            outhost[output_tv.get_tensor_view_idx({i, j, s0, s1})] =
                                 alpha *
                                     (results[(i * c + j) * h * w + s0 * w + s1] / channel_max[i]) +
-                                beta * outhost[i * out_nstr + j * out_cstr + s0 * out_hstr + s1];
+                                beta * outhost[output_tv.get_tensor_view_idx({i, j, s0, s1})];
                         }
             }
         }
@@ -168,7 +165,7 @@ int mloSoftmaxForwardRunHost(miopenTensorDescriptor_t inputTensor,
                         for(int j = 0; j < c; j++)
                         {
                             results[(i * c + j) * h * w + s0 * w + s1] = static_cast<Tcheck>(
-                                in[i * in_nstr + j * in_cstr + s0 * in_hstr + s1]);
+                                in[input_tv.get_tensor_view_idx({i, j, s0, s1})]);
                         }
                     }
                     else
@@ -177,7 +174,7 @@ int mloSoftmaxForwardRunHost(miopenTensorDescriptor_t inputTensor,
                         {
                             channel_max[i * h * w + s0 * w + s1] =
                                 std::max(static_cast<Tcheck>(
-                                             in[i * in_nstr + j * in_cstr + s0 * in_hstr + s1]),
+                                             in[input_tv.get_tensor_view_idx({i, j, s0, s1})]),
                                          channel_max[i * h * w + s0 * w + s1]);
                         }
 
@@ -185,7 +182,7 @@ int mloSoftmaxForwardRunHost(miopenTensorDescriptor_t inputTensor,
                         {
                             results[(i * c + j) * h * w + s0 * w + s1] =
                                 static_cast<Tcheck>(
-                                    in[i * in_nstr + j * in_cstr + s0 * in_hstr + s1]) -
+                                    in[input_tv.get_tensor_view_idx({i, j, s0, s1})]) -
                                 channel_max[i * h * w + s0 * w + s1];
                         }
                     }
@@ -206,10 +203,10 @@ int mloSoftmaxForwardRunHost(miopenTensorDescriptor_t inputTensor,
 
                         for(int j = 0; j < c; j++)
                         {
-                            outhost[i * out_nstr + j * out_cstr + s0 * out_hstr + s1] =
+                            outhost[output_tv.get_tensor_view_idx({i, j, s0, s1})] =
                                 alpha * (results[(i * c + j) * h * w + s0 * w + s1] -
                                          channel_max[i * h * w + s0 * w + s1]) +
-                                beta * outhost[i * out_nstr + j * out_cstr + s0 * out_hstr + s1];
+                                beta * outhost[output_tv.get_tensor_view_idx({i, j, s0, s1})];
                         }
                     }
                     else
@@ -225,25 +222,24 @@ int mloSoftmaxForwardRunHost(miopenTensorDescriptor_t inputTensor,
 
                         for(int j = 0; j < c; j++)
                         {
-                            outhost[i * out_nstr + j * out_cstr + s0 * out_hstr + s1] =
+                            outhost[output_tv.get_tensor_view_idx({i, j, s0, s1})] =
                                 alpha * (results[(i * c + j) * h * w + s0 * w + s1] /
                                          channel_max[i * h * w + s0 * w + s1]) +
-                                beta * outhost[i * out_nstr + j * out_cstr + s0 * out_hstr + s1];
+                                beta * outhost[output_tv.get_tensor_view_idx({i, j, s0, s1})];
                         }
                     }
                 }
         }
     }
 
-    return ret;
+    return 0;
 }
 
-template <typename Tgpu /* the data type used in GPU computations (usually half) */,
-          typename Tcheck /* the data type used in CPU checkings (usually double) */>
-int mloSoftmaxBackwardRunHost(miopenTensorDescriptor_t dInputTensor,
-                              miopenTensorDescriptor_t dOutputTensor,
-                              Tgpu* out,
-                              Tgpu* dout,
+template <typename Tgpu, typename Tcheck>
+int mloSoftmaxBackwardRunHost(const miopenTensorDescriptor_t dInputTensor,
+                              const miopenTensorDescriptor_t dOutputTensor,
+                              const Tgpu* out,
+                              const Tgpu* dout,
                               Tcheck* dinhost,
                               float alpha,
                               float beta,
@@ -261,8 +257,6 @@ int mloSoftmaxBackwardRunHost(miopenTensorDescriptor_t dInputTensor,
     std::vector<Tcheck> channel_dot((mode == MIOPEN_SOFTMAX_MODE_INSTANCE ? n : n * h * w),
                                     static_cast<Tcheck>(0.0));
     std::vector<Tcheck> results(n * c * h * w, static_cast<Tcheck>(0.0));
-
-    int ret = 0;
 
     for(int i = 0; i < n; i++)
     {
@@ -364,7 +358,7 @@ int mloSoftmaxBackwardRunHost(miopenTensorDescriptor_t dInputTensor,
         }
     }
 
-    return ret;
+    return 0;
 }
 
 #endif

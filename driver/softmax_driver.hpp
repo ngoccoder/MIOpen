@@ -39,11 +39,9 @@
 #include <miopen/miopen.h>
 #include <miopen/tensor.hpp>
 
-#include <algorithm>
 #include <cfloat>
 #include <cstdlib>
 #include <memory>
-#include <numeric>
 #include <vector>
 
 template <typename Tgpu, typename Tref>
@@ -58,16 +56,15 @@ public:
         miopenCreateTensorDescriptor(&dInputTensor);
         miopenCreateTensorDescriptor(&dOutputTensor);
 
-        data_type = (sizeof(Tgpu) == 4) ? miopenFloat : miopenHalf;
+        data_type = miopen_type<Tgpu>{};
     }
 
+    std::vector<int> ComputeStrides(std::vector<int> input);
     int AddCmdLineArgs() override;
     int ParseCmdLineArgs(int argc, char* argv[]) override;
     InputFlags& GetInputFlags() override { return inflags; }
 
     int GetandSetData() override;
-    std::vector<int> GetInputTensorLengthsFromCmdLine();
-
     int AllocateBuffersAndCopy() override;
 
     int RunForwardGPU() override;
@@ -75,6 +72,8 @@ public:
 
     int RunBackwardGPU() override;
     int RunBackwardCPU();
+
+    Tref GetTolerance();
 
     int VerifyBackward() override;
     int VerifyForward() override;
@@ -90,6 +89,9 @@ public:
 
 private:
     InputFlags inflags;
+
+    int forw;
+    bool isContiguous;
 
     miopenTensorDescriptor_t inputTensor;
     miopenTensorDescriptor_t outputTensor;
@@ -126,35 +128,62 @@ int SoftmaxDriver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
     {
         miopenEnableProfiling(GetHandle(), true);
     }
+
+    forw = inflags.GetValueInt("forw");
+    if(forw != 0 && forw != 1 && forw != 2)
+    {
+        MIOPEN_THROW("Invalid Forward|Backward Mode");
+    }
+
+    alpha        = static_cast<float>(inflags.GetValueDouble("alpha"));
+    beta         = static_cast<float>(inflags.GetValueDouble("beta"));
+    algo         = miopenSoftmaxAlgorithm_t(inflags.GetValueInt("algorithm"));
+    mode         = miopenSoftmaxMode_t(inflags.GetValueInt("mode"));
+    isContiguous = inflags.GetValueInt("is_contiguous") == 0 ? false : true;
     return miopenStatusSuccess;
+}
+
+// Equivalent to: tensor.tranpose(0, -1).contiguous().tranpose(0, -1) incase contiguous = False
+template <typename Tgpu, typename Tref>
+std::vector<int> SoftmaxDriver<Tgpu, Tref>::ComputeStrides(std::vector<int> inputDim)
+{
+    if(!isContiguous)
+        std::swap(inputDim.front(), inputDim.back());
+    std::vector<int> strides(inputDim.size());
+    strides.back() = 1;
+    for(int i = inputDim.size() - 2; i >= 0; --i)
+        strides[i] = strides[i + 1] * inputDim[i + 1];
+    if(!isContiguous)
+        std::swap(strides.front(), strides.back());
+    return strides;
 }
 
 template <typename Tgpu, typename Tref>
 int SoftmaxDriver<Tgpu, Tref>::GetandSetData()
 {
-    std::vector<int> in_len = GetInputTensorLengthsFromCmdLine();
+    std::vector<int> in_len = inflags.GetValueTensor("input_dims").lengths;
+    auto in_stride          = ComputeStrides(in_len);
+    SetTensorNd(inputTensor, in_len, in_stride, data_type);
+    SetTensorNd(outputTensor, in_len, in_stride, data_type);
+    SetTensorNd(dInputTensor, in_len, in_stride, data_type);
+    SetTensorNd(dOutputTensor, in_len, in_stride, data_type);
 
-    SetTensor4d(inputTensor, in_len, data_type);
-    SetTensor4d(outputTensor, in_len, data_type);
-
-    SetTensor4d(dInputTensor, in_len, data_type);
-    SetTensor4d(dOutputTensor, in_len, data_type);
-
-    alpha = static_cast<float>(inflags.GetValueDouble("alpha"));
-    beta  = static_cast<float>(inflags.GetValueDouble("beta"));
-    algo  = miopenSoftmaxAlgorithm_t(inflags.GetValueInt("algorithm"));
-    mode  = miopenSoftmaxMode_t(inflags.GetValueInt("mode"));
-    return (0);
+    return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
 int SoftmaxDriver<Tgpu, Tref>::AddCmdLineArgs()
 {
-    inflags.AddInputFlag("forw", 'F', "0", "Run only Forward Softmax (Default=0)", "int");
-    inflags.AddInputFlag("batchsize", 'n', "100", "Mini-batch size (Default=100)", "int");
-    inflags.AddInputFlag("in_channels", 'c', "3", "Number of Input Channels (Default=3)", "int");
-    inflags.AddInputFlag("in_h", 'H', "32", "Input Height (Default=32)", "int");
-    inflags.AddInputFlag("in_w", 'W', "32", "Input Width (Default=32)", "int");
+    inflags.AddInputFlag("forw",
+                         'F',
+                         "0",
+                         "Run only Forward Softmax (1) | only Backward Softmax (2) | both Forward "
+                         "and Backward (0) (Default=0)",
+                         "int");
+    inflags.AddTensorFlag("input_dims",
+                          'I',
+                          "2x32x128x128",
+                          "The dimensional lengths of the input tensor (Default=2x32x128x128)");
     inflags.AddInputFlag("alpha", 'A', "1.0", "Softmax shift (Default=1.0)", "float");
     inflags.AddInputFlag("beta", 'B', "0.0", "Softmax scale (Default=0.0)", "float");
     inflags.AddInputFlag("algorithm",
@@ -164,6 +193,8 @@ int SoftmaxDriver<Tgpu, Tref>::AddCmdLineArgs()
                          "int");
     inflags.AddInputFlag(
         "mode", 'm', "1", "instance mode (0), channel mode (1) (Default=1)", "int");
+    inflags.AddInputFlag(
+        "is_contiguous", 'C', "1", "Is Tensor Contiguous (1) or not (0) (Default=1)", "int");
     inflags.AddInputFlag("iter", 'i', "10", "Number of Iterations (Default=10)", "int");
     inflags.AddInputFlag("verify", 'V', "1", "Verify Each Layer (Default=1)", "int");
     inflags.AddInputFlag("time", 't', "0", "Time Each Layer (Default=0)", "int");
@@ -171,17 +202,6 @@ int SoftmaxDriver<Tgpu, Tref>::AddCmdLineArgs()
         "wall", 'w', "0", "Wall-clock Time Each Layer, Requires time == 1 (Default=0)", "int");
 
     return miopenStatusSuccess;
-}
-
-template <typename Tgpu, typename Tref>
-std::vector<int> SoftmaxDriver<Tgpu, Tref>::GetInputTensorLengthsFromCmdLine()
-{
-    int in_n = inflags.GetValueInt("batchsize");
-    int in_c = inflags.GetValueInt("in_channels");
-    int in_h = inflags.GetValueInt("in_h");
-    int in_w = inflags.GetValueInt("in_w");
-
-    return std::vector<int>({in_n, in_c, in_h, in_w});
 }
 
 template <typename Tgpu, typename Tref>
@@ -368,13 +388,20 @@ int SoftmaxDriver<Tgpu, Tref>::RunBackwardGPU()
 }
 
 template <typename Tgpu, typename Tref>
+Tref SoftmaxDriver<Tgpu, Tref>::GetTolerance()
+{
+    Tref tolerance = std::numeric_limits<Tgpu>::epsilon() * 10;
+    return tolerance;
+}
+
+template <typename Tgpu, typename Tref>
 int SoftmaxDriver<Tgpu, Tref>::VerifyForward()
 {
     mloSoftmaxForwardRunHost<Tgpu, Tref>(
         inputTensor, outputTensor, in.data(), outhost.data(), alpha, beta, algo, mode);
 
     auto error           = miopen::rms_range(outhost, out);
-    const Tref tolerance = data_type == miopenHalf ? 5e-2 : 1e-3; // 1e-6;
+    const Tref tolerance = GetTolerance();
     if(!std::isfinite(error) || error > tolerance)
     {
         std::cout << "Forward Softmax FAILED: " << error << std::endl;
@@ -408,7 +435,7 @@ int SoftmaxDriver<Tgpu, Tref>::VerifyBackward()
                                           mode);
 
     auto error           = miopen::rms_range(dinhost, din);
-    const Tref tolerance = data_type == miopenHalf ? 5e-2 : 1e-3; // 1e-6;
+    const Tref tolerance = GetTolerance();
 
     if(!std::isfinite(error) || error > tolerance)
     {
