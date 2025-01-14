@@ -3273,6 +3273,25 @@ MIOPEN_EXPORT miopenStatus_t miopenSoftmaxBackward_V2(miopenHandle_t handle,
                                                       miopenSoftmaxAlgorithm_t algorithm,
                                                       miopenSoftmaxMode_t mode);
 
+/*! @brief Execute a softmax forward layer with specified dimension
+ *
+ * @param handle         MIOpen handle (input)
+ * @param inputDesc      Tensor descriptor for input tensor (input)
+ * @param input          Input tensor (input)
+ * @param outputDesc     Tensor descriptor for output tensor (input)
+ * @param output         Output tensor (output)
+ * @param dim            Dimension along which softmax is computed (input)
+ * @param algorithm      Softmax implementation algorithm (input)
+ * @return               miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenSoftmaxForward_V3(miopenHandle_t handle,
+                                                     const miopenTensorDescriptor_t inputDesc,
+                                                     const void* input,
+                                                     const miopenTensorDescriptor_t outputDesc,
+                                                     void* output,
+                                                     uint32_t dim,
+                                                     miopenSoftmaxAlgorithm_t algorithm);
+
 /** @} */
 // CLOSEOUT SOFTMAX DOXYGEN GROUP
 

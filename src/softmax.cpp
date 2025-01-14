@@ -23,6 +23,7 @@
  * SOFTWARE.
  *
  *******************************************************************************/
+#include "miopen/miopen.h"
 #include <miopen/kernel_cache.hpp>
 #include <miopen/softmax.hpp>
 #include <miopen/float_equal.hpp>
@@ -165,6 +166,35 @@ miopenStatus_t SoftmaxBackward(Handle& handle,
                                                      dx_offset};
     const auto algo          = AlgorithmName{"Softmax"};
     const auto solvers       = solver::SolverContainer<solver::softmax::Softmax>{};
+    solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
+
+    return miopenStatusSuccess;
+}
+
+miopenStatus_t SoftmaxForward_V3(Handle& handle,
+                                 const TensorDescriptor& inputDesc,
+                                 ConstData_t input,
+                                 const TensorDescriptor& outputDesc,
+                                 Data_t output,
+                                 uint32_t dim,
+                                 miopenSoftmaxAlgorithm_t algorithm)
+{
+    const auto problem = softmax::ProblemDescription{inputDesc, outputDesc, dim, algorithm};
+
+    const auto invoke_params = [&]() {
+        auto tmp      = softmax::InvokeParams{};
+        tmp.type      = InvokeType::Run;
+        tmp.xdxDesc   = inputDesc;
+        tmp.yDesc     = outputDesc;
+        tmp.x         = input;
+        tmp.forward_y = output;
+        tmp.dim       = dim;
+        tmp.algorithm = algorithm;
+        return tmp;
+    }();
+
+    const auto algo    = AlgorithmName{"SoftmaxV3Forward"};
+    const auto solvers = solver::SolverContainer<solver::softmax::SoftmaxV3Forward>{};
     solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
 
     return miopenStatusSuccess;

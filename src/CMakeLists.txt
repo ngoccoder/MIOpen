@@ -334,6 +334,7 @@ set( MIOpen_Source
     solver/softmarginloss/backward_softmarginloss.cpp
     solver/softmarginloss/forward_softmarginloss.cpp
     solver/softmax/attn_softmax.cpp
+    solver/softmax/forward_softmaxv3.cpp
     solver/softmax/softmax.cpp
     subbuffers.cpp
     t5layernorm_api.cpp
@@ -553,6 +554,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenRoPE.cpp
         kernels/MIOpenSoftMarginLoss.cpp
         kernels/MIOpenSoftmax.cl
+        kernels/MIOpenSoftmaxV3.cpp
         kernels/MIOpenSoftmaxAttn.cpp
         kernels/MIOpenUtilKernels3.cl
         kernels/MIOpenUtilKernels4.cl

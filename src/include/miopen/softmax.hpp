@@ -97,6 +97,14 @@ MIOPEN_INTERNALS_EXPORT miopenStatus_t SoftmaxBackward(Handle& handle,
                                                        int dy_offset = 0,
                                                        int dx_offset = 0);
 
+MIOPEN_INTERNALS_EXPORT miopenStatus_t SoftmaxForward_V3(Handle& handle,
+                                                         const TensorDescriptor& inputDesc,
+                                                         ConstData_t input,
+                                                         const TensorDescriptor& outputDesc,
+                                                         Data_t output,
+                                                         uint32_t dim,
+                                                         miopenSoftmaxAlgorithm_t algorithm);
+
 } // namespace miopen
 
 MIOPEN_DEFINE_OBJECT(miopenSoftmaxDescriptor, miopen::SoftmaxDescriptor);

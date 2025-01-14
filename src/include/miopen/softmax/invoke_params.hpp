@@ -34,6 +34,8 @@ namespace softmax {
 
 struct InvokeParams : public miopen::InvokeParams
 {
+    InvokeParams() = default;
+
     InvokeParams(const void* alpha_,
                  const void* beta_,
                  const TensorDescriptor& xDesc_,
@@ -106,6 +108,7 @@ public:
     float beta;
     miopenSoftmaxAlgorithm_t algorithm;
     miopenSoftmaxMode_t mode;
+    uint32_t dim;
 
     // xdxDesc is used for both forward and backward
     TensorDescriptor xdxDesc;

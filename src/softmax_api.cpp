@@ -23,6 +23,7 @@
  * SOFTWARE.
  *
  *******************************************************************************/
+#include "miopen/miopen.h"
 #include <miopen/softmax.hpp>
 #include <miopen/errors.hpp>
 #include <miopen/handle.hpp>
@@ -198,5 +199,25 @@ extern "C" miopenStatus_t miopenSoftmaxBackward_V2(miopenHandle_t handle,
                                 0,
                                 0,
                                 0);
+    });
+}
+
+extern "C" miopenStatus_t miopenSoftmaxForward_V3(miopenHandle_t handle,
+                                                  const miopenTensorDescriptor_t inputDesc,
+                                                  const void* input,
+                                                  const miopenTensorDescriptor_t outputDesc,
+                                                  void* output,
+                                                  uint32_t dim,
+                                                  miopenSoftmaxAlgorithm_t algorithm)
+{
+    MIOPEN_LOG_FUNCTION(inputDesc, input, outputDesc, output, dim, algorithm);
+    return miopen::try_([&] {
+        miopen::SoftmaxForward_V3(miopen::deref(handle),
+                                  miopen::deref(inputDesc),
+                                  DataCast(input),
+                                  miopen::deref(outputDesc),
+                                  DataCast(output),
+                                  dim,
+                                  algorithm);
     });
 }

@@ -26,6 +26,9 @@
 
 #pragma once
 
+#include "miopen/miopen.h"
+#include "miopen/tensor_view_utils.hpp"
+#include <cstdint>
 #include <miopen/problem_description_base.hpp>
 #include <miopen/tensor.hpp>
 
@@ -61,6 +64,28 @@ struct ProblemDescription : ProblemDescriptionBase
         if(xdxDesc.GetLengths() != yDesc.GetLengths())
         {
             MIOPEN_THROW(miopenStatusBadParm, "Tensor dimension lengths do not match.");
+        }
+    }
+
+    ProblemDescription(const TensorDescriptor& xDesc_,
+                       const TensorDescriptor& yDesc_,
+                       uint32_t dim_,
+                       miopenSoftmaxAlgorithm_t algorithm_)
+        : isForward(true),
+          xdxDesc(xDesc_),
+          yDesc(yDesc_),
+          algorithm(algorithm_),
+          mode(MIOPEN_SOFTMAX_MODE_CHANNEL),
+          dim(dim_)
+    {
+        if(dim >= xdxDesc.GetNumDims())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Dimension out of bound");
+        }
+
+        if(xdxDesc.GetLengths() != yDesc.GetLengths())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Input and output dimension lengths do not match.");
         }
     }
 
@@ -101,6 +126,7 @@ struct ProblemDescription : ProblemDescriptionBase
     miopenSoftmaxMode_t GetMode() const { return mode; }
     float GetAlpha() const { return alpha; }
     float GetBeta() const { return beta; }
+    uint32_t GetDim() const { return dim; }
 
     // for forward
     const TensorDescriptor& GetXDesc() const { return xdxDesc; }
@@ -109,6 +135,24 @@ struct ProblemDescription : ProblemDescriptionBase
     // for backward
     const TensorDescriptor& GetdYDesc() const { return dyDesc; }
     const TensorDescriptor& GetdXDesc() const { return xdxDesc; }
+
+    bool IsAllContiguous() const
+    {
+        if(isForward)
+        {
+            return xdxDesc.IsContiguous() && yDesc.IsContiguous();
+        }
+
+        return xdxDesc.IsContiguous() && dyDesc.IsContiguous() && yDesc.IsContiguous();
+    }
+
+    bool IsAllStrideOne() const
+    {
+        tensor_view_t<5> input_tv  = miopen::get_inner_expanded_tv<5>(xdxDesc);
+        tensor_view_t<5> output_tv = miopen::get_inner_expanded_tv<5>(yDesc);
+
+        return input_tv.stride[dim] == 1 && output_tv.stride[dim] == 1;
+    }
 
     NetworkConfig MakeNetworkConfig() const override;
 
@@ -141,6 +185,7 @@ private:
 
     const miopenSoftmaxAlgorithm_t algorithm;
     const miopenSoftmaxMode_t mode;
+    uint32_t dim;
 };
 
 } // namespace softmax

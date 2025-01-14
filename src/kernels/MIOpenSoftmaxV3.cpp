@@ -28,20 +28,15 @@
 #include <hip/hip_runtime.h>
 #endif
 
-#include <limits>
 #include "float_types.h"
+#include <limits>
 
 #define LOCAL_SIZE 256
 #define CHUNK_SIZE 64
 
 template <typename TIO>
-__device__ void SoftmaxAccurateFwdDimIsNotLastContiguousKernel(const TIO* input,
-                                                               TIO* output,
-                                                               uint64_t reduce_size,
-                                                               uint64_t inner_size,
-                                                               uint64_t outer_size,
-                                                               uint64_t dim,
-                                                               int32_t mode)
+__device__ void SoftmaxAccurateFwdDimIsNotLastContiguousKernel(
+    const TIO* input, TIO* output, uint64_t reduce_size, uint64_t inner_size, int32_t mode)
 {
     size_t gid = blockIdx.x;
     size_t tid = threadIdx.x;
@@ -141,25 +136,17 @@ __device__ void SoftmaxAccurateFwdDimIsNotLastContiguousKernel(const TIO* input,
     }
 }
 
-extern "C" __global__ void SoftmaxAccurateFwdDimIsNotLastContiguous(const IO_TYPE* input,
-                                                                    IO_TYPE* output,
-                                                                    uint64_t reduce_size,
-                                                                    uint64_t inner_size,
-                                                                    uint64_t outer_size,
-                                                                    uint64_t dim,
-                                                                    int32_t mode)
+extern "C" __global__ void SoftmaxAccurateFwdDimIsNotLastContiguous(
+    const IO_TYPE* input, IO_TYPE* output, uint64_t reduce_size, uint64_t inner_size, int32_t mode)
 {
     SoftmaxAccurateFwdDimIsNotLastContiguousKernel<IO_TYPE>(
-        input, output, reduce_size, inner_size, outer_size, dim, mode);
+        input, output, reduce_size, inner_size, mode);
 }
 
 template <typename TIO>
 __device__ void SoftmaxAccurateFwdStrideOneContiguousKernel(const TIO* input,
                                                             TIO* output,
                                                             uint64_t reduce_size,
-                                                            uint64_t inner_size,
-                                                            uint64_t outer_size,
-                                                            uint64_t dim,
                                                             int32_t mode)
 {
     size_t gid = blockIdx.x;
@@ -219,13 +206,9 @@ __device__ void SoftmaxAccurateFwdStrideOneContiguousKernel(const TIO* input,
 extern "C" __global__ void SoftmaxAccurateFwdStrideOneContiguous(const IO_TYPE* input,
                                                                  IO_TYPE* output,
                                                                  uint64_t reduce_size,
-                                                                 uint64_t inner_size,
-                                                                 uint64_t outer_size,
-                                                                 uint64_t dim,
                                                                  int32_t mode)
 {
-    SoftmaxAccurateFwdStrideOneContiguousKernel<IO_TYPE>(
-        input, output, reduce_size, inner_size, outer_size, dim, mode);
+    SoftmaxAccurateFwdStrideOneContiguousKernel<IO_TYPE>(input, output, reduce_size, mode);
 }
 
 template <typename TIO>
