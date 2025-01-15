@@ -26,6 +26,8 @@
 #ifndef MIOPEN_SOFTMAX_HPP_
 #define MIOPEN_SOFTMAX_HPP_
 
+#include "miopen/export_internals.h"
+#include <cstdint>
 #include <miopen/common.hpp>
 #include <miopen/miopen.h>
 #include <miopen/object.hpp>
@@ -104,6 +106,16 @@ MIOPEN_INTERNALS_EXPORT miopenStatus_t SoftmaxForward_V3(Handle& handle,
                                                          Data_t output,
                                                          uint32_t dim,
                                                          miopenSoftmaxAlgorithm_t algorithm);
+
+MIOPEN_INTERNALS_EXPORT miopenStatus_t SoftmaxBackward_V3(Handle& handle,
+                                                          const TensorDescriptor& outputDesc,
+                                                          ConstData_t output,
+                                                          const TensorDescriptor& outputGradDesc,
+                                                          ConstData_t outputGrad,
+                                                          const TensorDescriptor& inputGradDesc,
+                                                          Data_t inputGrad,
+                                                          uint32_t dim,
+                                                          miopenSoftmaxAlgorithm_t algorithm);
 
 } // namespace miopen
 

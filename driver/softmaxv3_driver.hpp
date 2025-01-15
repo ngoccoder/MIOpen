@@ -28,6 +28,7 @@
 
 #include "InputFlags.hpp"
 #include "driver.hpp"
+#include "mloSoftmaxHost.hpp"
 #include "tensor_driver.hpp"
 #include "timer.hpp"
 #include "random.hpp"
@@ -95,6 +96,63 @@ int mloSoftmaxV3ForwardContiguousRunHost(miopenTensorDescriptor_t inputDesc,
     return 0;
 }
 
+template <typename Tgpu, typename Tcheck>
+int mloSoftmaxV3BackwardContiguousRunHost(miopenTensorDescriptor_t outDesc,
+                                          const Tgpu* output,
+                                          miopenTensorDescriptor_t outGradDesc,
+                                          const Tgpu* outGrad,
+                                          miopenTensorDescriptor_t inGradDesc,
+                                          Tcheck* inGrad,
+                                          uint32_t dim,
+                                          miopenSoftmaxAlgorithm_t algorithm)
+{
+    auto output_len     = miopen::deref(outDesc).GetLengths();
+    auto reduce_size    = output_len[dim];
+    uint64_t inner_size = 1;
+    for(size_t i = dim + 1; i < output_len.size(); i++)
+    {
+        inner_size *= output_len[i];
+    }
+    uint64_t outer_size = 1;
+    for(uint32_t i = 0; i < dim; i++)
+    {
+        outer_size *= output_len[i];
+    }
+
+    for(uint64_t o = 0; o < outer_size; o++)
+    {
+        for(uint64_t i = 0; i < inner_size; i++)
+        {
+            double psum = 0;
+            for(uint64_t r = 0; r < reduce_size; r++)
+            {
+                if(algorithm == 2)
+                {
+                    psum += outGrad[i];
+                }
+                else
+                {
+                    psum += outGrad[i] * output[i];
+                }
+            }
+
+            for(uint64_t r = 0; r < reduce_size; r++)
+            {
+                if(algorithm == 2)
+                {
+                    inGrad[i] = outGrad[i] - psum * exp(output[i]);
+                }
+                else
+                {
+                    inGrad[i] = (outGrad[i] - psum) * output[i];
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 template <typename Tgpu, typename Tref>
 class SoftmaxV3Driver : public Driver
 {
@@ -103,6 +161,8 @@ public:
     {
         miopenCreateTensorDescriptor(&inputTensor);
         miopenCreateTensorDescriptor(&outputTensor);
+        miopenCreateTensorDescriptor(&inGradTensor);
+        miopenCreateTensorDescriptor(&outGradTensor);
 
         data_type = miopen_type<Tgpu>{};
     }
@@ -128,6 +188,8 @@ public:
     {
         miopenDestroyTensorDescriptor(outputTensor);
         miopenDestroyTensorDescriptor(inputTensor);
+        miopenDestroyTensorDescriptor(inGradTensor);
+        miopenDestroyTensorDescriptor(outGradTensor);
     }
 
 private:
@@ -137,13 +199,23 @@ private:
 
     miopenTensorDescriptor_t inputTensor;
     miopenTensorDescriptor_t outputTensor;
+    // Backwards
+    miopenTensorDescriptor_t inGradTensor;
+    miopenTensorDescriptor_t outGradTensor;
 
     std::unique_ptr<GPUMem> in_dev;
     std::unique_ptr<GPUMem> out_dev;
+    // Backwards
+    std::unique_ptr<GPUMem> inGrad_dev;
+    std::unique_ptr<GPUMem> outGrad_dev;
 
     std::vector<Tgpu> in;
     std::vector<Tgpu> out;
     std::vector<Tref> outhost;
+    // Backwards
+    std::vector<Tgpu> inGrad;
+    std::vector<Tgpu> outGrad;
+    std::vector<Tref> inGradHost;
 
     miopenSoftmaxAlgorithm_t algorithm;
     uint32_t dim;
@@ -177,6 +249,12 @@ int SoftmaxV3Driver<Tgpu, Tref>::GetandSetData()
     std::vector<int> in_len = inflags.GetValueTensor("input_lengths").lengths;
     SetTensorNd(inputTensor, in_len, data_type);
     SetTensorNd(outputTensor, in_len, data_type);
+
+    if(forw == 0)
+    {
+        SetTensorNd(inGradTensor, in_len, data_type);
+        SetTensorNd(outGradTensor, in_len, data_type);
+    }
 
     return miopenStatusSuccess;
 }
@@ -247,49 +325,54 @@ int SoftmaxV3Driver<Tgpu, Tref>::AllocateBuffersAndCopy()
         }
     }
 
-    // if(forw == 0)
-    //{
-    //    size_t out_sz     = GetTensorSpace(outputTensor);
-    //    size_t inGrad_sz  = GetTensorSpace(inputTensorGrad);
-    //    size_t outGrad_sz = GetTensorSpace(outputTensorGrad);
-    //
-    //    // GPU allocation
-    //    in_dev      = std::unique_ptr<GPUMem>(new GPUMem(ctx, in_sz, sizeof(Tgpu)));
-    //    out_dev     = std::unique_ptr<GPUMem>(new GPUMem(ctx, out_sz, sizeof(Tgpu)));
-    //    inGrad_dev  = std::unique_ptr<GPUMem>(new GPUMem(ctx, inGrad_sz, sizeof(Tgpu)));
-    //    outGrad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, outGrad_sz, sizeof(Tgpu)));
-    //
-    //    // GPU host allocation
-    //    in      = std::vector<Tgpu>(in_sz, static_cast<Tgpu>(0));
-    //    out     = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
-    //    inGrad  = std::vector<Tgpu>(inGrad_sz, static_cast<Tgpu>(0));
-    //    outGrad = std::vector<Tgpu>(outGrad_sz, static_cast<Tgpu>(0));
-    //
-    //    // CPU allocation
-    //    outhost    = std::vector<Tref>(out_sz, static_cast<Tref>(0));
-    //    inGradhost = std::vector<Tref>(inGrad_sz, static_cast<Tref>(0));
-    //
-    //    for(int i = 0; i < in_sz; i++)
-    //    {
-    //        in[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
-    //    }
-    //    for(int i = 0; i < outGrad_sz; i++)
-    //    {
-    //        outGrad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
-    //    }
-    //
-    //    if(in_dev->ToGPU(GetStream(), in.data()) != 0)
-    //        std::cerr << "Error copying (input) to GPU, size: " << in_dev->GetSize() << std::endl;
-    //    if(out_dev->ToGPU(GetStream(), out.data()) != 0)
-    //        std::cerr << "Error copying (out) to GPU, size: " << out_dev->GetSize() << std::endl;
-    //    if(outGrad_dev->ToGPU(GetStream(), outGrad.data()) != 0)
-    //        std::cerr << "Error copying (output gradient) to GPU, size: " <<
-    //        outGrad_dev->GetSize()
-    //                  << std::endl;
-    //    if(inGrad_dev->ToGPU(GetStream(), inGrad.data()) != 0)
-    //        std::cerr << "Error copying (input gradient) to GPU, size: " << inGrad_dev->GetSize()
-    //                  << std::endl;
-    //}
+    if(forw == 0)
+    {
+        size_t out_sz     = GetTensorSpace(outputTensor);
+        size_t inGrad_sz  = GetTensorSpace(inGradTensor);
+        size_t outGrad_sz = GetTensorSpace(outGradTensor);
+
+        // GPU allocation
+        out_dev     = std::unique_ptr<GPUMem>(new GPUMem(ctx, out_sz, sizeof(Tgpu)));
+        inGrad_dev  = std::unique_ptr<GPUMem>(new GPUMem(ctx, inGrad_sz, sizeof(Tgpu)));
+        outGrad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, outGrad_sz, sizeof(Tgpu)));
+
+        // GPU host allocation
+        out     = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
+        inGrad  = std::vector<Tgpu>(inGrad_sz, static_cast<Tgpu>(0));
+        outGrad = std::vector<Tgpu>(outGrad_sz, static_cast<Tgpu>(0));
+
+        // CPU allocation
+        inGradHost = std::vector<Tref>(inGrad_sz, static_cast<Tref>(0));
+
+        for(int i = 0; i < outGrad_sz; i++)
+        {
+            outGrad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+        }
+        for(int i = 0; i < out_sz; i++)
+        {
+            out[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+        }
+
+        if(out_dev->ToGPU(GetStream(), out.data()) != 0)
+        {
+            std::cerr << "Error copying (out) to GPU, size: " << out_dev->GetSize() << std::endl;
+            return miopenStatusInternalError;
+        }
+
+        if(outGrad_dev->ToGPU(GetStream(), outGrad.data()) != 0)
+        {
+            std::cerr << "Error copying (output gradient) to GPU, size: " << outGrad_dev->GetSize()
+                      << std::endl;
+            return miopenStatusInternalError;
+        }
+
+        if(inGrad_dev->ToGPU(GetStream(), inGrad.data()) != 0)
+        {
+            std::cerr << "Error copying (input gradient) to GPU, size: " << inGrad_dev->GetSize()
+                      << std::endl;
+            return miopenStatusInternalError;
+        }
+    }
 
     return miopenStatusSuccess;
 }
@@ -356,47 +439,48 @@ int SoftmaxV3Driver<Tgpu, Tref>::RunForwardCPU()
 template <typename Tgpu, typename Tref>
 int SoftmaxV3Driver<Tgpu, Tref>::RunBackwardGPU()
 {
-    // float kernel_total_time = 0;
-    // float kernel_first_time = 0;
-    // Timer t;
-    // START_TIME;
-    // for(int i = 0; i < inflags.GetValueInt("iter"); i++)
-    //{
-    //    miopenStatus_t status = miopenGLUBackward(GetHandle(),
-    //                                              inputTensor,
-    //                                              in_dev->GetMem(),
-    //                                              outputTensorGrad,
-    //                                              outGrad_dev->GetMem(),
-    //                                              inputTensorGrad,
-    //                                              inGrad_dev->GetMem(),
-    //                                              dim);
-    //
-    //    MIOPEN_THROW_IF(status != miopenStatusSuccess, "Error in miopenGLUBackward");
-    //
-    //    float time = 0.0;
-    //    miopenGetKernelTime(GetHandle(), &time);
-    //    kernel_total_time += time;
-    //    if(i == 0)
-    //        kernel_first_time = time;
-    //}
-    //
-    // if(inflags.GetValueInt("time") == 1)
-    //{
-    //    STOP_TIME
-    //    int iter = inflags.GetValueInt("iter");
-    //    if(WALL_CLOCK)
-    //        std::cout << "Wall-clock Time Backward GLU Elapsed: " << t.gettime_ms() / iter
-    //                  << " ms\n";
-    //    float kernel_average_time =
-    //        iter > 1 ? (kernel_total_time - kernel_first_time) / (iter - 1) : kernel_first_time;
-    //    std::cout << "GPU Kernel Time Backward GLU Elapsed: " << kernel_average_time << " ms\n";
-    //}
-    //
-    // if(inGrad_dev->FromGPU(GetStream(), inGrad.data()) != 0)
-    //    std::cerr << "Error copying (out_dev) from GPU, size: " << inGrad_dev->GetSize()
-    //              << std::endl;
+    float kernel_total_time = 0;
+    float kernel_first_time = 0;
+    Timer t;
+    START_TIME;
+    for(int i = 0; i < inflags.GetValueInt("iter"); i++)
+    {
+        miopenStatus_t status = miopenSoftmaxBackward_V3(GetHandle(),
+                                                         outputTensor,
+                                                         out_dev->GetMem(),
+                                                         outGradTensor,
+                                                         outGrad_dev->GetMem(),
+                                                         inGradTensor,
+                                                         inGrad_dev->GetMem(),
+                                                         dim,
+                                                         algorithm);
 
-    return miopenStatusNotImplemented;
+        MIOPEN_THROW_IF(status != miopenStatusSuccess, "Error in miopenSoftmaxBackward_V3");
+
+        float time = 0.0;
+        miopenGetKernelTime(GetHandle(), &time);
+        kernel_total_time += time;
+        if(i == 0)
+            kernel_first_time = time;
+    }
+
+    if(inflags.GetValueInt("time") == 1)
+    {
+        STOP_TIME
+        int iter = inflags.GetValueInt("iter");
+        if(WALL_CLOCK)
+            std::cout << "Wall-clock Time Backward Softmax Elapsed: " << t.gettime_ms() / iter
+                      << " ms\n";
+        float kernel_average_time =
+            iter > 1 ? (kernel_total_time - kernel_first_time) / (iter - 1) : kernel_first_time;
+        std::cout << "GPU Kernel Time Backward Softmax Elapsed: " << kernel_average_time << " ms\n";
+    }
+
+    if(inGrad_dev->FromGPU(GetStream(), inGrad.data()) != 0)
+        std::cerr << "Error copying (out_dev) from GPU, size: " << inGrad_dev->GetSize()
+                  << std::endl;
+
+    return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
@@ -412,12 +496,6 @@ int SoftmaxV3Driver<Tgpu, Tref>::VerifyForward()
     RunForwardCPU();
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(outhost, out);
-
-    // for (int i = 0; i < outhost.size(); i++)
-    //{
-    //    std::cout << "outhost[" << i << "] = " << outhost[i] << ", out[" << i << "] = " << out[i]
-    //    << std::endl;
-    //}
 
     if(!std::isfinite(error) || error > tolerance)
     {
@@ -436,29 +514,34 @@ int SoftmaxV3Driver<Tgpu, Tref>::VerifyForward()
 template <typename Tgpu, typename Tref>
 int SoftmaxV3Driver<Tgpu, Tref>::RunBackwardCPU()
 {
-    // MIOPEN_THROW_IF(dim != 0, "This driver only supports dim = 0");
-    // mloGLUBackwardCongiguousDim0RunHost<Tgpu, Tref>(
-    //    in.data(), outputTensorGrad, outGrad.data(), inGradhost.data());
+    mloSoftmaxV3BackwardContiguousRunHost(outputTensor,
+                                          out.data(),
+                                          outGradTensor,
+                                          outGrad.data(),
+                                          inGradTensor,
+                                          inGradHost.data(),
+                                          dim,
+                                          algorithm);
 
-    return miopenStatusNotImplemented;
+    return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
 int SoftmaxV3Driver<Tgpu, Tref>::VerifyBackward()
 {
-    // RunBackwardCPU();
-    // const Tref tolerance = GetTolerance();
-    // auto error           = miopen::rms_range(inGradhost, inGrad);
-    // if(!std::isfinite(error) || error > tolerance)
-    //{
-    //    std::cout << "Backward GLU FAILED: " << error << " > " << tolerance << std::endl;
-    //    return EC_VerifyBwd;
-    //}
-    // else
-    //{
-    //    std::cout << "Backward GLU Verifies OK on CPU reference (" << error << " < " << tolerance
-    //              << ')' << std::endl;
-    //}
+    RunBackwardCPU();
+    const Tref tolerance = GetTolerance();
+    auto error           = miopen::rms_range(inGradHost, inGrad);
+    if(!std::isfinite(error) || error > tolerance)
+    {
+        std::cout << "Backward Softmax FAILED: " << error << " > " << tolerance << std::endl;
+        return EC_VerifyBwd;
+    }
+    else
+    {
+        std::cout << "Backward Softmax Verifies OK on CPU reference (" << error << " < "
+                  << tolerance << ')' << std::endl;
+    }
 
-    return miopenStatusNotImplemented;
+    return miopenStatusSuccess;
 }

@@ -221,3 +221,28 @@ extern "C" miopenStatus_t miopenSoftmaxForward_V3(miopenHandle_t handle,
                                   algorithm);
     });
 }
+
+extern "C" miopenStatus_t miopenSoftmaxBackward_V3(miopenHandle_t handle,
+                                                   const miopenTensorDescriptor_t outputDesc,
+                                                   const void* output,
+                                                   const miopenTensorDescriptor_t outputGradDesc,
+                                                   const void* outputGrad,
+                                                   const miopenTensorDescriptor_t inputGradDesc,
+                                                   void* inputGrad,
+                                                   uint32_t dim,
+                                                   miopenSoftmaxAlgorithm_t algorithm)
+{
+    MIOPEN_LOG_FUNCTION(
+        outputDesc, output, outputGradDesc, outputGrad, inputGradDesc, inputGrad, dim, algorithm);
+    return miopen::try_([&] {
+        miopen::SoftmaxBackward_V3(miopen::deref(handle),
+                                   miopen::deref(outputDesc),
+                                   DataCast(output),
+                                   miopen::deref(outputGradDesc),
+                                   DataCast(outputGrad),
+                                   miopen::deref(inputGradDesc),
+                                   DataCast(inputGrad),
+                                   dim,
+                                   algorithm);
+    });
+}

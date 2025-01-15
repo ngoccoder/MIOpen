@@ -213,15 +213,14 @@ extern "C" __global__ void SoftmaxAccurateFwdStrideOneContiguous(const IO_TYPE* 
     SoftmaxAccurateFwdStrideOneContiguousKernel<IO_TYPE>(input, output, reduce_size, mode);
 }
 
-/*
 template <typename TIO>
 __device__ void SoftmaxBwdStrideOneContiguousKernel(
     const TIO* output, const TIO* output_grad, TIO* input_grad, uint64_t reduce_size, int32_t mode)
 {
-    size_t gid = blockIdx.x;
-    size_t tid = threadIdx.x;
-    TIO psum   = 0;
-    __shared__ TIO ltmp[LOCAL_SIZE];
+    size_t gid       = blockIdx.x;
+    size_t tid       = threadIdx.x;
+    FLOAT_ACCUM psum = 0;
+    __shared__ FLOAT_ACCUM ltmp[LOCAL_SIZE];
 
     output      = output + gid * reduce_size;
     output_grad = output_grad + gid * reduce_size;
@@ -232,11 +231,11 @@ __device__ void SoftmaxBwdStrideOneContiguousKernel(
     {
         if(mode == 1)
         {
-            psum += output_grad[i];
+            psum += CVT_FLOAT2ACCUM(output_grad[i]);
         }
         else
         {
-            psum += output[i] * output_grad[i];
+            psum += CVT_FLOAT2ACCUM(output[i]) * CVT_FLOAT2ACCUM(output_grad[i]);
         }
     }
 
@@ -257,13 +256,14 @@ __device__ void SoftmaxBwdStrideOneContiguousKernel(
 
     for(uint64_t i = tid; i < reduce_size; i += LOCAL_SIZE)
     {
-        if(mode == 1)
+        if(mode == 2)
         {
-            input_grad[i] = output_grad[i] - psum * exp(output[i]);
+            input_grad[i] =
+                CVT_ACCUM2FLOAT(CVT_FLOAT2ACCUM(output_grad[i]) - psum * exp(output[i]));
         }
         else
         {
-            input_grad[i] = output_grad[i] - psum * output[i];
+            input_grad[i] = CVT_ACCUM2FLOAT((CVT_FLOAT2ACCUM(output_grad[i]) - psum) * output[i]);
         }
     }
 }
@@ -293,18 +293,18 @@ __device__ void SoftmaxBwdSmallContiguousKernel(const TIO* output,
     uint64_t idx_base = (gid / inner_size) * reduce_size * inner_size + gid % inner_size;
 
     // DOT PRODUCT
-    TIO psum = 0;
+    FLOAT_ACCUM psum = 0;
     for(uint64_t i = 0; i < reduce_size; i++)
     {
         uint64_t outgrad_idx = i * inner_size + idx_base;
         uint64_t out_idx     = i * inner_size + idx_base;
-        if(mode == 1)
+        if(mode == 2)
         {
-            psum += output_grad[outgrad_idx];
+            psum += CVT_FLOAT2ACCUM(output_grad[outgrad_idx]);
         }
         else
         {
-            psum += output[out_idx] * output_grad[outgrad_idx];
+            psum += CVT_FLOAT2ACCUM(output[out_idx]) * CVT_FLOAT2ACCUM(output_grad[outgrad_idx]);
         }
     }
 
@@ -312,16 +312,18 @@ __device__ void SoftmaxBwdSmallContiguousKernel(const TIO* output,
 
     for(uint64_t i = 0; i < reduce_size; i++)
     {
-        uint64_t input_idx   = i * inner_size + idx_base;
+        uint64_t ingrad_idx  = i * inner_size + idx_base;
         uint64_t outgrad_idx = i * inner_size + idx_base;
         uint64_t out_idx     = i * inner_size + idx_base;
-        if(mode == 1)
+        if(mode == 2)
         {
-            input_grad[outgrad_idx] = output_grad[outgrad_idx] - psum * exp(output[out_idx]);
+            input_grad[ingrad_idx] = CVT_ACCUM2FLOAT(CVT_FLOAT2ACCUM(output_grad[outgrad_idx]) -
+                                                     psum * exp(output[out_idx]));
         }
         else
         {
-            input_grad[outgrad_idx] = output_grad[outgrad_idx] - psum * output[out_idx];
+            input_grad[ingrad_idx] =
+                CVT_ACCUM2FLOAT(CVT_FLOAT2ACCUM(output_grad[outgrad_idx]) - psum) * output[out_idx];
         }
     }
 }
@@ -344,13 +346,12 @@ __device__ void SoftmaxBwdDimIsNotLastContiguousKernel(const TIO* output,
                                                        TIO* input_grad,
                                                        uint64_t reduce_size,
                                                        uint64_t inner_size,
-                                                       uint64_t outer_size,
                                                        int32_t mode)
 {
-    size_t gid = blockIdx.x;
-    size_t tid = threadIdx.x;
-    TIO psum   = 0;
-    __shared__ TIO ltmp[LOCAL_SIZE];
+    size_t gid       = blockIdx.x;
+    size_t tid       = threadIdx.x;
+    FLOAT_ACCUM psum = 0;
+    __shared__ FLOAT_ACCUM ltmp[LOCAL_SIZE];
 
     uint64_t innerspace_width  = inner_size;
     uint64_t innerspace_height = reduce_size;
@@ -379,7 +380,8 @@ __device__ void SoftmaxBwdDimIsNotLastContiguousKernel(const TIO* output,
                 break;
             }
             uint64_t idx = inner_y * innerspace_width + inner_x + innerspace_base_index;
-            psum += (mode == 1) ? output_grad[idx] : output[idx] * output_grad[idx];
+            psum += (mode == 2) ? CVT_FLOAT2ACCUM(output_grad[idx])
+                                : CVT_FLOAT2ACCUM(output[idx]) * CVT_FLOAT2ACCUM(output_grad[idx]);
         }
     }
 
@@ -406,9 +408,11 @@ __device__ void SoftmaxBwdDimIsNotLastContiguousKernel(const TIO* output,
             {
                 break;
             }
-            uint64_t idx    = inner_y * innerspace_width + inner_x + innerspace_base_index;
-            input_grad[idx] = (mode == 1) ? output_grad[idx] - psum * exp(output[idx])
-                                          : (output_grad[idx] - psum) * output[idx];
+            uint64_t idx = inner_y * innerspace_width + inner_x + innerspace_base_index;
+            input_grad[idx] =
+                (mode == 2)
+                    ? CVT_ACCUM2FLOAT(CVT_FLOAT2ACCUM(output_grad[idx]) - psum * exp(output[idx]))
+                    : CVT_ACCUM2FLOAT(CVT_FLOAT2ACCUM(output_grad[idx]) - psum) * output[idx];
         }
     }
 }
@@ -418,10 +422,8 @@ extern "C" __global__ void SoftmaxBwdDimIsNotLastContiguous(const IO_TYPE* outpu
                                                             IO_TYPE* input_grad,
                                                             uint64_t reduce_size,
                                                             uint64_t inner_size,
-                                                            uint64_t outer_size,
                                                             int32_t mode)
 {
     SoftmaxBwdDimIsNotLastContiguousKernel<IO_TYPE>(
-        output, output_grad, input_grad, reduce_size, inner_size, outer_size, mode);
+        output, output_grad, input_grad, reduce_size, inner_size, mode);
 }
-*/

@@ -121,6 +121,31 @@ struct ProblemDescription : ProblemDescriptionBase
         }
     }
 
+    ProblemDescription(const TensorDescriptor& yDesc_,
+                       const TensorDescriptor& dyDesc_,
+                       const TensorDescriptor& dxDesc_,
+                       uint32_t dim_,
+                       miopenSoftmaxAlgorithm_t algorithm_)
+        : isForward(false),
+          xdxDesc(dxDesc_),
+          yDesc(yDesc_),
+          dyDesc(dyDesc_),
+          algorithm(algorithm_),
+          mode(MIOPEN_SOFTMAX_MODE_CHANNEL),
+          dim(dim_)
+    {
+        if(dim >= xdxDesc.GetNumDims())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Dimension out of bound.");
+        }
+
+        if(xdxDesc.GetLengths() != yDesc.GetLengths() ||
+           xdxDesc.GetLengths() != dyDesc.GetLengths())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Input and output dimension lengths do not match.");
+        }
+    }
+
     bool IsForward() const { return isForward; }
     miopenSoftmaxAlgorithm_t GetAlgorithm() const { return algorithm; }
     miopenSoftmaxMode_t GetMode() const { return mode; }
@@ -148,10 +173,22 @@ struct ProblemDescription : ProblemDescriptionBase
 
     bool IsAllStrideOne() const
     {
-        tensor_view_t<5> input_tv  = miopen::get_inner_expanded_tv<5>(xdxDesc);
-        tensor_view_t<5> output_tv = miopen::get_inner_expanded_tv<5>(yDesc);
+        auto input_stride      = xdxDesc.GetStrides();
+        auto output_stride     = yDesc.GetStrides();
+        auto outputGrad_stride = dyDesc.GetStrides();
 
-        return input_tv.stride[dim] == 1 && output_tv.stride[dim] == 1;
+        if(isForward)
+        {
+            return input_stride[dim] == 1 && output_stride[dim] == 1;
+        }
+
+        return input_stride[dim] == 1 && output_stride[dim] == 1 && outputGrad_stride[dim] == 1;
+    }
+
+    bool IsReduceSizeSmall() const
+    {
+        auto reduce_size = xdxDesc.GetLengths()[dim];
+        return reduce_size <= 8;
     }
 
     NetworkConfig MakeNetworkConfig() const override;

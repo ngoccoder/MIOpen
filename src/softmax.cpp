@@ -200,4 +200,38 @@ miopenStatus_t SoftmaxForward_V3(Handle& handle,
     return miopenStatusSuccess;
 }
 
+miopenStatus_t SoftmaxBackward_V3(Handle& handle,
+                                  const TensorDescriptor& outputDesc,
+                                  ConstData_t output,
+                                  const TensorDescriptor& outputGradDesc,
+                                  ConstData_t outputGrad,
+                                  const TensorDescriptor& inputGradDesc,
+                                  Data_t inputGrad,
+                                  uint32_t dim,
+                                  miopenSoftmaxAlgorithm_t algorithm)
+{
+    const auto problem =
+        softmax::ProblemDescription{outputDesc, outputGradDesc, inputGradDesc, dim, algorithm};
+
+    const auto invoke_params = [&]() {
+        auto tmp       = softmax::InvokeParams{};
+        tmp.type       = InvokeType::Run;
+        tmp.yDesc      = outputDesc;
+        tmp.backward_y = output;
+        tmp.dyDesc     = outputGradDesc;
+        tmp.dy         = outputGrad;
+        tmp.xdxDesc    = inputGradDesc;
+        tmp.dx         = inputGrad;
+        tmp.dim        = dim;
+        tmp.algorithm  = algorithm;
+        return tmp;
+    }();
+
+    const auto algo    = AlgorithmName{"SoftmaxV3Backward"};
+    const auto solvers = solver::SolverContainer<solver::softmax::SoftmaxV3Backward>{};
+    solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
+
+    return miopenStatusSuccess;
+}
+
 } // namespace miopen
