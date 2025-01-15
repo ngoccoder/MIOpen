@@ -59,6 +59,9 @@ bool SoftmaxV3Forward::IsApplicable(const ExecutionContext& context,
     if(!problem.IsAllContiguous())
         return false;
 
+    if(!(problem.IsAllStrideOne() || problem.GetDim() < problem.GetXDesc().GetNumDims() - 1))
+        return false;
+
     return true;
 }
 
@@ -100,14 +103,13 @@ ConvSolution SoftmaxV3Forward::GetSolution(const ExecutionContext& context,
     {
         kernel.kernel_name = "SoftmaxAccurateFwdStrideOneContiguous";
         xlocalsize         = LOCAL_SIZE;
-        xgridsize          = AlignUp(outer_size * inner_size, xlocalsize);
+        xgridsize          = outer_size * inner_size * xlocalsize;
     }
-
-    if(dim < input_len.size() - 1)
+    else
     {
         kernel.kernel_name = "SoftmaxAccurateFwdDimIsNotLastContiguous";
         xlocalsize         = LOCAL_SIZE;
-        xgridsize = AlignUp(outer_size * ((inner_size + CHUNK_SIZE - 1) / CHUNK_SIZE), xlocalsize);
+        xgridsize          = outer_size * ((inner_size + CHUNK_SIZE - 1) / CHUNK_SIZE) * LOCAL_SIZE;
     }
 
     const auto build_params =

@@ -41,9 +41,10 @@ NetworkConfig ProblemDescription::MakeNetworkConfig() const
 
     // all the tensors must be the same size and types
     // so we can use only one set of values
-    const auto& desc            = isForward ? xdxDesc : yDesc;
-    const auto [sn, sc, sh, sw] = tien<4>(desc.GetLengths());
-    ss << "n" << sn << "c" << sc << "h" << sh << "w" << sw;
+    const auto& desc = isForward ? xdxDesc : yDesc;
+    auto len         = desc.GetLengths();
+    for(size_t i = 0; i < len.size(); ++i)
+        ss << len[i] << "x";
     ss << GetDataType(desc.GetType());
     ss << "a" << alpha;
     ss << "b" << beta;

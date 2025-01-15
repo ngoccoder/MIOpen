@@ -160,7 +160,6 @@ int SoftmaxV3Driver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
     }
 
     forw = inflags.GetValueInt("forw");
-
     if(forw != 0 && forw != 1)
     {
         MIOPEN_THROW("Invalid Forward|Backward Mode");
@@ -191,14 +190,14 @@ int SoftmaxV3Driver<Tgpu, Tref>::AddCmdLineArgs()
                          "Run only Forward (1) or Run both Forward and Backward (0) (Default=1)",
                          "int");
     inflags.AddTensorFlag(
-        "input_lengths", 'I', "256x512", "The dimensional lengths of the input tensor");
+        "input_lengths", 'I', "2x10", "The dimensional lengths of the input tensor");
     inflags.AddInputFlag(
-        "dim", 'D', "0", "The dimension which softmax is computed (Default=0)", "int");
+        "dim", 'D', "1", "The dimension which softmax is computed (Default=0)", "int");
     inflags.AddInputFlag(
         "algorithm",
         'A',
-        "0",
-        "Softmax Algorithm: Softmax Fast(0) | Softmax Log(1) | Softmax Accurate(2) (Default=2)",
+        "1",
+        "Softmax Algorithm: Softmax Fast(0) | Softmax Accurate(1) | Softmax Log(2) (Default=1)",
         "int");
     inflags.AddInputFlag("iter", 'i', "10", "Number of Iterations (Default=10)", "int");
     inflags.AddInputFlag("verify", 'V', "1", "Verify Each Layer (Default=1)", "int");
@@ -236,10 +235,16 @@ int SoftmaxV3Driver<Tgpu, Tref>::AllocateBuffersAndCopy()
         }
 
         if(in_dev->ToGPU(GetStream(), in.data()) != 0)
+        {
             std::cerr << "Error copying (input) to GPU, size: " << in_dev->GetSize() << std::endl;
+            return miopenStatusInternalError;
+        }
 
         if(out_dev->ToGPU(GetStream(), out.data()) != 0)
+        {
             std::cerr << "Error copying (out) to GPU, size: " << out_dev->GetSize() << std::endl;
+            return miopenStatusInternalError;
+        }
     }
 
     // if(forw == 0)
@@ -332,7 +337,10 @@ int SoftmaxV3Driver<Tgpu, Tref>::RunForwardGPU()
     }
 
     if(out_dev->FromGPU(GetStream(), out.data()) != 0)
+    {
         std::cerr << "Error copying (out_dev) from GPU, size: " << out_dev->GetSize() << std::endl;
+        return miopenStatusInternalError;
+    }
 
     return miopenStatusSuccess;
 }
@@ -404,6 +412,12 @@ int SoftmaxV3Driver<Tgpu, Tref>::VerifyForward()
     RunForwardCPU();
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(outhost, out);
+
+    // for (int i = 0; i < outhost.size(); i++)
+    //{
+    //    std::cout << "outhost[" << i << "] = " << outhost[i] << ", out[" << i << "] = " << out[i]
+    //    << std::endl;
+    //}
 
     if(!std::isfinite(error) || error > tolerance)
     {
