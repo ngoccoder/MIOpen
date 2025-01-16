@@ -28,7 +28,6 @@
 
 #include "InputFlags.hpp"
 #include "driver.hpp"
-#include "mloSoftmaxHost.hpp"
 #include "tensor_driver.hpp"
 #include "timer.hpp"
 #include "random.hpp"
@@ -51,13 +50,15 @@ int mloSoftmaxV3ForwardContiguousRunHost(miopenTensorDescriptor_t inputDesc,
                                          uint32_t dim,
                                          miopenSoftmaxAlgorithm_t algorithm)
 {
-    auto input_len      = miopen::deref(inputDesc).GetLengths();
-    auto reduce_size    = input_len[dim];
+    auto input_len   = miopen::deref(inputDesc).GetLengths();
+    auto reduce_size = input_len[dim];
+
     uint64_t inner_size = 1;
     for(size_t i = dim + 1; i < input_len.size(); i++)
     {
         inner_size *= input_len[i];
     }
+
     uint64_t outer_size = 1;
     for(uint32_t i = 0; i < dim; i++)
     {
@@ -99,9 +100,7 @@ int mloSoftmaxV3ForwardContiguousRunHost(miopenTensorDescriptor_t inputDesc,
 template <typename Tgpu, typename Tcheck>
 int mloSoftmaxV3BackwardContiguousRunHost(miopenTensorDescriptor_t outDesc,
                                           const Tgpu* output,
-                                          miopenTensorDescriptor_t outGradDesc,
                                           const Tgpu* outGrad,
-                                          miopenTensorDescriptor_t inGradDesc,
                                           Tcheck* inGrad,
                                           uint32_t dim,
                                           miopenSoftmaxAlgorithm_t algorithm)
@@ -123,28 +122,33 @@ int mloSoftmaxV3BackwardContiguousRunHost(miopenTensorDescriptor_t outDesc,
     {
         for(uint64_t i = 0; i < inner_size; i++)
         {
-            double psum = 0;
+            double psum     = 0;
+            size_t base_idx = o * reduce_size * inner_size + i;
             for(uint64_t r = 0; r < reduce_size; r++)
             {
-                if(algorithm == 2)
+                if(algorithm == MIOPEN_SOFTMAX_LOG)
                 {
-                    psum += outGrad[i];
+                    psum += outGrad[base_idx + r * inner_size];
                 }
                 else
                 {
-                    psum += outGrad[i] * output[i];
+                    psum += outGrad[base_idx + r * inner_size] * output[base_idx + r * inner_size];
                 }
             }
 
             for(uint64_t r = 0; r < reduce_size; r++)
             {
-                if(algorithm == 2)
+                if(algorithm == MIOPEN_SOFTMAX_LOG)
                 {
-                    inGrad[i] = outGrad[i] - psum * exp(output[i]);
+                    inGrad[base_idx + r * inner_size] =
+                        outGrad[base_idx + r * inner_size] -
+                        psum * exp(output[base_idx + r * inner_size]);
                 }
                 else
                 {
-                    inGrad[i] = (outGrad[i] - psum) * output[i];
+                    inGrad[base_idx + r * inner_size] =
+                        (outGrad[base_idx + r * inner_size] - psum) *
+                        output[base_idx + r * inner_size];
                 }
             }
         }
@@ -232,7 +236,7 @@ int SoftmaxV3Driver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
     }
 
     forw = inflags.GetValueInt("forw");
-    if(forw != 0 && forw != 1)
+    if(forw != 0 && forw != 1 && forw != 2)
     {
         MIOPEN_THROW("Invalid Forward|Backward Mode");
     }
@@ -247,11 +251,16 @@ template <typename Tgpu, typename Tref>
 int SoftmaxV3Driver<Tgpu, Tref>::GetandSetData()
 {
     std::vector<int> in_len = inflags.GetValueTensor("input_lengths").lengths;
-    SetTensorNd(inputTensor, in_len, data_type);
-    SetTensorNd(outputTensor, in_len, data_type);
 
-    if(forw == 0)
+    if(forw == 0 || forw == 1)
     {
+        SetTensorNd(inputTensor, in_len, data_type);
+        SetTensorNd(outputTensor, in_len, data_type);
+    }
+
+    if(forw == 0 || forw == 2)
+    {
+        SetTensorNd(outputTensor, in_len, data_type);
         SetTensorNd(inGradTensor, in_len, data_type);
         SetTensorNd(outGradTensor, in_len, data_type);
     }
@@ -265,7 +274,8 @@ int SoftmaxV3Driver<Tgpu, Tref>::AddCmdLineArgs()
     inflags.AddInputFlag("forw",
                          'F',
                          "1",
-                         "Run only Forward (1) or Run both Forward and Backward (0) (Default=1)",
+                         "Run only Forward (1), Run only Backward (2) or Run both Forward and "
+                         "Backward (0) (Default=1)",
                          "int");
     inflags.AddTensorFlag(
         "input_lengths", 'I', "2x10", "The dimensional lengths of the input tensor");
@@ -291,7 +301,7 @@ int SoftmaxV3Driver<Tgpu, Tref>::AllocateBuffersAndCopy()
 {
     uint32_t ctx = 0;
 
-    if(forw == 1)
+    if(forw == 0 || forw == 1)
     {
         size_t in_sz  = GetTensorSpace(inputTensor);
         size_t out_sz = GetTensorSpace(outputTensor);
@@ -325,7 +335,7 @@ int SoftmaxV3Driver<Tgpu, Tref>::AllocateBuffersAndCopy()
         }
     }
 
-    if(forw == 0)
+    if(forw == 0 || forw == 2)
     {
         size_t out_sz     = GetTensorSpace(outputTensor);
         size_t inGrad_sz  = GetTensorSpace(inGradTensor);
@@ -514,14 +524,8 @@ int SoftmaxV3Driver<Tgpu, Tref>::VerifyForward()
 template <typename Tgpu, typename Tref>
 int SoftmaxV3Driver<Tgpu, Tref>::RunBackwardCPU()
 {
-    mloSoftmaxV3BackwardContiguousRunHost(outputTensor,
-                                          out.data(),
-                                          outGradTensor,
-                                          outGrad.data(),
-                                          inGradTensor,
-                                          inGradHost.data(),
-                                          dim,
-                                          algorithm);
+    mloSoftmaxV3BackwardContiguousRunHost(
+        outputTensor, out.data(), outGrad.data(), inGradHost.data(), dim, algorithm);
 
     return miopenStatusSuccess;
 }
@@ -532,6 +536,12 @@ int SoftmaxV3Driver<Tgpu, Tref>::VerifyBackward()
     RunBackwardCPU();
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(inGradHost, inGrad);
+    // for (auto i = 0; i < inGrad.size(); i++)
+    //{
+    //    std::cout << "ingradhost[" << i << "]: " << inGradHost[i] << " ingrad[" << i << "]: " <<
+    //    inGrad[i] << std::endl;
+    //}
+
     if(!std::isfinite(error) || error > tolerance)
     {
         std::cout << "Backward Softmax FAILED: " << error << " > " << tolerance << std::endl;

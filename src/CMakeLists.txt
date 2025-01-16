@@ -334,6 +334,7 @@ set( MIOpen_Source
     solver/softmarginloss/backward_softmarginloss.cpp
     solver/softmarginloss/forward_softmarginloss.cpp
     solver/softmax/attn_softmax.cpp
+    solver/softmax/backward_softmaxv3.cpp
     solver/softmax/forward_softmaxv3.cpp
     solver/softmax/softmax.cpp
     subbuffers.cpp

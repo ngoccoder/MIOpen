@@ -45,6 +45,7 @@ NetworkConfig ProblemDescription::MakeNetworkConfig() const
     auto len         = desc.GetLengths();
     for(size_t i = 0; i < len.size(); ++i)
         ss << len[i] << "x";
+    ss << "dim" << dim;
     ss << GetDataType(desc.GetType());
     ss << "a" << alpha;
     ss << "b" << beta;

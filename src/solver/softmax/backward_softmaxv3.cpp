@@ -24,6 +24,7 @@
  *
  *******************************************************************************/
 
+#include <cstdint>
 #include <miopen/datatype.hpp>
 #include <miopen/kernel_build_params.hpp>
 #include <miopen/kernel_info.hpp>
@@ -156,13 +157,17 @@ SoftmaxV3Backward::GetSolution(const ExecutionContext& context,
                            reduce_size,
                            inner_size,
                            outer_size,
-                           params.mode);
+                           static_cast<uint32_t>(params.algorithm));
                 }
                 else
                 {
                     if(isAllStrideOne)
                     {
-                        kernel(params.backward_y, params.dy, params.dx, reduce_size, params.mode);
+                        kernel(params.backward_y,
+                               params.dy,
+                               params.dx,
+                               reduce_size,
+                               static_cast<uint32_t>(params.algorithm));
                     }
                     else
                     {
@@ -171,7 +176,7 @@ SoftmaxV3Backward::GetSolution(const ExecutionContext& context,
                                params.dx,
                                reduce_size,
                                inner_size,
-                               params.mode);
+                               static_cast<uint32_t>(params.algorithm));
                     }
                 }
             };

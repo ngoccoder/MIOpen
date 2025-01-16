@@ -137,11 +137,18 @@ ConvSolution SoftmaxV3Forward::GetSolution(const ExecutionContext& context,
 
                 if(isAllStrideOne)
                 {
-                    kernel(params.x, params.forward_y, reduce_size, params.mode);
+                    kernel(params.x,
+                           params.forward_y,
+                           reduce_size,
+                           static_cast<uint32_t>(params.algorithm));
                 }
                 else
                 {
-                    kernel(params.x, params.forward_y, reduce_size, inner_size, params.mode);
+                    kernel(params.x,
+                           params.forward_y,
+                           reduce_size,
+                           inner_size,
+                           static_cast<uint32_t>(params.algorithm));
                 }
             };
         };
