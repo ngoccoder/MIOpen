@@ -536,11 +536,6 @@ int SoftmaxV3Driver<Tgpu, Tref>::VerifyBackward()
     RunBackwardCPU();
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(inGradHost, inGrad);
-    // for (auto i = 0; i < inGrad.size(); i++)
-    //{
-    //    std::cout << "ingradhost[" << i << "]: " << inGradHost[i] << " ingrad[" << i << "]: " <<
-    //    inGrad[i] << std::endl;
-    //}
 
     if(!std::isfinite(error) || error > tolerance)
     {

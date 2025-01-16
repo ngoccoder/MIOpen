@@ -65,13 +65,9 @@ inline std::vector<SoftmaxTestCase> GenFullTestCasesForward()
 {
     return {
         {{16, 16, 16}, 0, MIOPEN_SOFTMAX_ACCURATE},     // small case (not last dim)
-        {{16, 16, 16}, 2, MIOPEN_SOFTMAX_ACCURATE},     // small case (all stride 1)
         {{16, 16, 16}, 0, MIOPEN_SOFTMAX_LOG},          // small case (not last dim)
-        {{16, 16, 16}, 2, MIOPEN_SOFTMAX_LOG},          // small case (all stride 1)
         {{1024, 1024, 32}, 0, MIOPEN_SOFTMAX_ACCURATE}, // large case (not last dim)
-        {{1024, 1024, 32}, 2, MIOPEN_SOFTMAX_ACCURATE}, // large case (all stride 1)
         {{1024, 1024, 32}, 0, MIOPEN_SOFTMAX_LOG},      // large case (not last dim)
-        {{1024, 1024, 32}, 2, MIOPEN_SOFTMAX_LOG}       // large case (all stride 1)
     };
 }
 

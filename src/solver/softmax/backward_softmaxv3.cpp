@@ -54,14 +54,8 @@ bool SoftmaxV3Backward::IsApplicable(const ExecutionContext& context,
          problem.GetXDesc().GetType() == miopenBFloat16))
         return false;
 
-    // if(problem.GetXDesc().GetLengths()[problem.GetDim()] <= 8)
-    //    return false;
-
     if(!problem.IsAllContiguous())
         return false;
-
-    // if(!(problem.IsAllStrideOne() || problem.GetDim() < problem.GetXDesc().GetNumDims() - 1))
-    //    return false;
 
     return true;
 }

@@ -56,10 +56,7 @@ bool SoftmaxV3Forward::IsApplicable(const ExecutionContext& context,
     if(problem.IsReduceSizeSmall())
         return false;
 
-    if(!problem.IsAllContiguous())
-        return false;
-
-    if(!(problem.IsAllStrideOne() || problem.GetDim() < problem.GetXDesc().GetNumDims() - 1))
+    if(!problem.IsAllContiguous() || problem.GetDim() >= problem.GetXDesc().GetNumDims() - 1)
         return false;
 
     return true;
@@ -88,8 +85,6 @@ ConvSolution SoftmaxV3Forward::GetSolution(const ExecutionContext& context,
         outer_size *= input_len[i];
     }
 
-    auto isAllStrideOne = problem.IsAllStrideOne();
-
     auto kernel        = KernelInfo{};
     kernel.kernel_file = "MIOpenSoftmaxV3.cpp";
 
@@ -99,18 +94,10 @@ ConvSolution SoftmaxV3Forward::GetSolution(const ExecutionContext& context,
     size_t ygridsize  = 1;
     size_t zlocalsize = 1;
     size_t zgridsize  = 1;
-    if(isAllStrideOne)
-    {
-        kernel.kernel_name = "SoftmaxAccurateFwdStrideOneContiguous";
-        xlocalsize         = LOCAL_SIZE;
-        xgridsize          = outer_size * inner_size * xlocalsize;
-    }
-    else
-    {
-        kernel.kernel_name = "SoftmaxAccurateFwdDimIsNotLastContiguous";
-        xlocalsize         = LOCAL_SIZE;
-        xgridsize          = outer_size * ((inner_size + CHUNK_SIZE - 1) / CHUNK_SIZE) * LOCAL_SIZE;
-    }
+
+    kernel.kernel_name = "SoftmaxAccurateFwdDimIsNotLastContiguous";
+    xlocalsize         = LOCAL_SIZE;
+    xgridsize          = outer_size * ((inner_size + CHUNK_SIZE - 1) / CHUNK_SIZE) * LOCAL_SIZE;
 
     const auto build_params =
         KernelBuildParameters{{"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
@@ -129,29 +116,18 @@ ConvSolution SoftmaxV3Forward::GetSolution(const ExecutionContext& context,
 
     result.construction_params.push_back(kernel);
 
-    result.invoker_factory =
-        [isAllStrideOne, reduce_size, inner_size](const std::vector<Kernel>& kernels) {
-            return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
-                decltype(auto) kernel = handle_.Run(kernels.front());
-                decltype(auto) params = raw_params.CastTo<miopen::softmax::InvokeParams>();
+    result.invoker_factory = [reduce_size, inner_size](const std::vector<Kernel>& kernels) {
+        return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
+            decltype(auto) kernel = handle_.Run(kernels.front());
+            decltype(auto) params = raw_params.CastTo<miopen::softmax::InvokeParams>();
 
-                if(isAllStrideOne)
-                {
-                    kernel(params.x,
-                           params.forward_y,
-                           reduce_size,
-                           static_cast<uint32_t>(params.algorithm));
-                }
-                else
-                {
-                    kernel(params.x,
-                           params.forward_y,
-                           reduce_size,
-                           inner_size,
-                           static_cast<uint32_t>(params.algorithm));
-                }
-            };
+            kernel(params.x,
+                   params.forward_y,
+                   reduce_size,
+                   inner_size,
+                   static_cast<uint32_t>(params.algorithm));
         };
+    };
 
     return result;
 }
