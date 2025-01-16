@@ -23,11 +23,11 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#include "miopen/miopen.h"
-#include <miopen/softmax.hpp>
 #include <miopen/errors.hpp>
 #include <miopen/handle.hpp>
 #include <miopen/logger.hpp>
+#include <miopen/miopen.h>
+#include <miopen/softmax.hpp>
 #include <miopen/tensor_ops.hpp>
 
 static void LogCmdSoftmax(const miopenTensorDescriptor_t xDesc,

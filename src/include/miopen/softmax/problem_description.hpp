@@ -26,9 +26,8 @@
 
 #pragma once
 
-#include "miopen/miopen.h"
-#include "miopen/tensor_view_utils.hpp"
 #include <cstdint>
+#include <miopen/miopen.h>
 #include <miopen/problem_description_base.hpp>
 #include <miopen/tensor.hpp>
 

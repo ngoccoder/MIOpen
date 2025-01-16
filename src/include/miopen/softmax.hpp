@@ -26,9 +26,9 @@
 #ifndef MIOPEN_SOFTMAX_HPP_
 #define MIOPEN_SOFTMAX_HPP_
 
-#include "miopen/export_internals.h"
 #include <cstdint>
 #include <miopen/common.hpp>
+#include <miopen/export_internals.h>
 #include <miopen/miopen.h>
 #include <miopen/object.hpp>
 
