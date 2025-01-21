@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2024 Advanced Micro Devices, Inc.
+ * Copyright (c) 2025 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,13 +25,13 @@
  *******************************************************************************/
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
+
 #include <miopen/miopen.h>
 #include <miopen/tensor_view_utils.hpp>
 
 #include "tensor_holder.hpp"
-
-#include <cstddef>
 
 template <class T>
 void cpu_softmax_contiguous_forward(const tensor<T>& input,

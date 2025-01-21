@@ -278,7 +278,7 @@ int SoftmaxV3Driver<Tgpu, Tref>::AddCmdLineArgs()
                          "Backward (0) (Default=1)",
                          "int");
     inflags.AddTensorFlag(
-        "input_lengths", 'I', "2x10", "The dimensional lengths of the input tensor");
+        "input_lengths", 'I', "2x10", "The dimensional lengths of the input tensor (Default=2x10)");
     inflags.AddInputFlag(
         "dim", 'D', "1", "The dimension which softmax is computed (Default=0)", "int");
     inflags.AddInputFlag(
@@ -312,7 +312,7 @@ int SoftmaxV3Driver<Tgpu, Tref>::AllocateBuffersAndCopy()
 
         // GPU host allocation
         in  = std::vector<Tgpu>(in_sz, static_cast<Tgpu>(0));
-        out = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
+        out = std::vector<Tgpu>(out_sz, std::numeric_limits<Tgpu>::quiet_NaN());
 
         // CPU allocation
         outhost = std::vector<Tref>(out_sz, static_cast<Tref>(0));
@@ -544,8 +544,8 @@ int SoftmaxV3Driver<Tgpu, Tref>::VerifyBackward()
     }
     else
     {
-        std::cout << "Backward Softmax Verifies OK on CPU reference (" << error << " < "
-                  << tolerance << ')' << std::endl;
+        std::cout << "Backward Softmax Verifies OK on CPU reference (" << error
+                  << " <= " << tolerance << ')' << std::endl;
     }
 
     return miopenStatusSuccess;

@@ -46,12 +46,7 @@ struct ProblemDescription : ProblemDescriptionBase
                        const TensorDescriptor& yDesc_,
                        miopenSoftmaxAlgorithm_t algorithm_,
                        miopenSoftmaxMode_t mode_)
-        : isForward(true),
-          xdxDesc(xDesc_),
-          yDesc(yDesc_),
-
-          algorithm(algorithm_),
-          mode(mode_)
+        : isForward(true), xdxDesc(xDesc_), yDesc(yDesc_), algorithm(algorithm_), mode(mode_)
     {
         CheckAndAssignAlphaBeta(alpha_, beta_);
 
@@ -66,6 +61,7 @@ struct ProblemDescription : ProblemDescriptionBase
         }
     }
 
+    // softmax forward constructor
     ProblemDescription(const TensorDescriptor& xDesc_,
                        const TensorDescriptor& yDesc_,
                        uint32_t dim_,
@@ -74,9 +70,14 @@ struct ProblemDescription : ProblemDescriptionBase
           xdxDesc(xDesc_),
           yDesc(yDesc_),
           algorithm(algorithm_),
-          mode(MIOPEN_SOFTMAX_MODE_CHANNEL),
+          mode(MIOPEN_SOFTMAX_MODE_OPTIONAL_DIM),
           dim(dim_)
     {
+        if(xdxDesc.GetType() != yDesc.GetType())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Tensor types do not match.");
+        }
+
         if(dim >= xdxDesc.GetNumDims())
         {
             MIOPEN_THROW(miopenStatusBadParm, "Dimension out of bound");
@@ -88,6 +89,7 @@ struct ProblemDescription : ProblemDescriptionBase
         }
     }
 
+    // softmax backward constructor
     ProblemDescription(const void* alpha_,
                        const void* beta_,
                        const TensorDescriptor& yDesc_,
@@ -120,6 +122,7 @@ struct ProblemDescription : ProblemDescriptionBase
         }
     }
 
+    // softmax backward constructor
     ProblemDescription(const TensorDescriptor& yDesc_,
                        const TensorDescriptor& dyDesc_,
                        const TensorDescriptor& dxDesc_,
@@ -130,9 +133,14 @@ struct ProblemDescription : ProblemDescriptionBase
           yDesc(yDesc_),
           dyDesc(dyDesc_),
           algorithm(algorithm_),
-          mode(MIOPEN_SOFTMAX_MODE_CHANNEL),
+          mode(MIOPEN_SOFTMAX_MODE_OPTIONAL_DIM),
           dim(dim_)
     {
+        if(xdxDesc.GetType() != dyDesc.GetType())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Tensor types do not match.");
+        }
+
         if(dim >= xdxDesc.GetNumDims())
         {
             MIOPEN_THROW(miopenStatusBadParm, "Dimension out of bound.");

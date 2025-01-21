@@ -23,16 +23,15 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#include "miopen/miopen.h"
-#include <miopen/kernel_cache.hpp>
-#include <miopen/softmax.hpp>
-#include <miopen/float_equal.hpp>
 #include <miopen/check_numerics.hpp>
-#include <miopen/tensor.hpp>
-
+#include <miopen/float_equal.hpp>
+#include <miopen/find_solution.hpp>
+#include <miopen/kernel_cache.hpp>
+#include <miopen/miopen.h>
+#include <miopen/softmax.hpp>
 #include <miopen/softmax/invoke_params.hpp>
 #include <miopen/softmax/solvers.hpp>
-#include <miopen/find_solution.hpp>
+#include <miopen/tensor.hpp>
 
 #include <nlohmann/json.hpp>
 

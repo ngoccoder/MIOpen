@@ -553,6 +553,7 @@ typedef enum
     MIOPEN_SOFTMAX_MODE_INSTANCE = 0, /*!< compute per image (N) across C, H, W */
     MIOPEN_SOFTMAX_MODE_CHANNEL =
         1, /*!< compute per spatial location (H, W) per image (N) across C */
+    MIOPEN_SOFTMAX_MODE_OPTIONAL_DIM = 2, /*!< compute softmax per specified dimension */
 } miopenSoftmaxMode_t;
 
 /*! @ingroup TensorReduce

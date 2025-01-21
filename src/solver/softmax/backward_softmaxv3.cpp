@@ -24,7 +24,6 @@
  *
  *******************************************************************************/
 
-#include <cstdint>
 #include <miopen/datatype.hpp>
 #include <miopen/kernel_build_params.hpp>
 #include <miopen/kernel_info.hpp>
@@ -34,6 +33,7 @@
 #include <miopen/target_properties.hpp>
 
 #include <cstddef>
+#include <cstdint>
 
 #define LOCAL_SIZE 256
 #define CHUNK_SIZE 64
