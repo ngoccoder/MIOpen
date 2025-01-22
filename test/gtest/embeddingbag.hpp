@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2024 Advanced Micro Devices, Inc.
+ * Copyright (c) 2025 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -132,8 +132,10 @@ protected:
         auto&& handle       = get_handle();
         embeddingbag_config = GetParam();
         auto gen_value      = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
-        auto gen_value_int  = [](auto...) {
-            return prng::gen_descreet_uniform_sign<int32_t>(1e-2, 100);
+
+        auto weight_dims   = embeddingbag_config.weight_dim;
+        auto gen_value_int = [&weight_dims](auto...) {
+            return prng::gen_0_to_B(static_cast<int64_t>(weight_dims[0] - 1));
         };
 
         mode = embeddingbag_config.mode;
@@ -142,8 +144,7 @@ protected:
         auto in_strides = embeddingbag_config.ComputeStrides(in_dims);
         input           = tensor<int64_t>{in_dims, in_strides}.generate(gen_value_int);
 
-        auto weight_dims = embeddingbag_config.weight_dim;
-        weight           = tensor<T>{weight_dims}.generate(gen_value);
+        weight = tensor<T>{weight_dims}.generate(gen_value);
 
         auto offsets_dims = embeddingbag_config.offsets;
         if(!offsets_dims.empty())
@@ -237,8 +238,7 @@ protected:
         EXPECT_EQ(miopen::range_distance(output), miopen::range_distance(ref_output));
         auto error = miopen::rms_range(ref_output, output);
 
-        EXPECT_LT(error, threshold * 10) << "Error output beyond tolerance Error: " << error
-                                         << ",  Tolerance: " << threshold * 10;
+        EXPECT_LT(error, threshold * 10);
     }
 
     EmbeddingBagTestCase embeddingbag_config;

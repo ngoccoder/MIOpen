@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2024 Advanced Micro Devices, Inc.
+ * Copyright (c) 2025 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -51,10 +51,6 @@ struct FwdProblemDescription : ProblemDescriptionBase
           outputDesc(outputDesc_),
           mode(mode_)
     {
-        auto input_dims  = inputDesc.GetLengths();
-        auto weight_dims = weightDesc.GetLengths();
-        auto output_dims = outputDesc.GetLengths();
-
         if(perSampleWeightDesc.IsDefined())
         {
             if(mode != MIOPEN_EMBEDDING_BAG_SUM)
@@ -62,25 +58,37 @@ struct FwdProblemDescription : ProblemDescriptionBase
                 MIOPEN_THROW(miopenStatusBadParm,
                              "per_sample_weights option is only allowed in SUM mode");
             }
-            auto per_sample_weights_dims = perSampleWeightDesc.GetLengths();
-            for(size_t i = 0; i < per_sample_weights_dims.size(); i++)
+
+            if(perSampleWeightDesc.GetLengths() != inputDesc.GetLengths())
             {
-                if(input_dims[i] != per_sample_weights_dims[i])
-                {
-                    MIOPEN_THROW(miopenStatusBadParm,
-                                 "input and per_sample_weights must have the same shape");
-                }
+                MIOPEN_THROW(miopenStatusBadParm,
+                             "per_sample_weights must have the same shape as input");
             }
         }
 
-        if(input_dims.size() == 1 && !offsetsDesc.IsDefined())
+        if(inputDesc.GetNumDims() == 1 && !offsetsDesc.IsDefined())
         {
             MIOPEN_THROW(miopenStatusBadParm, "offsets tensor is required for 1D input");
         }
 
-        if(input_dims.size() > 2)
+        if(inputDesc.GetNumDims() > 2)
         {
             MIOPEN_THROW(miopenStatusBadParm, "input tensor must be 1D or 2D");
+        }
+
+        if(weightDesc.GetNumDims() != 2)
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "weight tensor must be 2D");
+        }
+
+        if(outputDesc.GetNumDims() != 2)
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "output tensor must be 2D");
+        }
+
+        if(!IsSameType())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "weight and output must have the same type");
         }
     }
 

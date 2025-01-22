@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2024 Advanced Micro Devices, Inc.
+ * Copyright (c) 2025 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -238,7 +238,7 @@ int EmbeddingBagDriver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
         MIOPEN_THROW("Invalid Forward|Backward Mode");
     }
 
-    isContiguous = inflags.GetValueInt("is_contiguous") == 1 ? true : false;
+    isContiguous = inflags.GetValueInt("is_contiguous") == 0 ? false : true;
     mode         = static_cast<miopenEmbeddingBagMode_t>(inflags.GetValueInt("mode"));
 
     return miopenStatusSuccess;
@@ -297,7 +297,7 @@ int EmbeddingBagDriver<Tgpu, Tref>::AddCmdLineArgs()
     inflags.AddTensorFlag("input_dims",
                           'I',
                           "1024x1024",
-                          "The dimensional lengths of the input tensor (Default=40x40)");
+                          "The dimensional lengths of the input tensor (Default=1024x1024)");
     inflags.AddTensorFlag(
         "offsets_dims", 'O', "0", "The dimensional lengths of the offsets tensor (Default=0)");
     inflags.AddTensorFlag("weight_dims",

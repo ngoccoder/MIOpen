@@ -2,7 +2,7 @@
  *
  * MIT License
  *
- * Copyright (c) 2024 Advanced Micro Devices, Inc.
+ * Copyright (c) 2025 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -120,14 +120,15 @@ __device__ void EmbeddingBagMaxForwardKernel(const int64_t* input,
         return;
 
     auto num_embeddings = weight_tv.size[0];
-    TIO m               = std::numeric_limits<TIO>::min();
+    FLOAT_ACCUM m       = std::numeric_limits<FLOAT_ACCUM>::min();
     for(auto i = 0; i < input_tv.size[1]; i++)
     {
         int64_t embedding_idx = input[input_tv.get_tensor_view_idx({output_layout.layout[0], i})];
 
         if(embedding_idx >= 0 && embedding_idx < num_embeddings)
         {
-            TIO w = weight[weight_tv.get_tensor_view_idx({embedding_idx, output_layout.layout[1]})];
+            FLOAT_ACCUM w = CVT_FLOAT2ACCUM(
+                weight[weight_tv.get_tensor_view_idx({embedding_idx, output_layout.layout[1]})]);
             if(w > m)
             {
                 m = w;
@@ -135,7 +136,7 @@ __device__ void EmbeddingBagMaxForwardKernel(const int64_t* input,
         }
     }
 
-    output[output_tv.get_tensor_view_idx(output_layout)] = m;
+    output[output_tv.get_tensor_view_idx(output_layout)] = CVT_ACCUM2FLOAT(m);
 }
 
 extern "C" __global__ void EmbeddingBagMaxForward(const int64_t* input,
