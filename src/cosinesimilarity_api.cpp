@@ -24,13 +24,13 @@
  *
  *******************************************************************************/
 
-#include "miopen/miopen.h"
 #include <cstdint>
 #include <miopen/common.hpp>
 #include <miopen/cosinesimilarity.hpp>
 #include <miopen/errors.hpp>
 #include <miopen/handle.hpp>
 #include <miopen/logger.hpp>
+#include <miopen/miopen.h>
 #include <miopen/tensor_ops.hpp>
 
 extern "C" miopenStatus_t miopenCosineSimilarityForward(miopenHandle_t handle,
@@ -55,5 +55,50 @@ extern "C" miopenStatus_t miopenCosineSimilarityForward(miopenHandle_t handle,
                                                           DataCast(output),
                                                           dim,
                                                           eps);
+    });
+}
+
+extern "C" miopenStatus_t
+miopenCosineSimilarityBackward(miopenHandle_t handle,
+                               const miopenTensorDescriptor_t input1Desc,
+                               const void* input1,
+                               const miopenTensorDescriptor_t input2Desc,
+                               const void* input2,
+                               const miopenTensorDescriptor_t outputGradDesc,
+                               const void* outputGrad,
+                               const miopenTensorDescriptor_t input1GradDesc,
+                               void* input1Grad,
+                               const miopenTensorDescriptor_t input2GradDesc,
+                               void* input2Grad,
+                               uint32_t dim,
+                               float eps)
+{
+    MIOPEN_LOG_FUNCTION(handle,
+                        input1Desc,
+                        input1,
+                        input2Desc,
+                        input2,
+                        outputGradDesc,
+                        outputGrad,
+                        input1GradDesc,
+                        input1Grad,
+                        input2GradDesc,
+                        input2Grad,
+                        dim,
+                        eps);
+    return miopen::try_([&] {
+        miopen::cosinesimilarity::CosineSimilarityBackward(miopen::deref(handle),
+                                                           miopen::deref(input1Desc),
+                                                           DataCast(input1),
+                                                           miopen::deref(input2Desc),
+                                                           DataCast(input2),
+                                                           miopen::deref(outputGradDesc),
+                                                           DataCast(outputGrad),
+                                                           miopen::deref(input1GradDesc),
+                                                           DataCast(input1Grad),
+                                                           miopen::deref(input2GradDesc),
+                                                           DataCast(input2Grad),
+                                                           dim,
+                                                           eps);
     });
 }

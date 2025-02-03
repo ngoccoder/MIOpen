@@ -29,7 +29,6 @@
 #endif
 
 #include "float_types.h"
-#include "hip_atomic.hpp"
 #include "tensor_view.hpp"
 
 template <typename TIO>
@@ -49,18 +48,18 @@ __device__ void CosineSimilarityForwardKernel(const TIO* input1,
 
     tensor_layout_t<5> out_layout(output_tv, gid);
 
-    TIO xy = 0;
-    TIO xn = 0;
-    TIO yn = 0;
+    FLOAT_ACCUM xy = 0;
+    FLOAT_ACCUM xn = 0;
+    FLOAT_ACCUM yn = 0;
 
     for(size_t k = 0; k < input1_tv.size[dim]; ++k)
     {
         TIO x = input1[input1_tv.get_tensor_view_idx(out_layout)];
         TIO y = input2[input2_tv.get_tensor_view_idx(out_layout)];
 
-        xy += x * y;
-        xn += x * x;
-        yn += y * y;
+        xy += CVT_FLOAT2ACCUM(x) * CVT_FLOAT2ACCUM(y);
+        xn += CVT_FLOAT2ACCUM(x) * CVT_FLOAT2ACCUM(x);
+        yn += CVT_FLOAT2ACCUM(y) * CVT_FLOAT2ACCUM(y);
 
         out_layout.layout[dim]++;
     }
@@ -68,7 +67,8 @@ __device__ void CosineSimilarityForwardKernel(const TIO* input1,
     xn = xn > eps ? xn : eps;
     yn = yn > eps ? yn : eps;
 
-    output[output_tv.get_tensor_view_idx(out_layout)] = xy / sqrtf(xn * yn);
+    out_layout.layout[dim]                            = 0;
+    output[output_tv.get_tensor_view_idx(out_layout)] = CVT_ACCUM2FLOAT(xy / sqrtf(xn * yn));
 }
 
 extern "C" __global__ void CosineSimilarityForward(const IO_TYPE* input1,
@@ -106,18 +106,18 @@ __device__ void CosineSimilarityBackwardKernel(const TIO* input1,
 
     tensor_layout_t<5> out_layout(output_grad_tv, gid);
 
-    TIO xy = 0;
-    TIO xn = 0;
-    TIO yn = 0;
+    FLOAT_ACCUM xy = 0;
+    FLOAT_ACCUM xn = 0;
+    FLOAT_ACCUM yn = 0;
 
     for(size_t k = 0; k < input1_tv.size[dim]; ++k)
     {
         TIO x = input1[input1_tv.get_tensor_view_idx(out_layout)];
         TIO y = input2[input2_tv.get_tensor_view_idx(out_layout)];
 
-        xy += x * y;
-        xn += x * x;
-        yn += y * y;
+        xy += CVT_FLOAT2ACCUM(x) * CVT_FLOAT2ACCUM(y);
+        xn += CVT_FLOAT2ACCUM(x) * CVT_FLOAT2ACCUM(x);
+        yn += CVT_FLOAT2ACCUM(y) * CVT_FLOAT2ACCUM(y);
 
         out_layout.layout[dim]++;
     }
@@ -125,10 +125,10 @@ __device__ void CosineSimilarityBackwardKernel(const TIO* input1,
     xn = xn > eps ? sqrt(xn) : sqrt(eps);
     yn = yn > eps ? sqrt(yn) : sqrt(eps);
 
-    TIO output       = output_grad[output_grad_tv.get_tensor_view_idx(out_layout)];
-    TIO scale        = output / (xn * yn);
-    TIO axpy_scale_x = -scale * xy / (xn * xn);
-    TIO axpy_scale_y = -scale * xy / (yn * yn);
+    TIO output               = output_grad[output_grad_tv.get_tensor_view_idx(out_layout)];
+    FLOAT_ACCUM scale        = CVT_FLOAT2ACCUM(output) / (xn * yn);
+    FLOAT_ACCUM axpy_scale_x = -scale * xy / (xn * xn);
+    FLOAT_ACCUM axpy_scale_y = -scale * xy / (yn * yn);
 
     out_layout.layout[dim] = 0;
     for(size_t k = 0; k < input1_tv.size[dim]; ++k)
@@ -139,12 +139,12 @@ __device__ void CosineSimilarityBackwardKernel(const TIO* input1,
         if(input1_grad)
         {
             input1_grad[input1_grad_tv.get_tensor_view_idx(out_layout)] =
-                scale * y + axpy_scale_x * x;
+                scale * CVT_FLOAT2ACCUM(y) + axpy_scale_x * CVT_FLOAT2ACCUM(x);
         }
         if(input2_grad)
         {
             input2_grad[input2_grad_tv.get_tensor_view_idx(out_layout)] =
-                scale * x + axpy_scale_y * y;
+                scale * CVT_FLOAT2ACCUM(x) + axpy_scale_y * CVT_FLOAT2ACCUM(y);
         }
 
         out_layout.layout[dim]++;

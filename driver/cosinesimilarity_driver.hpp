@@ -59,20 +59,16 @@ int mloCosineSimilarityForward(const miopenTensorDescriptor_t input1Desc,
     tensor_view_t<5> input1_tv    = miopen::get_inner_expanded_tv<5>(miopen::deref(input1Desc));
     tensor_view_t<5> input2_tv    = miopen::get_inner_expanded_tv<5>(miopen::deref(input2Desc));
     tensor_view_t<4> output_tv_4d = miopen::get_inner_expanded_tv<4>(miopen::deref(outputDesc));
-    tensor_view_t<5> output_tv;
-
-    uint64_t[4] out_size = output_tv_4d.size;
-    std::vector<uint64_t> out_strides;
+    tensor_view_t<5> output_tv    = output_tv_4d.unsqueeze(dim);
 
     for(auto o = 0; o < out_sz; o++)
     {
-        Tgpu xy = 0;
-        Tgpu xn = 0;
-        Tgpu yn = 0;
+        double xy = 0;
+        double xn = 0;
+        double yn = 0;
 
         tensor_layout_t<5> out_layout(output_tv, o);
 
-        // TODO: tensor view for dim into out_tv
         for(size_t k = 0; k < input1_tv.size[dim]; ++k)
         {
             Tgpu x = input1[input1_tv.get_tensor_view_idx(out_layout)];
@@ -88,48 +84,84 @@ int mloCosineSimilarityForward(const miopenTensorDescriptor_t input1Desc,
         xn = xn > eps ? xn : eps;
         yn = yn > eps ? yn : eps;
 
+        out_layout.layout[dim]                            = 0;
         output[output_tv.get_tensor_view_idx(out_layout)] = xy / sqrt(xn * yn);
     }
+
+    return 0;
 }
 
 template <typename Tgpu, typename Tcheck>
-int mloEmbeddingBackward(const miopenTensorDescriptor_t inputDesc,
-                         const int64_t* input,
-                         const miopenTensorDescriptor_t outputGradDesc,
-                         const Tgpu* outputGrad,
-                         const miopenTensorDescriptor_t weightGradDesc,
-                         Tcheck* weightGradHost,
-                         const int32_t* indices_freq,
-                         int64_t padding_idx)
+int mloCosineSimilarityBackward(const miopenTensorDescriptor_t input1Desc,
+                                const Tgpu* input1,
+                                const miopenTensorDescriptor_t input2Desc,
+                                const Tgpu* input2,
+                                const miopenTensorDescriptor_t outputGradDesc,
+                                const Tgpu* outputGrad,
+                                const miopenTensorDescriptor_t input1GradDesc,
+                                Tcheck* input1Grad,
+                                const miopenTensorDescriptor_t input2GradDesc,
+                                Tcheck* input2Grad,
+                                uint32_t dim,
+                                float eps)
 {
-    auto input_tv       = miopen::get_inner_expanded_tv<4>(miopen::deref(inputDesc));
-    auto outGrad_tv     = miopen::get_inner_expanded_tv<5>(miopen::deref(outputGradDesc));
-    auto weightGrad_tv  = miopen::get_inner_expanded_tv<2>(miopen::deref(weightGradDesc));
-    auto weightGrad_len = miopen::deref(weightGradDesc).GetLengths();
-    auto embedding_dim  = weightGrad_len[1];
-    auto num_embeddings = weightGrad_len[0];
-    auto outGrad_numel  = miopen::deref(outputGradDesc).GetElementSize();
-    for(size_t o = 0; o < outGrad_numel; o++)
+    auto out_sz                = miopen::deref(outputGradDesc).GetElementSize();
+    tensor_view_t<5> input1_tv = miopen::get_inner_expanded_tv<5>(miopen::deref(input1Desc));
+    tensor_view_t<5> input2_tv = miopen::get_inner_expanded_tv<5>(miopen::deref(input2Desc));
+    tensor_view_t<5> input1_grad_tv =
+        miopen::get_inner_expanded_tv<5>(miopen::deref(input1GradDesc));
+    tensor_view_t<5> input2_grad_tv =
+        miopen::get_inner_expanded_tv<5>(miopen::deref(input2GradDesc));
+    tensor_view_t<4> output_grad_tv_4d =
+        miopen::get_inner_expanded_tv<4>(miopen::deref(outputGradDesc));
+    tensor_view_t<5> output_grad_tv = output_grad_tv_4d.unsqueeze(dim);
+
+    for(auto o = 0; o < out_sz; o++)
     {
-        size_t i = o / embedding_dim, j = o % embedding_dim;
+        tensor_layout_t<5> out_layout(output_grad_tv, o);
 
-        tensor_layout_t<4> input_layout(input_tv, i);
-        size_t input_idx      = input_tv.get_tensor_view_idx(input_layout);
-        int64_t embedding_idx = input[input_idx];
+        double xy = 0;
+        double xn = 0;
+        double yn = 0;
 
-        if(embedding_idx == padding_idx)
-            continue;
-
-        if(embedding_idx >= 0 && embedding_idx < num_embeddings)
+        for(size_t k = 0; k < input1_tv.size[dim]; ++k)
         {
-            Tcheck scale =
-                indices_freq
-                    ? (static_cast<Tcheck>(1.0f) / static_cast<Tcheck>(indices_freq[input_idx]))
-                    : static_cast<Tcheck>(1.0f);
-            size_t weight_grad_idx = weightGrad_tv.get_tensor_view_idx({embedding_idx, j});
-            tensor_layout_t<5> outGrad_layout(outGrad_tv, o);
-            weightGradHost[weight_grad_idx] +=
-                outputGrad[outGrad_tv.get_tensor_view_idx(outGrad_layout)] * scale;
+            Tgpu x = input1[input1_tv.get_tensor_view_idx(out_layout)];
+            Tgpu y = input2[input2_tv.get_tensor_view_idx(out_layout)];
+
+            xy += x * y;
+            xn += x * x;
+            yn += y * y;
+
+            out_layout.layout[dim]++;
+        }
+
+        xn = xn > eps ? sqrt(xn) : sqrt(eps);
+        yn = yn > eps ? sqrt(yn) : sqrt(eps);
+
+        Tgpu output         = outputGrad[output_grad_tv.get_tensor_view_idx(out_layout)];
+        double scale        = output / (xn * yn);
+        double axpy_scale_x = -scale * xy / (xn * xn);
+        double axpy_scale_y = -scale * xy / (yn * yn);
+
+        out_layout.layout[dim] = 0;
+        for(size_t k = 0; k < input1_tv.size[dim]; ++k)
+        {
+            Tgpu x = input1[input1_tv.get_tensor_view_idx(out_layout)];
+            Tgpu y = input2[input2_tv.get_tensor_view_idx(out_layout)];
+
+            if(input1Grad)
+            {
+                input1Grad[input1_grad_tv.get_tensor_view_idx(out_layout)] =
+                    scale * y + axpy_scale_x * x;
+            }
+            if(input2Grad)
+            {
+                input2Grad[input2_grad_tv.get_tensor_view_idx(out_layout)] =
+                    scale * x + axpy_scale_y * y;
+            }
+
+            out_layout.layout[dim]++;
         }
     }
 
@@ -145,6 +177,9 @@ public:
         miopenCreateTensorDescriptor(&input1Tensor);
         miopenCreateTensorDescriptor(&input2Tensor);
         miopenCreateTensorDescriptor(&outputTensor);
+        miopenCreateTensorDescriptor(&input1GradTensor);
+        miopenCreateTensorDescriptor(&input2GradTensor);
+        miopenCreateTensorDescriptor(&outputGradTensor);
 
         data_type = miopen_type<Tgpu>{};
     }
@@ -172,6 +207,9 @@ public:
         miopenDestroyTensorDescriptor(input1Tensor);
         miopenDestroyTensorDescriptor(input2Tensor);
         miopenDestroyTensorDescriptor(outputTensor);
+        miopenDestroyTensorDescriptor(input1GradTensor);
+        miopenDestroyTensorDescriptor(input2GradTensor);
+        miopenDestroyTensorDescriptor(outputGradTensor);
     }
 
 private:
@@ -185,13 +223,29 @@ private:
     miopenTensorDescriptor_t input2Tensor;
     miopenTensorDescriptor_t outputTensor;
 
+    // Backwards
+    miopenTensorDescriptor_t input1GradTensor;
+    miopenTensorDescriptor_t input2GradTensor;
+    miopenTensorDescriptor_t outputGradTensor;
+
     std::unique_ptr<GPUMem> in1_dev;
     std::unique_ptr<GPUMem> in2_dev;
     std::unique_ptr<GPUMem> out_dev;
 
+    std::unique_ptr<GPUMem> in1Grad_dev;
+    std::unique_ptr<GPUMem> in2Grad_dev;
+    std::unique_ptr<GPUMem> outGrad_dev;
+
     std::vector<Tgpu> in1;
     std::vector<Tgpu> in2;
-    std::vector<Tref> out;
+    std::vector<Tgpu> out;
+    std::vector<Tref> outHost;
+
+    std::vector<Tgpu> in1Grad;
+    std::vector<Tgpu> in2Grad;
+    std::vector<Tgpu> outGrad;
+    std::vector<Tref> in1GradHost;
+    std::vector<Tref> in2GradHost;
 
     uint32_t dim;
     float eps;
@@ -242,7 +296,18 @@ int CosineSimilarityDriver<Tgpu, Tref>::GetandSetData()
         }
     }
     auto out_stride = ComputeStrides(out_len);
-    SetTensorNd(outputTensor, out_len, out_stride, data_type);
+
+    if(forw == 0 || forw == 1)
+    {
+        SetTensorNd(outputTensor, out_len, out_stride, data_type);
+    }
+
+    if(forw == 0 || forw == 2)
+    {
+        SetTensorNd(outputGradTensor, out_len, out_stride, data_type);
+        SetTensorNd(input1GradTensor, in1_len, in1_stride, data_type);
+        SetTensorNd(input2GradTensor, in2_len, in2_stride, data_type);
+    }
 
     return miopenStatusSuccess;
 }
@@ -265,7 +330,12 @@ std::vector<int> CosineSimilarityDriver<Tgpu, Tref>::ComputeStrides(std::vector<
 template <typename Tgpu, typename Tref>
 int CosineSimilarityDriver<Tgpu, Tref>::AddCmdLineArgs()
 {
-    inflags.AddInputFlag("forw", 'F', "1", "Run only Forward (1) (Default=1)", "int");
+    inflags.AddInputFlag("forw",
+                         'F',
+                         "1",
+                         "Run both Forward and Backward (0) | Run only Forward (1) | Run only "
+                         "Backward (2) (Default=1)",
+                         "int");
     inflags.AddTensorFlag(
         "input1_dims", 'I', "40x40", "The dimensional lengths of the input tensor (Default=40x40)");
     inflags.AddTensorFlag("input2_dims",
@@ -273,9 +343,9 @@ int CosineSimilarityDriver<Tgpu, Tref>::AddCmdLineArgs()
                           "40x40",
                           "The dimensional lengths of the input2 tensor (Default=40x40)");
     inflags.AddInputFlag(
-        "dim", 'D', "1", "Dimension where cosine similarity is computed (Default=1)");
+        "dim", 'D', "1", "Dimension where cosine similarity is computed (Default=1)", "int");
     inflags.AddInputFlag(
-        "eps", 'E', "1e-8", "Small value to avoid division by zero (Default=1e-8)");
+        "eps", 'E', "1e-8", "Small value to avoid division by zero (Default=1e-8)", "double");
     inflags.AddInputFlag("iter", 'i', "10", "Number of Iterations (Default=10)", "int");
     inflags.AddInputFlag(
         "is_contiguous", 'C', "1", "Is Tensor Contiguous (1) or not (0) (Default=1)", "int");
@@ -306,9 +376,10 @@ int CosineSimilarityDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
         // GPU host allocation
         in1 = std::vector<Tgpu>(in1_sz, static_cast<Tgpu>(0));
         in2 = std::vector<Tgpu>(in2_sz, static_cast<Tgpu>(0));
+        out = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
 
         // CPU allocation
-        out = std::vector<Tgpu>(out_sz, static_cast<Tref>(0));
+        outHost = std::vector<Tref>(out_sz, static_cast<Tref>(0));
 
         for(int i = 0; i < in1_sz; i++)
         {
@@ -343,13 +414,60 @@ int CosineSimilarityDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 template <typename Tgpu, typename Tref>
 int CosineSimilarityDriver<Tgpu, Tref>::RunForwardGPU()
 {
-    return miopenStatusNotImplemented;
+    float kernel_total_time = 0;
+    float kernel_first_time = 0;
+    Timer t;
+    START_TIME;
+    for(int i = 0; i < inflags.GetValueInt("iter"); i++)
+    {
+        miopenStatus_t status = miopenCosineSimilarityForward(GetHandle(),
+                                                              input1Tensor,
+                                                              in1_dev->GetMem(),
+                                                              input2Tensor,
+                                                              in2_dev->GetMem(),
+                                                              outputTensor,
+                                                              out_dev->GetMem(),
+                                                              dim,
+                                                              eps);
+
+        MIOPEN_THROW_IF(status != miopenStatusSuccess, "Error in miopenCosineSimilarityForward");
+
+        float time = 0.0;
+        miopenGetKernelTime(GetHandle(), &time);
+        kernel_total_time += time;
+        if(i == 0)
+            kernel_first_time = time;
+    }
+
+    if(inflags.GetValueInt("time") == 1)
+    {
+        STOP_TIME
+        int iter = inflags.GetValueInt("iter");
+        if(WALL_CLOCK)
+            std::cout << "Wall-clock Time Forward CosineSimilarity Elapsed: "
+                      << t.gettime_ms() / iter << " ms\n";
+        float kernel_average_time =
+            iter > 1 ? (kernel_total_time - kernel_first_time) / (iter - 1) : kernel_first_time;
+        std::cout << "GPU Kernel Time Forward CosineSimilarity Elapsed: " << kernel_average_time
+                  << " ms\n";
+    }
+
+    if(out_dev->FromGPU(GetStream(), out.data()) != 0)
+    {
+        std::cerr << "Error copying (out_dev) from GPU, size: " << out_dev->GetSize() << std::endl;
+        return miopenStatusInternalError;
+    }
+
+    return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
 int CosineSimilarityDriver<Tgpu, Tref>::RunForwardCPU()
 {
-    return miopenStatusNotImplemented;
+    mloCosineSimilarityForward(
+        input1Tensor, in1.data(), input2Tensor, in2.data(), outputTensor, outHost.data(), dim, eps);
+
+    return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
@@ -414,22 +532,42 @@ Tref CosineSimilarityDriver<Tgpu, Tref>::GetTolerance()
 template <typename Tgpu, typename Tref>
 int CosineSimilarityDriver<Tgpu, Tref>::VerifyForward()
 {
-    return miopenStatusNotImplemented;
+    RunForwardCPU();
+    const Tref tolerance = GetTolerance();
+    auto error           = miopen::rms_range(outHost, out);
+
+    if(!std::isfinite(error) || error > tolerance)
+    {
+        std::cout << "Forward CosineSimilarity FAILED: " << error << " > " << tolerance
+                  << std::endl;
+        return EC_VerifyFwd;
+    }
+    else
+    {
+        std::cout << "Forward CosineSimilarity OK on CPU reference (" << error << " < " << tolerance
+                  << ')' << std::endl;
+    }
+
+    return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
 int CosineSimilarityDriver<Tgpu, Tref>::RunBackwardCPU()
 {
-    // mloEmbeddingBackward(inputTensor,
-    //                     in.data(),
-    //                     outputTensorGrad,
-    //                     outGrad.data(),
-    //                     weightTensorGrad,
-    //                     weightGradHost.data(),
-    //                     indices_freq.data(),
-    //                     padding_idx);
+    mloCosineSimilarityBackward(input1Tensor,
+                                in1.data(),
+                                input2Tensor,
+                                in2.data(),
+                                outputGradTensor,
+                                outGrad.data(),
+                                input1GradTensor,
+                                in1Grad.data(),
+                                input2GradTensor,
+                                in2Grad.data(),
+                                dim,
+                                eps);
 
-    return miopenStatusNotImplemented;
+    return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>

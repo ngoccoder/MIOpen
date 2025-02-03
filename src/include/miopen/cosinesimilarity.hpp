@@ -25,6 +25,7 @@
  *******************************************************************************/
 #pragma once
 
+#include "miopen/export_internals.h"
 #include <miopen/common.hpp>
 
 namespace miopen {
@@ -43,6 +44,21 @@ MIOPEN_INTERNALS_EXPORT miopenStatus_t CosineSimilarityForward(Handle& handle,
                                                                Data_t output,
                                                                uint32_t dim,
                                                                float eps);
+
+MIOPEN_INTERNALS_EXPORT miopenStatus_t
+CosineSimilarityBackward(Handle& handle,
+                         const TensorDescriptor& input1Desc,
+                         ConstData_t input1,
+                         const TensorDescriptor& input2Desc,
+                         ConstData_t input2,
+                         const TensorDescriptor& outputGradDesc,
+                         ConstData_t outputGrad,
+                         const TensorDescriptor& input1GradDesc,
+                         Data_t input1Grad,
+                         const TensorDescriptor& input2GradDesc,
+                         Data_t input2Grad,
+                         uint32_t dim,
+                         float eps);
 
 } // namespace cosinesimilarity
 

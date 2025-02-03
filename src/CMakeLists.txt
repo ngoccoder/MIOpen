@@ -110,6 +110,8 @@ set( MIOpen_Source
     conv_algo_name.cpp
     convolution.cpp
     convolution_api.cpp
+    cosinesimilarity/problem_description.cpp
+    cosinesimilarity_api.cpp
     ctc.cpp
     ctc_api.cpp
     db.cpp
@@ -300,6 +302,7 @@ set( MIOpen_Source
     solver/conv_ck_igemm_fwd_bias_res_add_activ_fused.cpp
     solver/conv_ocl_dir2Dfwd_fused.cpp
     solver/conv_winoRxS_fused.cpp
+    solver/cosinesimilarity/forward_cosinesimilarity.cpp
     solver/glu/backward_glu.cpp
     solver/glu/forward_glu.cpp
     solver/groupnorm/forward_groupnorm.cpp
@@ -529,6 +532,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenConvDirUni.cl
         kernels/MIOpenConvDirBatchNormActiv.cl
         kernels/MIOpenConvDirGenFwd.cl
+        kernels/MIOpenCosineSimilarity.cpp
         kernels/MIOpenGLU.cpp
         kernels/MIOpenGroupNorm.cpp
         kernels/MIOpenGetitem.cpp
@@ -667,6 +671,7 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         adam.cpp
         addlayernorm.cpp
         cat.cpp
+        cosinesimilarity.cpp
         exec_utils.cpp
         groupnorm.cpp
         getitem.cpp

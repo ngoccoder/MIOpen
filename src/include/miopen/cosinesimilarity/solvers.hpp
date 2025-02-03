@@ -53,6 +53,25 @@ struct CosineSimilarityForward final : CosineSimilarityForwardSolverBase
                 const miopen::cosinesimilarity::FwdProblemDescription& problem) const override;
 };
 
+using CosineSimilarityBackwardSolverBase =
+    NonTunableSolverBase<ExecutionContext, miopen::cosinesimilarity::BwdProblemDescription>;
+
+struct CosineSimilarityBackward final : CosineSimilarityBackwardSolverBase
+{
+    const std::string& SolverDbId() const override
+    {
+        return GetSolverDbId<CosineSimilarityBackward>();
+    }
+
+    bool
+    IsApplicable(const ExecutionContext& context,
+                 const miopen::cosinesimilarity::BwdProblemDescription& problem) const override;
+
+    ConvSolution
+    GetSolution(const ExecutionContext& context,
+                const miopen::cosinesimilarity::BwdProblemDescription& problem) const override;
+};
+
 } // namespace cosinesimilarity
 
 } // namespace solver

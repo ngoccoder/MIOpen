@@ -8207,6 +8207,38 @@ miopenCosineSimilarityForward(miopenHandle_t handle,
                               uint32_t dim,
                               float eps);
 
+/*! @brief Execute CosineSimilarity backward layer
+ *
+ * @param handle                   MIOpen handle (input)
+ * @param input1Desc               Tensor descriptor for first input tensor (input)
+ * @param input1                   First input tensor (input)
+ * @param input2Desc               Tensor descriptor for second input tensor (input)
+ * @param input2                   Second input tensor (input)
+ * @param outputGradDesc           Tensor descriptor for output gradient tensor (input)
+ * @param outputGrad               Output gradient tensor (input)
+ * @param input1GradDesc           Tensor descriptor for first input gradient tensor (input)
+ * @param input1Grad               First input gradient tensor (output)
+ * @param input2GradDesc           Tensor descriptor for second input gradient tensor (input)
+ * @param input2Grad               Second input gradient tensor (output)
+ * @param dim                      Dimension where cosine similarity is computed (input)
+ * @param eps                      Small value to avoid division by zero (input)
+ * @return                         miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t
+miopenCosineSimilarityBackward(miopenHandle_t handle,
+                               const miopenTensorDescriptor_t input1Desc,
+                               const void* input1,
+                               const miopenTensorDescriptor_t input2Desc,
+                               const void* input2,
+                               const miopenTensorDescriptor_t outputGradDesc,
+                               const void* outputGrad,
+                               const miopenTensorDescriptor_t input1GradDesc,
+                               void* input1Grad,
+                               const miopenTensorDescriptor_t input2GradDesc,
+                               void* input2Grad,
+                               uint32_t dim,
+                               float eps);
+
 /** @} */
 // CLOSEOUT CosineSimilarity DOXYGEN GROUP
 #endif // MIOPEN_BETA_API

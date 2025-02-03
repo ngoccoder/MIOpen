@@ -65,18 +65,62 @@ struct FwdProblemDescription : ProblemDescriptionBase
                input1Desc.GetType() == outputDesc.GetType();
     }
 
-    // bool isAllContiguous() const
-    //{
-    //    return inputDesc.IsContiguous() && outputGradDesc.IsContiguous() &&
-    //           weightGradDesc.IsContiguous();
-    //}
-
     NetworkConfig MakeNetworkConfig() const override;
 
 protected:
     TensorDescriptor input1Desc;
     TensorDescriptor input2Desc;
     TensorDescriptor outputDesc;
+
+    uint32_t dim;
+    float eps;
+};
+
+struct BwdProblemDescription : ProblemDescriptionBase
+{
+    BwdProblemDescription(const TensorDescriptor& input1Desc_,
+                          const TensorDescriptor& input2Desc_,
+                          const TensorDescriptor& outputGradDesc_,
+                          const TensorDescriptor& input1GradDesc_,
+                          const TensorDescriptor& input2GradDesc_,
+                          uint32_t dim_,
+                          float eps_)
+        : input1Desc(input1Desc_),
+          input2Desc(input2Desc_),
+          outputGradDesc(outputGradDesc_),
+          input1GradDesc(input1GradDesc_),
+          input2GradDesc(input2GradDesc_),
+          dim(dim_),
+          eps(eps_)
+    {
+        if(!IsSameType())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Input and output tensor types do not match");
+        }
+    }
+
+    const TensorDescriptor& GetInput1Desc() const { return input1Desc; }
+    const TensorDescriptor& GetInput2Desc() const { return input2Desc; }
+    const TensorDescriptor& GetOutputGradDesc() const { return outputGradDesc; }
+    const TensorDescriptor& GetInput1GradDesc() const { return input1GradDesc; }
+    const TensorDescriptor& GetInput2GradDesc() const { return input2GradDesc; }
+
+    bool IsSameType() const
+    {
+        return input1Desc.GetType() == input2Desc.GetType() &&
+               input1Desc.GetType() == outputGradDesc.GetType() &&
+               input1Desc.GetType() == input1GradDesc.GetType() &&
+               input1Desc.GetType() == input2GradDesc.GetType();
+    }
+
+    NetworkConfig MakeNetworkConfig() const override;
+
+protected:
+    TensorDescriptor input1Desc;
+    TensorDescriptor input2Desc;
+    TensorDescriptor outputGradDesc;
+    TensorDescriptor input1GradDesc;
+    TensorDescriptor input2GradDesc;
 
     uint32_t dim;
     float eps;

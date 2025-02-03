@@ -46,6 +46,29 @@ struct tensor_view_t
         }
         return idx;
     }
+
+    constexpr auto unsqueeze(uint32_t dim)
+    {
+        tensor_view_t<N + 1> new_view;
+
+        for(auto i = 0; i < dim; i++)
+        {
+            new_view.size[i]   = size[i];
+            new_view.stride[i] = stride[i];
+        }
+
+        new_view.size[dim]   = 1;
+        new_view.stride[dim] = size[dim] * stride[dim];
+
+        for(auto i = dim; i < N; i++)
+        {
+            new_view.size[i + 1]   = size[i];
+            new_view.stride[i + 1] = stride[i];
+        }
+
+        return new_view;
+    }
+
     uint64_t stride[N];
     uint64_t size[N];
 };

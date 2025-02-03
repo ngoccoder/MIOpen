@@ -53,6 +53,30 @@ struct FwdInvokeParams : public miopen::InvokeParams
     Data_t GetWorkspace() const { return nullptr; }
 };
 
+struct BwdInvokeParams : public miopen::InvokeParams
+{
+    BwdInvokeParams() = default;
+
+    const TensorDescriptor* input1Desc     = nullptr;
+    const TensorDescriptor* input2Desc     = nullptr;
+    const TensorDescriptor* outputGradDesc = nullptr;
+    const TensorDescriptor* input1GradDesc = nullptr;
+    const TensorDescriptor* input2GradDesc = nullptr;
+
+    ConstData_t input1         = nullptr;
+    ConstData_t input2         = nullptr;
+    ConstData_t outputGrad     = nullptr;
+    ConstData_t input1Grad     = nullptr;
+    ConstData_t input2Grad     = nullptr;
+    uint32_t dim               = 0;
+    float eps                  = 1e-8f;
+    Data_t workspace           = nullptr;
+    std::size_t workspace_size = 0;
+
+    std::size_t GetWorkspaceSize() const { return 0; }
+    Data_t GetWorkspace() const { return nullptr; }
+}
+
 } // namespace cosinesimilarity
 
 } // namespace miopen
