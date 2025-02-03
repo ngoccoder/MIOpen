@@ -72,6 +72,7 @@
  * @defgroup ReduceCalculation
  * @defgroup RotaryPositionalEmbeddings
  * @defgroup ReLU
+ * @defgroup CosineSimilarity
  *
  */
 
@@ -8174,6 +8175,40 @@ MIOPEN_EXPORT miopenStatus_t miopenMultiMarginLossForward(miopenHandle_t handle,
 
 /** @} */
 // CLOSEOUT LossFunction DOXYGEN GROUP
+#endif // MIOPEN_BETA_API
+
+#ifdef MIOPEN_BETA_API
+/** @addtogroup CosineSimilarity
+ *
+ *  @{
+ */
+
+/*! @brief Execute CosineSimilarity forward layer
+ *
+ * @param handle                   MIOpen handle (input)
+ * @param input1Desc               Tensor descriptor for first input tensor (input)
+ * @param input1                   First input tensor (input)
+ * @param input2Desc               Tensor descriptor for second input tensor (input)
+ * @param input2                   Second input tensor (input)
+ * @param outputDesc               Tensor descriptor for output tensor (input)
+ * @param output                   Output tensor (output)
+ * @param dim                      Dimension where cosine similarity is computed (input)
+ * @param eps                      Small value to avoid division by zero (input)
+ * @return                         miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t
+miopenCosineSimilarityForward(miopenHandle_t handle,
+                              const miopenTensorDescriptor_t input1Desc,
+                              const void* input1,
+                              const miopenTensorDescriptor_t input2Desc,
+                              const void* input2,
+                              const miopenTensorDescriptor_t outputDesc,
+                              void* output,
+                              uint32_t dim,
+                              float eps);
+
+/** @} */
+// CLOSEOUT CosineSimilarity DOXYGEN GROUP
 #endif // MIOPEN_BETA_API
 
 #ifdef __cplusplus
