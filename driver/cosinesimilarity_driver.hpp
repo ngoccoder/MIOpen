@@ -217,6 +217,8 @@ private:
 
     int forw;
     bool isContiguous;
+    bool isInput1GradRequired;
+    bool isInput2GradRequired;
 
     // Forwards
     miopenTensorDescriptor_t input1Tensor;
@@ -263,7 +265,7 @@ int CosineSimilarityDriver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
 
     forw = inflags.GetValueInt("forw");
 
-    if(forw != 1)
+    if(forw != 0 && forw != 1 && forw != 2)
     {
         MIOPEN_THROW("Invalid Forward|Backward Mode");
     }
@@ -366,44 +368,97 @@ int CosineSimilarityDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
     size_t in2_sz = GetTensorSpace(input2Tensor);
     size_t out_sz = GetTensorSpace(outputTensor);
 
-    if(forw == 1)
+    // GPU allocation
+    in1_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, in1_sz, sizeof(Tgpu)));
+    in2_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, in2_sz, sizeof(Tgpu)));
+
+    // Host allocation
+    in1 = std::vector<Tgpu>(in1_sz, static_cast<Tgpu>(0));
+    in2 = std::vector<Tgpu>(in2_sz, static_cast<Tgpu>(0));
+
+    for(int i = 0; i < in1_sz; i++)
+    {
+        in1[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+    }
+    for(int i = 0; i < in2_sz; i++)
+    {
+        in2[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+    }
+
+    if(in1_dev->ToGPU(GetStream(), in1.data()) != 0)
+    {
+        std::cerr << "Error copying (input1) to GPU, size: " << in1_dev->GetSize() << std::endl;
+        return miopenStatusInternalError;
+    }
+    if(in2_dev->ToGPU(GetStream(), in2.data()) != 0)
+    {
+        std::cerr << "Error copying (input2) to GPU, size: " << in2_dev->GetSize() << std::endl;
+        return miopenStatusInternalError;
+    }
+
+    if(forw == 0 || forw == 1)
     {
         // GPU allocation
-        in1_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, in1_sz, sizeof(Tgpu)));
-        in2_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, in2_sz, sizeof(Tgpu)));
         out_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, out_sz, sizeof(Tgpu)));
 
-        // GPU host allocation
-        in1 = std::vector<Tgpu>(in1_sz, static_cast<Tgpu>(0));
-        in2 = std::vector<Tgpu>(in2_sz, static_cast<Tgpu>(0));
+        // Host allocation
         out = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
 
-        // CPU allocation
+        // CPU calculation
         outHost = std::vector<Tref>(out_sz, static_cast<Tref>(0));
 
-        for(int i = 0; i < in1_sz; i++)
-        {
-            in1[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
-        }
-
-        for(int i = 0; i < in2_sz; i++)
-        {
-            in2[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
-        }
-
-        if(in1_dev->ToGPU(GetStream(), in1.data()) != 0)
-        {
-            std::cerr << "Error copying (input1) to GPU, size: " << in1_dev->GetSize() << std::endl;
-            return miopenStatusInternalError;
-        }
-        if(in2_dev->ToGPU(GetStream(), in2.data()) != 0)
-        {
-            std::cerr << "Error copying (input2) to GPU, size: " << in2_dev->GetSize() << std::endl;
-            return miopenStatusInternalError;
-        }
         if(out_dev->ToGPU(GetStream(), out.data()) != 0)
         {
             std::cerr << "Error copying (output) to GPU, size: " << out_dev->GetSize() << std::endl;
+            return miopenStatusInternalError;
+        }
+    }
+
+    if(forw == 0 || forw == 2)
+    {
+        // GPU allocation
+        in1Grad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, in1_sz, sizeof(Tgpu)));
+        in2Grad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, in2_sz, sizeof(Tgpu)));
+        outGrad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, out_sz, sizeof(Tgpu)));
+
+        // Host allocation
+        in1Grad = std::vector<Tgpu>(in1_sz, static_cast<Tgpu>(0));
+        in2Grad = std::vector<Tgpu>(in2_sz, static_cast<Tgpu>(0));
+        outGrad = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
+
+        // CPU calculation
+        in1GradHost = std::vector<Tref>(in1_sz, static_cast<Tref>(0));
+        in2GradHost = std::vector<Tref>(in2_sz, static_cast<Tref>(0));
+
+        for(int i = 0; i < in1_sz; i++)
+        {
+            in1Grad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+        }
+        for(int i = 0; i < in2_sz; i++)
+        {
+            in2Grad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+        }
+        for(int i = 0; i < out_sz; i++)
+        {
+            outGrad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+        }
+
+        if(in1Grad_dev->ToGPU(GetStream(), in1Grad.data()) != 0)
+        {
+            std::cerr << "Error copying (in1Grad) to GPU, size: " << in1Grad_dev->GetSize()
+                      << std::endl;
+            return miopenStatusInternalError;
+        }
+        if(in2Grad_dev->ToGPU(GetStream(), in2Grad.data()) != 0)
+        {
+            std::cerr << "Error copying (in2Grad) to GPU, size: " << in2Grad_dev->GetSize()
+                      << std::endl;
+            return miopenStatusInternalError;
+        }
+        if(outGrad_dev->ToGPU(GetStream(), outGrad.data()) != 0)
+        {
+            std::cerr << "Error copying (outGrad) to GPU, size: " << outGrad_dev->GetSize()
+                      << std::endl;
             return miopenStatusInternalError;
         }
     }
@@ -473,53 +528,62 @@ int CosineSimilarityDriver<Tgpu, Tref>::RunForwardCPU()
 template <typename Tgpu, typename Tref>
 int CosineSimilarityDriver<Tgpu, Tref>::RunBackwardGPU()
 {
-    // float kernel_total_time = 0;
-    // float kernel_first_time = 0;
-    // Timer t;
-    // START_TIME;
-    // for(int i = 0; i < inflags.GetValueInt("iter"); i++)
-    //{
-    //    miopenStatus_t status = miopenEmbeddingBackward(GetHandle(),
-    //                                                    inputTensor,
-    //                                                    in_dev->GetMem(),
-    //                                                    outputTensorGrad,
-    //                                                    outGrad_dev->GetMem(),
-    //                                                    weightTensorGrad,
-    //                                                    weightGrad_dev->GetMem(),
-    //                                                    indices_freq.data(),
-    //                                                    padding_idx);
-    //
-    //    MIOPEN_THROW_IF(status != miopenStatusSuccess, "Error in miopenEmbeddingBackward");
-    //
-    //    float time = 0.0;
-    //    miopenGetKernelTime(GetHandle(), &time);
-    //    kernel_total_time += time;
-    //    if(i == 0)
-    //        kernel_first_time = time;
-    //}
-    //
-    // if(inflags.GetValueInt("time") == 1)
-    //{
-    //    STOP_TIME
-    //    int iter = inflags.GetValueInt("iter");
-    //    if(WALL_CLOCK)
-    //        std::cout << "Wall-clock Time Backward Embedding Elapsed: " << t.gettime_ms() / iter
-    //                  << " ms\n";
-    //    float kernel_average_time =
-    //        iter > 1 ? (kernel_total_time - kernel_first_time) / (iter - 1) : kernel_first_time;
-    //    std::cout << "GPU Kernel Time Backward Embedding Elapsed: " << kernel_average_time
-    //              << " ms\n";
-    //}
-    //
-    // if(weightGrad_dev->FromGPU(GetStream(), weightGrad.data()) != 0)
-    //{
-    //    std::cerr << "Error copying (weightGrad_dev) from GPU, size: " <<
-    //    weightGrad_dev->GetSize()
-    //              << std::endl;
-    //    return miopenStatusInternalError;
-    //}
+    float kernel_total_time = 0;
+    float kernel_first_time = 0;
+    Timer t;
+    START_TIME;
+    for(int i = 0; i < inflags.GetValueInt("iter"); i++)
+    {
+        miopenStatus_t status = miopenCosineSimilarityBackward(GetHandle(),
+                                                               input1Tensor,
+                                                               in1_dev->GetMem(),
+                                                               input2Tensor,
+                                                               in2_dev->GetMem(),
+                                                               outputGradTensor,
+                                                               outGrad_dev->GetMem(),
+                                                               input1GradTensor,
+                                                               in1Grad_dev->GetMem(),
+                                                               input2GradTensor,
+                                                               in2Grad_dev->GetMem(),
+                                                               dim,
+                                                               eps);
 
-    return miopenStatusNotImplemented;
+        MIOPEN_THROW_IF(status != miopenStatusSuccess, "Error in miopenCosineSimilarityBackward");
+
+        float time = 0.0;
+        miopenGetKernelTime(GetHandle(), &time);
+        kernel_total_time += time;
+        if(i == 0)
+            kernel_first_time = time;
+    }
+
+    if(inflags.GetValueInt("time") == 1)
+    {
+        STOP_TIME
+        int iter = inflags.GetValueInt("iter");
+        if(WALL_CLOCK)
+            std::cout << "Wall-clock Time Backward CosineSimilarity Elapsed: "
+                      << t.gettime_ms() / iter << " ms\n";
+        float kernel_average_time =
+            iter > 1 ? (kernel_total_time - kernel_first_time) / (iter - 1) : kernel_first_time;
+        std::cout << "GPU Kernel Time Backward CosineSimilarity Elapsed: " << kernel_average_time
+                  << " ms\n";
+    }
+
+    if(isInput1GradRequired && in1Grad_dev->FromGPU(GetStream(), in1Grad.data()) != 0)
+    {
+        std::cerr << "Error copying (in1Grad_dev) from GPU, size: " << in1Grad_dev->GetSize()
+                  << std::endl;
+        return miopenStatusInternalError;
+    }
+    if(isInput2GradRequired && in2Grad_dev->FromGPU(GetStream(), in2Grad.data()) != 0)
+    {
+        std::cerr << "Error copying (in2Grad_dev) from GPU, size: " << in2Grad_dev->GetSize()
+                  << std::endl;
+        return miopenStatusInternalError;
+    }
+
+    return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
@@ -573,20 +637,22 @@ int CosineSimilarityDriver<Tgpu, Tref>::RunBackwardCPU()
 template <typename Tgpu, typename Tref>
 int CosineSimilarityDriver<Tgpu, Tref>::VerifyBackward()
 {
-    // RunBackwardCPU();
-    // const Tref tolerance = GetTolerance();
-    // auto error           = miopen::rms_range(weightGradHost, weightGrad);
-    //
-    // if(!std::isfinite(error) || error > tolerance)
-    //{
-    //    std::cout << "Backward Embedding FAILED: " << error << " > " << tolerance << std::endl;
-    //    return EC_VerifyBwd;
-    //}
-    // else
-    //{
-    //    std::cout << "Backward Embedding OK on CPU reference (" << error << " < " << tolerance
-    //              << ')' << std::endl;
-    //}
+    RunBackwardCPU();
+    const Tref tolerance = GetTolerance();
+    auto error1          = isInput1GradRequired ? miopen::rms_range(in1GradHost, in1Grad) : 0;
+    auto error2          = isInput2GradRequired ? miopen::rms_range(in2GradHost, in2Grad) : 0;
 
-    return miopenStatusNotImplemented;
+    if(!std::isfinite(error1) || error1 > tolerance || !std::isfinite(error2) || error2 > tolerance)
+    {
+        std::cout << "Backward CosineSimilarity FAILED: " << error1 << " " << error2 << " > "
+                  << tolerance << std::endl;
+        return EC_VerifyBwd;
+    }
+    else
+    {
+        std::cout << "Backward CosineSimilarity OK on CPU reference (" << error1 << " " << error2
+                  << " < " << tolerance << ')' << std::endl;
+    }
+
+    return miopenStatusSuccess;
 }

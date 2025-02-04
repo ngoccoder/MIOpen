@@ -302,6 +302,7 @@ set( MIOpen_Source
     solver/conv_ck_igemm_fwd_bias_res_add_activ_fused.cpp
     solver/conv_ocl_dir2Dfwd_fused.cpp
     solver/conv_winoRxS_fused.cpp
+    solver/cosinesimilarity/backward_cosinesimilarity.cpp
     solver/cosinesimilarity/forward_cosinesimilarity.cpp
     solver/glu/backward_glu.cpp
     solver/glu/forward_glu.cpp

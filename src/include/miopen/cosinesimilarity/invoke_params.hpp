@@ -75,7 +75,7 @@ struct BwdInvokeParams : public miopen::InvokeParams
 
     std::size_t GetWorkspaceSize() const { return 0; }
     Data_t GetWorkspace() const { return nullptr; }
-}
+};
 
 } // namespace cosinesimilarity
 

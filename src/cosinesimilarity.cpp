@@ -86,7 +86,34 @@ miopenStatus_t CosineSimilarityBackward(Handle& handle,
                                         uint32_t dim,
                                         float eps)
 {
-    const auto problem = miopen::cosinesimilarity::BwdProblemDescription {}
+    const auto problem = miopen::cosinesimilarity::BwdProblemDescription{
+        input1Desc, input2Desc, outputGradDesc, input1GradDesc, input2GradDesc, dim, eps};
+
+    const auto invoke_params = [&]() {
+        auto tmp           = cosinesimilarity::BwdInvokeParams{};
+        tmp.type           = InvokeType::Run;
+        tmp.input1Desc     = &input1Desc;
+        tmp.input2Desc     = &input2Desc;
+        tmp.outputGradDesc = &outputGradDesc;
+        tmp.input1GradDesc = &input1GradDesc;
+        tmp.input2GradDesc = &input2GradDesc;
+        tmp.input1         = input1;
+        tmp.input2         = input2;
+        tmp.outputGrad     = outputGrad;
+        tmp.input1Grad     = input1Grad;
+        tmp.input2Grad     = input2Grad;
+        tmp.dim            = dim;
+        tmp.eps            = eps;
+        return tmp;
+    }();
+
+    const auto algo = AlgorithmName{"CosineSimilarityBackward"};
+    const auto solvers =
+        solver::SolverContainer<solver::cosinesimilarity::CosineSimilarityBackward>{};
+
+    solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
+
+    return miopenStatusSuccess;
 }
 
 } // namespace cosinesimilarity
