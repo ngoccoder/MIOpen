@@ -34,7 +34,6 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <limits>
-#include <unordered_map>
 #include <vector>
 
 #include <miopen/allocator.hpp>
@@ -118,17 +117,18 @@ struct CosineSimilarityFwdTest : public ::testing::TestWithParam<CosineSimilarit
 protected:
     void SetUp() override
     {
-        auto&& handle  = get_handle();
-        config         = GetParam();
-        auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
+        auto&& handle   = get_handle();
+        config          = GetParam();
+        auto gen_value1 = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
+        auto gen_value2 = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 99); };
 
         auto in1_dims    = config.input1_dim;
         auto in1_strides = config.ComputeStrides(in1_dims);
-        input1           = tensor<T>{in1_dims, in1_strides}.generate(gen_value);
+        input1           = tensor<T>{in1_dims, in1_strides}.generate(gen_value1);
 
         auto in2_dims    = config.input2_dim;
         auto in2_strides = config.ComputeStrides(in2_dims);
-        input2           = tensor<T>{in2_dims, in2_strides}.generate(gen_value);
+        input2           = tensor<T>{in2_dims, in2_strides}.generate(gen_value2);
 
         std::vector<size_t> out_dims;
         for(int i = 0; i < in1_dims.size(); i++)
@@ -184,8 +184,7 @@ protected:
         EXPECT_EQ(miopen::range_distance(ref_output), miopen::range_distance(output));
         auto error = miopen::rms_range(ref_output, output);
 
-        EXPECT_LT(error, threshold * 10) << "Error output beyond tolerance Error: " << error
-                                         << ",  Tolerance: " << threshold * 10;
+        EXPECT_LT(error, threshold * 10);
     }
 
     CosineSimilarityTestCase config;
@@ -210,17 +209,19 @@ struct CosineSimilarityBwdTest : public ::testing::TestWithParam<CosineSimilarit
 protected:
     void SetUp() override
     {
-        auto&& handle  = get_handle();
-        config         = GetParam();
-        auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
+        auto&& handle   = get_handle();
+        config          = GetParam();
+        auto gen_value1 = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
+        auto gen_value2 = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 99); };
+        auto gen_value3 = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 101); };
 
         auto in1_dims    = config.input1_dim;
         auto in1_strides = config.ComputeStrides(in1_dims);
-        input1           = tensor<T>{in1_dims, in1_strides}.generate(gen_value);
+        input1           = tensor<T>{in1_dims, in1_strides}.generate(gen_value1);
 
         auto in2_dims    = config.input2_dim;
         auto in2_strides = config.ComputeStrides(in2_dims);
-        input2           = tensor<T>{in2_dims, in2_strides}.generate(gen_value);
+        input2           = tensor<T>{in2_dims, in2_strides}.generate(gen_value2);
 
         std::vector<size_t> out_dims;
         for(int i = 0; i < in1_dims.size(); i++)
@@ -231,7 +232,7 @@ protected:
             }
         }
         auto out_strides = config.ComputeStrides(out_dims);
-        outputGrad       = tensor<T>{out_dims, out_strides}.generate(gen_value);
+        outputGrad       = tensor<T>{out_dims, out_strides}.generate(gen_value3);
 
         input1Grad = tensor<T>{in1_dims, in1_strides};
         input2Grad = tensor<T>{in2_dims, in2_strides};
@@ -293,12 +294,8 @@ protected:
         EXPECT_EQ(miopen::range_distance(ref_input1Grad), miopen::range_distance(input1Grad));
         EXPECT_EQ(miopen::range_distance(ref_input2Grad), miopen::range_distance(input2Grad));
 
-        EXPECT_LT(error1, threshold * 10)
-            << "Error output (input grad 1) beyond tolerance Error: " << error1
-            << ",  Tolerance: " << threshold * 10;
-        EXPECT_LT(error2, threshold * 10)
-            << "Error output (input grad 2) beyond tolerance Error: " << error2
-            << ",  Tolerance: " << threshold * 10;
+        EXPECT_LT(error1, threshold * 10);
+        EXPECT_LT(error2, threshold * 10);
     }
 
     CosineSimilarityTestCase config;

@@ -139,12 +139,12 @@ int mloCosineSimilarityBackward(const miopenTensorDescriptor_t input1Desc,
         xn = xn > eps ? sqrt(xn) : sqrt(eps);
         yn = yn > eps ? sqrt(yn) : sqrt(eps);
 
-        Tgpu output         = outputGrad[output_grad_tv.get_tensor_view_idx(out_layout)];
-        double scale        = output / (xn * yn);
-        double axpy_scale_x = -scale * xy / (xn * xn);
-        double axpy_scale_y = -scale * xy / (yn * yn);
-
         out_layout.layout[dim] = 0;
+        Tgpu output            = outputGrad[output_grad_tv.get_tensor_view_idx(out_layout)];
+        double scale           = output / (xn * yn);
+        double axpy_scale_x    = -scale * xy / (xn * xn);
+        double axpy_scale_y    = -scale * xy / (yn * yn);
+
         for(size_t k = 0; k < input1_tv.size[dim]; ++k)
         {
             Tgpu x = input1[input1_tv.get_tensor_view_idx(out_layout)];

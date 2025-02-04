@@ -125,12 +125,12 @@ __device__ void CosineSimilarityBackwardKernel(const TIO* input1,
     xn = xn > eps ? sqrt(xn) : sqrt(eps);
     yn = yn > eps ? sqrt(yn) : sqrt(eps);
 
+    out_layout.layout[dim]   = 0;
     TIO output               = output_grad[output_grad_tv.get_tensor_view_idx(out_layout)];
     FLOAT_ACCUM scale        = CVT_FLOAT2ACCUM(output) / (xn * yn);
     FLOAT_ACCUM axpy_scale_x = -scale * xy / (xn * xn);
     FLOAT_ACCUM axpy_scale_y = -scale * xy / (yn * yn);
 
-    out_layout.layout[dim] = 0;
     for(size_t k = 0; k < input1_tv.size[dim]; ++k)
     {
         TIO x = input1[input1_tv.get_tensor_view_idx(out_layout)];
