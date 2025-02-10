@@ -86,6 +86,19 @@ struct FwdProblemDescription : ProblemDescriptionBase
             MIOPEN_THROW(miopenStatusBadParm, "output tensor must be 2D");
         }
 
+        auto firstDim =
+            inputDesc.GetNumDims() == 1 ? offsetsDesc.GetLengths()[0] : inputDesc.GetLengths()[0];
+        if(outputDesc.GetLengths()[0] != firstDim)
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "output have incorrect first dimension");
+        }
+
+        if(outputDesc.GetLengths()[1] != weightDesc.GetLengths()[1])
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "output and weight must have the same second dimension");
+        }
+
         if(!IsSameType())
         {
             MIOPEN_THROW(miopenStatusBadParm, "weight and output must have the same type");
