@@ -97,16 +97,16 @@ inline std::vector<CosineSimilarityTestCase> GenFullTestCases()
 { // n c d h w dim
     // clang-format off
     return {
-        {{16, 4}, {16, 4}, 0, 1e-8, true}, // cont small input
-        {{16, 4}, {16, 4}, 0, 1e-8, false}, // non-cont small input
-        {{32, 32, 64}, {32, 32, 64}, 0, 1e-8, true}, // cont medium input
-        {{32, 32, 64}, {32, 32, 64}, 0, 1e-8, false}, // non-cont medium input
-        {{32, 32, 64}, {32, 32, 64}, 1, 1e-8, true}, // cont medium input
-        {{32, 32, 64}, {32, 32, 64}, 1, 1e-8, false}, // non-cont medium input
-        {{1024, 1024}, {1024, 1024}, 0, 1e-8, true}, // cont large input
-        {{1024, 1024}, {1024, 1024}, 0, 1e-8, false}, // non-cont large input
-        {{1024, 1024}, {1024, 1024}, 1, 1e-8, true}, // cont large input
-        {{1024, 1024}, {1024, 1024}, 1, 1e-8, false}, // non-cont large input
+        {{256, 128, 256}, {256, 128, 256}, 0, 1e-8, true},
+        {{256, 128, 256}, {256, 128, 256}, 0, 1e-8, false},
+        {{32, 320, 64}, {32, 320, 64}, 0, 1e-8, true},
+        {{32, 320, 64}, {32, 320, 64}, 0, 1e-8, false},
+        {{320, 32, 64}, {320, 32, 64}, 1, 1e-8, true},
+        {{320, 32, 64}, {320, 32, 64}, 1, 1e-8, false},
+        {{32, 1024, 1024}, {32, 1024, 1024}, 0, 1e-8, true},
+        {{32, 1024, 1024}, {32, 1024, 1024}, 0, 1e-8, false},
+        {{32, 1024, 1024}, {32, 1024, 1024}, 1, 1e-8, true},
+        {{32, 1024, 1024}, {32, 1024, 1024}, 1, 1e-8, false},
     };
     // clang-format on
 }

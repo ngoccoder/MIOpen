@@ -49,6 +49,12 @@ struct FwdProblemDescription : ProblemDescriptionBase
           dim(dim_),
           eps(eps_)
     {
+        if(input1Desc.GetLengths() != input2Desc.GetLengths())
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "Input1 and input2 tensor dimension lengths do not match.");
+        }
+
         if(!IsSameType())
         {
             MIOPEN_THROW(miopenStatusBadParm, "Input and output tensor types do not match");
@@ -58,6 +64,7 @@ struct FwdProblemDescription : ProblemDescriptionBase
     const TensorDescriptor& GetInput1Desc() const { return input1Desc; }
     const TensorDescriptor& GetInput2Desc() const { return input2Desc; }
     const TensorDescriptor& GetOutputDesc() const { return outputDesc; }
+    uint32_t GetDim() const { return dim; }
 
     bool IsSameType() const
     {
@@ -93,6 +100,12 @@ struct BwdProblemDescription : ProblemDescriptionBase
           dim(dim_),
           eps(eps_)
     {
+        if(input1Desc.GetLengths() != input2Desc.GetLengths())
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "Input1 and input2 tensor dimension lengths do not match.");
+        }
+
         if(!IsSameType())
         {
             MIOPEN_THROW(miopenStatusBadParm, "Input and output tensor types do not match");

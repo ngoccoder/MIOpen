@@ -47,13 +47,30 @@ namespace solver {
 
 namespace cosinesimilarity {
 
-bool CosineSimilarityForward::IsApplicable(
+bool CosineSimilarityForward::IsImprovementOverROCm(
     const ExecutionContext& /*context*/,
+    const miopen::cosinesimilarity::FwdProblemDescription& problem) const
+{
+    if(problem.GetOutputDesc().GetElementSize() < 20000)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+bool CosineSimilarityForward::IsApplicable(
+    const ExecutionContext& context,
     const miopen::cosinesimilarity::FwdProblemDescription& problem) const
 {
     if(!(problem.GetInput1Desc().GetType() == miopenFloat ||
          problem.GetInput1Desc().GetType() == miopenHalf ||
          problem.GetInput1Desc().GetType() == miopenBFloat16))
+    {
+        return false;
+    }
+
+    if(!IsImprovementOverROCm(context, problem))
     {
         return false;
     }

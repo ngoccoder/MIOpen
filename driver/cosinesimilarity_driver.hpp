@@ -297,16 +297,15 @@ int CosineSimilarityDriver<Tgpu, Tref>::GetandSetData()
             out_len.push_back(max(in1_len[i], in2_len[i]));
         }
     }
-    auto out_stride = ComputeStrides(out_len);
 
     if(forw == 0 || forw == 1)
     {
-        SetTensorNd(outputTensor, out_len, out_stride, data_type);
+        SetTensorNd(outputTensor, out_len, data_type);
     }
 
     if(forw == 0 || forw == 2)
     {
-        SetTensorNd(outputGradTensor, out_len, out_stride, data_type);
+        SetTensorNd(outputGradTensor, out_len, data_type);
         SetTensorNd(input1GradTensor, in1_len, in1_stride, data_type);
         SetTensorNd(input2GradTensor, in2_len, in2_stride, data_type);
     }
