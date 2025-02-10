@@ -115,12 +115,12 @@ void cpu_softmax_contiguous_backward(const tensor<T>& output,
             {
                 if(algorithm == MIOPEN_SOFTMAX_LOG)
                 {
-                    psum += output_grad[base_idx + r * inner_size];
+                    psum += static_cast<double>(output_grad[base_idx + r * inner_size]);
                 }
                 else
                 {
-                    psum +=
-                        output_grad[base_idx + r * inner_size] * output[base_idx + r * inner_size];
+                    psum += static_cast<double>(output_grad[base_idx + r * inner_size]) *
+                            static_cast<double>(output[base_idx + r * inner_size]);
                 }
             }
 
@@ -128,14 +128,15 @@ void cpu_softmax_contiguous_backward(const tensor<T>& output,
             {
                 if(algorithm == MIOPEN_SOFTMAX_LOG)
                 {
-                    ref_input_grad[base_idx + r * inner_size] =
-                        output_grad[base_idx + r * inner_size] -
-                        psum * exp(output[base_idx + r * inner_size]);
+                    ref_input_grad[base_idx + r * inner_size] = static_cast<T>(
+                        static_cast<double>(output_grad[base_idx + r * inner_size]) -
+                        psum * static_cast<double>(exp(output[base_idx + r * inner_size])));
                 }
                 else
                 {
                     ref_input_grad[base_idx + r * inner_size] =
-                        (output_grad[base_idx + r * inner_size] - psum) *
+                        static_cast<T>(static_cast<double>(output_grad[base_idx + r * inner_size]) -
+                                       psum) *
                         output[base_idx + r * inner_size];
                 }
             }

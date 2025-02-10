@@ -280,7 +280,7 @@ int SoftmaxV3Driver<Tgpu, Tref>::AddCmdLineArgs()
     inflags.AddTensorFlag(
         "input_lengths", 'I', "2x10", "The dimensional lengths of the input tensor (Default=2x10)");
     inflags.AddInputFlag(
-        "dim", 'D', "1", "The dimension which softmax is computed (Default=0)", "int");
+        "dim", 'D', "1", "The dimension which softmax is computed (Default=1)", "int");
     inflags.AddInputFlag(
         "algorithm",
         'A',
@@ -317,7 +317,7 @@ int SoftmaxV3Driver<Tgpu, Tref>::AllocateBuffersAndCopy()
         // CPU allocation
         outhost = std::vector<Tref>(out_sz, static_cast<Tref>(0));
 
-        for(int i = 0; i < in_sz; i++)
+        for(size_t i = 0; i < in_sz; i++)
         {
             in[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
         }
@@ -354,11 +354,11 @@ int SoftmaxV3Driver<Tgpu, Tref>::AllocateBuffersAndCopy()
         // CPU allocation
         inGradHost = std::vector<Tref>(inGrad_sz, static_cast<Tref>(0));
 
-        for(int i = 0; i < outGrad_sz; i++)
+        for(size_t i = 0; i < outGrad_sz; i++)
         {
             outGrad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
         }
-        for(int i = 0; i < out_sz; i++)
+        for(size_t i = 0; i < out_sz; i++)
         {
             out[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
         }
@@ -514,8 +514,8 @@ int SoftmaxV3Driver<Tgpu, Tref>::VerifyForward()
     }
     else
     {
-        std::cout << "Forward Softmax Verifies OK on CPU reference (" << error << " < " << tolerance
-                  << ')' << std::endl;
+        std::cout << "Forward Softmax Verifies OK on CPU reference (" << error
+                  << " <= " << tolerance << ')' << std::endl;
     }
 
     return miopenStatusSuccess;

@@ -555,8 +555,8 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenRoPE.cpp
         kernels/MIOpenSoftMarginLoss.cpp
         kernels/MIOpenSoftmax.cl
-        kernels/MIOpenSoftmaxV3.cpp
         kernels/MIOpenSoftmaxAttn.cpp
+        kernels/MIOpenSoftmaxV3.cpp
         kernels/MIOpenUtilKernels3.cl
         kernels/MIOpenUtilKernels4.cl
         kernels/MIOpenUtilKernels5.cl
