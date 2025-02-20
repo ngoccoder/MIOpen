@@ -71,8 +71,8 @@ int mloCosineSimilarityForward(const miopenTensorDescriptor_t input1Desc,
 
         for(size_t k = 0; k < input1_tv.size[dim]; ++k)
         {
-            Tgpu x = input1[input1_tv.get_tensor_view_idx(out_layout)];
-            Tgpu y = input2[input2_tv.get_tensor_view_idx(out_layout)];
+            double x = static_cast<double>(input1[input1_tv.get_tensor_view_idx(out_layout)]);
+            double y = static_cast<double>(input2[input2_tv.get_tensor_view_idx(out_layout)]);
 
             xy += x * y;
             xn += x * x;
@@ -85,7 +85,7 @@ int mloCosineSimilarityForward(const miopenTensorDescriptor_t input1Desc,
         yn = yn > eps ? yn : eps;
 
         out_layout.layout[dim]                            = 0;
-        output[output_tv.get_tensor_view_idx(out_layout)] = xy / sqrt(xn * yn);
+        output[output_tv.get_tensor_view_idx(out_layout)] = static_cast<Tcheck>(xy / sqrt(xn * yn));
     }
 
     return 0;
@@ -126,8 +126,8 @@ int mloCosineSimilarityBackward(const miopenTensorDescriptor_t input1Desc,
 
         for(size_t k = 0; k < input1_tv.size[dim]; ++k)
         {
-            Tgpu x = input1[input1_tv.get_tensor_view_idx(out_layout)];
-            Tgpu y = input2[input2_tv.get_tensor_view_idx(out_layout)];
+            double x = static_cast<double>(input1[input1_tv.get_tensor_view_idx(out_layout)]);
+            double y = static_cast<double>(input2[input2_tv.get_tensor_view_idx(out_layout)]);
 
             xy += x * y;
             xn += x * x;
@@ -140,25 +140,26 @@ int mloCosineSimilarityBackward(const miopenTensorDescriptor_t input1Desc,
         yn = yn > eps ? sqrt(yn) : sqrt(eps);
 
         out_layout.layout[dim] = 0;
-        Tgpu output            = outputGrad[output_grad_tv.get_tensor_view_idx(out_layout)];
-        double scale           = output / (xn * yn);
-        double axpy_scale_x    = -scale * xy / (xn * xn);
-        double axpy_scale_y    = -scale * xy / (yn * yn);
+        double output =
+            static_cast<double>(outputGrad[output_grad_tv.get_tensor_view_idx(out_layout)]);
+        double scale        = output / (xn * yn);
+        double axpy_scale_x = -scale * xy / (xn * xn);
+        double axpy_scale_y = -scale * xy / (yn * yn);
 
         for(size_t k = 0; k < input1_tv.size[dim]; ++k)
         {
-            Tgpu x = input1[input1_tv.get_tensor_view_idx(out_layout)];
-            Tgpu y = input2[input2_tv.get_tensor_view_idx(out_layout)];
+            double x = static_cast<double>(input1[input1_tv.get_tensor_view_idx(out_layout)]);
+            double y = static_cast<double>(input2[input2_tv.get_tensor_view_idx(out_layout)]);
 
             if(input1Grad)
             {
                 input1Grad[input1_grad_tv.get_tensor_view_idx(out_layout)] =
-                    scale * y + axpy_scale_x * x;
+                    static_cast<Tcheck>(scale * y + axpy_scale_x * x);
             }
             if(input2Grad)
             {
                 input2Grad[input2_grad_tv.get_tensor_view_idx(out_layout)] =
-                    scale * x + axpy_scale_y * y;
+                    static_cast<Tcheck>(scale * x + axpy_scale_y * y);
             }
 
             out_layout.layout[dim]++;
@@ -290,7 +291,7 @@ int CosineSimilarityDriver<Tgpu, Tref>::GetandSetData()
 
     std::vector<int> out_len;
 
-    for(int i = 0; i < in1_len.size(); i++)
+    for(size_t i = 0; i < in1_len.size(); i++)
     {
         if(i != dim)
         {
@@ -375,11 +376,11 @@ int CosineSimilarityDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
     in1 = std::vector<Tgpu>(in1_sz, static_cast<Tgpu>(0));
     in2 = std::vector<Tgpu>(in2_sz, static_cast<Tgpu>(0));
 
-    for(int i = 0; i < in1_sz; i++)
+    for(size_t i = 0; i < in1_sz; i++)
     {
         in1[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
     }
-    for(int i = 0; i < in2_sz; i++)
+    for(size_t i = 0; i < in2_sz; i++)
     {
         in2[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
     }
@@ -429,15 +430,15 @@ int CosineSimilarityDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
         in1GradHost = std::vector<Tref>(in1_sz, static_cast<Tref>(0));
         in2GradHost = std::vector<Tref>(in2_sz, static_cast<Tref>(0));
 
-        for(int i = 0; i < in1_sz; i++)
+        for(size_t i = 0; i < in1_sz; i++)
         {
             in1Grad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
         }
-        for(int i = 0; i < in2_sz; i++)
+        for(size_t i = 0; i < in2_sz; i++)
         {
             in2Grad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
         }
-        for(int i = 0; i < out_sz; i++)
+        for(size_t i = 0; i < out_sz; i++)
         {
             outGrad[i] = prng::gen_A_to_B(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
         }
@@ -518,10 +519,11 @@ int CosineSimilarityDriver<Tgpu, Tref>::RunForwardGPU()
 template <typename Tgpu, typename Tref>
 int CosineSimilarityDriver<Tgpu, Tref>::RunForwardCPU()
 {
-    mloCosineSimilarityForward(
+    int status = mloCosineSimilarityForward(
         input1Tensor, in1.data(), input2Tensor, in2.data(), outputTensor, outHost.data(), dim, eps);
+    MIOPEN_THROW(status != miopenStatusSuccess, "Error in mloCosineSimilarityForward");
 
-    return miopenStatusSuccess;
+    return status;
 }
 
 template <typename Tgpu, typename Tref>
@@ -617,20 +619,21 @@ int CosineSimilarityDriver<Tgpu, Tref>::VerifyForward()
 template <typename Tgpu, typename Tref>
 int CosineSimilarityDriver<Tgpu, Tref>::RunBackwardCPU()
 {
-    mloCosineSimilarityBackward(input1Tensor,
-                                in1.data(),
-                                input2Tensor,
-                                in2.data(),
-                                outputGradTensor,
-                                outGrad.data(),
-                                input1GradTensor,
-                                in1Grad.data(),
-                                input2GradTensor,
-                                in2Grad.data(),
-                                dim,
-                                eps);
+    int status = mloCosineSimilarityBackward(input1Tensor,
+                                             in1.data(),
+                                             input2Tensor,
+                                             in2.data(),
+                                             outputGradTensor,
+                                             outGrad.data(),
+                                             input1GradTensor,
+                                             in1Grad.data(),
+                                             input2GradTensor,
+                                             in2Grad.data(),
+                                             dim,
+                                             eps);
+    MIOPEN_THROW(status != 0, "Error in mloCosineSimilarityBackward");
 
-    return miopenStatusSuccess;
+    return status;
 }
 
 template <typename Tgpu, typename Tref>

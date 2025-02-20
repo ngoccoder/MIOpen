@@ -45,10 +45,6 @@ struct CosineSimilarityForward final : CosineSimilarityForwardSolverBase
     }
 
     bool
-    IsImprovementOverROCm(const ExecutionContext& context,
-                          const miopen::cosinesimilarity::FwdProblemDescription& problem) const;
-
-    bool
     IsApplicable(const ExecutionContext& context,
                  const miopen::cosinesimilarity::FwdProblemDescription& problem) const override;
 
@@ -66,10 +62,6 @@ struct CosineSimilarityBackward final : CosineSimilarityBackwardSolverBase
     {
         return GetSolverDbId<CosineSimilarityBackward>();
     }
-
-    bool
-    IsImprovementOverROCm(const ExecutionContext& context,
-                          const miopen::cosinesimilarity::BwdProblemDescription& problem) const;
 
     bool
     IsApplicable(const ExecutionContext& context,

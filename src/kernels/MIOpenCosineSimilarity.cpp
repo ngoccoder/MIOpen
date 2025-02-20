@@ -133,18 +133,18 @@ __device__ void CosineSimilarityBackwardKernel(const TIO* input1,
 
     for(size_t k = 0; k < input1_tv.size[dim]; ++k)
     {
-        TIO x = input1[input1_tv.get_tensor_view_idx(out_layout)];
-        TIO y = input2[input2_tv.get_tensor_view_idx(out_layout)];
+        FLOAT_ACCUM x = CVT_ACCUM2FLOAT(input1[input1_tv.get_tensor_view_idx(out_layout)]);
+        FLOAT_ACCUM y = CVT_ACCUM2FLOAT(input2[input2_tv.get_tensor_view_idx(out_layout)]);
 
         if(input1_grad)
         {
             input1_grad[input1_grad_tv.get_tensor_view_idx(out_layout)] =
-                scale * CVT_FLOAT2ACCUM(y) + axpy_scale_x * CVT_FLOAT2ACCUM(x);
+                scale * y + axpy_scale_x * x;
         }
         if(input2_grad)
         {
             input2_grad[input2_grad_tv.get_tensor_view_idx(out_layout)] =
-                scale * CVT_FLOAT2ACCUM(x) + axpy_scale_y * CVT_FLOAT2ACCUM(y);
+                scale * x + axpy_scale_y * y;
         }
 
         out_layout.layout[dim]++;

@@ -53,8 +53,8 @@ void cpu_cosinesimilarity_forward(
 
         for(size_t k = 0; k < input1_tv.size[dim]; ++k)
         {
-            T x = input1[input1_tv.get_tensor_view_idx(out_layout)];
-            T y = input2[input2_tv.get_tensor_view_idx(out_layout)];
+            double x = static_cast<double>(input1[input1_tv.get_tensor_view_idx(out_layout)]);
+            double y = static_cast<double>(input2[input2_tv.get_tensor_view_idx(out_layout)]);
 
             xy += x * y;
             xn += x * x;
@@ -67,7 +67,7 @@ void cpu_cosinesimilarity_forward(
         yn = yn > eps ? yn : eps;
 
         out_layout.layout[dim]                            = 0;
-        output[output_tv.get_tensor_view_idx(out_layout)] = xy / sqrt(xn * yn);
+        output[output_tv.get_tensor_view_idx(out_layout)] = static_cast<T>(xy / sqrt(xn * yn));
     }
 }
 
@@ -98,8 +98,8 @@ void cpu_cosinesimilarity_backward(const tensor<T>& input1,
 
         for(size_t k = 0; k < input1_tv.size[dim]; ++k)
         {
-            T x = input1[input1_tv.get_tensor_view_idx(out_layout)];
-            T y = input2[input2_tv.get_tensor_view_idx(out_layout)];
+            double x = static_cast<double>(input1[input1_tv.get_tensor_view_idx(out_layout)]);
+            double y = static_cast<double>(input2[input2_tv.get_tensor_view_idx(out_layout)]);
 
             xy += x * y;
             xn += x * x;
@@ -112,20 +112,21 @@ void cpu_cosinesimilarity_backward(const tensor<T>& input1,
         yn = yn > eps ? sqrt(yn) : sqrt(eps);
 
         out_layout.layout[dim] = 0;
-        T output               = output_grad[output_grad_tv.get_tensor_view_idx(out_layout)];
-        double scale           = output / (xn * yn);
-        double axpy_scale_x    = -scale * xy / (xn * xn);
-        double axpy_scale_y    = -scale * xy / (yn * yn);
+        double output =
+            static_cast<double>(output_grad[output_grad_tv.get_tensor_view_idx(out_layout)]);
+        double scale        = output / (xn * yn);
+        double axpy_scale_x = -scale * xy / (xn * xn);
+        double axpy_scale_y = -scale * xy / (yn * yn);
 
         for(size_t k = 0; k < input1_tv.size[dim]; ++k)
         {
-            T x = input1[input1_tv.get_tensor_view_idx(out_layout)];
-            T y = input2[input2_tv.get_tensor_view_idx(out_layout)];
+            double x = static_cast<double>(input1[input1_tv.get_tensor_view_idx(out_layout)]);
+            double y = static_cast<double>(input2[input2_tv.get_tensor_view_idx(out_layout)]);
 
             input1_grad[input1_grad_tv.get_tensor_view_idx(out_layout)] =
-                scale * y + axpy_scale_x * x;
+                static_cast<T>(scale * y + axpy_scale_x * x);
             input2_grad[input2_grad_tv.get_tensor_view_idx(out_layout)] =
-                scale * x + axpy_scale_y * y;
+                static_cast<T>(scale * x + axpy_scale_y * y);
 
             out_layout.layout[dim]++;
         }

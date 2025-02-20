@@ -25,8 +25,8 @@
  *******************************************************************************/
 #pragma once
 
-#include "miopen/export_internals.h"
 #include <miopen/common.hpp>
+#include <miopen/export_internals.h>
 
 namespace miopen {
 

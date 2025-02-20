@@ -47,9 +47,10 @@ namespace solver {
 
 namespace cosinesimilarity {
 
-bool CosineSimilarityBackward::IsImprovementOverROCm(
-    const ExecutionContext& /*context*/,
-    const miopen::cosinesimilarity::BwdProblemDescription& problem) const
+namespace {
+
+bool IsImprovementOverROCm(const ExecutionContext& /*context*/,
+                           const miopen::cosinesimilarity::BwdProblemDescription& problem)
 {
     if(problem.GetOutputGradDesc().GetElementSize() < 20000)
     {
@@ -58,6 +59,8 @@ bool CosineSimilarityBackward::IsImprovementOverROCm(
 
     return true;
 }
+
+} // namespace
 
 bool CosineSimilarityBackward::IsApplicable(
     const ExecutionContext& context,

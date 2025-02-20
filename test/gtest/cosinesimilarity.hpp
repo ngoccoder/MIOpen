@@ -131,7 +131,7 @@ protected:
         input2           = tensor<T>{in2_dims, in2_strides}.generate(gen_value2);
 
         std::vector<size_t> out_dims;
-        for(int i = 0; i < in1_dims.size(); i++)
+        for(size_t i = 0; i < in1_dims.size(); i++)
         {
             if(i != config.dim)
             {
@@ -224,7 +224,7 @@ protected:
         input2           = tensor<T>{in2_dims, in2_strides}.generate(gen_value2);
 
         std::vector<size_t> out_dims;
-        for(int i = 0; i < in1_dims.size(); i++)
+        for(size_t i = 0; i < in1_dims.size(); i++)
         {
             if(i != config.dim)
             {
