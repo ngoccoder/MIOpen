@@ -49,12 +49,12 @@ miopenStatus_t VarBackward(Handle& handle,
                            const TensorDescriptor& varGradDesc,
                            ConstData_t var_grad,
                            const int* dims,
-                           int num_dims,
+                           uint32_t num_dims,
                            bool keepdim,
                            bool unbiased,
-                           int divisor)
+                           uint32_t divisor)
 {
-    std::vector dims_vector(dims, dims + num_dims);
+    std::vector<int> dims_vector(dims, dims + num_dims);
 
     const auto problem = var::ProblemDescription{inputDesc,
                                                  inputGradDesc,
@@ -79,7 +79,7 @@ miopenStatus_t VarBackward(Handle& handle,
         tmp.mean          = mean;
         tmp.mean_grad     = mean_grad;
         tmp.var_grad      = var_grad;
-        tmp.dims          = &dims_vector;
+        tmp.dims          = dims_vector;
         tmp.keepdim       = keepdim;
         tmp.unbiased      = unbiased;
         tmp.divisor       = divisor;

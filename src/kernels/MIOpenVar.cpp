@@ -28,181 +28,173 @@
 #include <hip/hip_fp16.h>
 #include <hip/hip_runtime.h>
 #endif
-
 #include "float_types.h"
 #include "tensor_view.hpp"
 
 template <typename TIO>
-__device__ void VarBackwardImpl(const T* __restrict__ input,
-                                T* __restrict__ input_grad,
-                                const T* __restrict__ mean,
-                                const T* __restrict__ mean_grad,
-                                const T* __restrict__ var_grad,
+__device__ void VarBackwardImpl(const TIO* input,
+                                TIO* input_grad,
+                                const TIO* mean,
+                                const TIO* mean_grad,
+                                const TIO* var_grad,
                                 uint64_t N,
                                 dim_5d_t dims,
                                 bool unbiased,
                                 uint32_t divisor,
-                                tensor_view input_tv,
-                                tensor_view input_grad_tv,
-                                tensor_view mean_tv,
-                                tensor_view mean_grad_tv,
-                                tensor_view var_grad_tv)
+                                tensor_view_t<5> input_tv,
+                                tensor_view_t<5> input_grad_tv,
+                                tensor_view_t<5> mean_tv,
+                                tensor_view_t<5> mean_grad_tv,
+                                tensor_view_t<5> var_grad_tv)
 {
-    const uint64_t gid = blockIdx.x * blockDim.x + threadIdx.x;
-    const uint64_t lid = threadIdx.x;
+    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
     if(gid >= N)
         return;
 
-    uint64_t n[5];
-    GET_NCDHW(n, gid, input_grad_tv.dimensions);
+    tensor_layout_t<5> input_grad_layout(input_grad_tv, gid);
 
-    uint64_t o[5];
+    tensor_layout_t<5> layout;
     for(int i = 0; i < 5; i++)
     {
-        o[i] = dims.x[i] ? 0 : n[i];
+        layout.layout[i] = dims.x[i] ? 0 : input_grad_layout.layout[i];
     }
 
-    uint64_t input_index = GET_STRIDED_INDEX(n, input_tv.strides);
-    T input_v            = input[input_index];
-    T mean_v             = 0;
+    FLOAT_ACCUM input_v = CVT_FLOAT2ACCUM(input[input_tv.get_tensor_view_idx(input_grad_layout)]);
+    FLOAT_ACCUM mean_v  = static_cast<FLOAT_ACCUM>(0);
     if(mean)
     {
-        uint64_t mean_index = GET_STRIDED_INDEX(o, mean_tv.strides);
-        mean_v              = mean[mean_index];
+        mean_v = CVT_FLOAT2ACCUM(mean[mean_tv.get_tensor_view_idx(layout)]);
     }
 
-    T input_grad_v = 0;
+    FLOAT_ACCUM input_grad_v = static_cast<FLOAT_ACCUM>(0);
     if(var_grad)
     {
-        uint64_t var_grad_index = GET_STRIDED_INDEX(o, var_grad_tv.strides);
-        T var_grad_v            = var_grad[var_grad_index];
-        T res                   = var_grad_v * (input_v - mean_v) * 2;
-        input_grad_v += unbiased ? res / (divisor - 1) : res / divisor;
+        FLOAT_ACCUM var_grad_v = CVT_FLOAT2ACCUM(var_grad[var_grad_tv.get_tensor_view_idx(layout)]);
+        FLOAT_ACCUM res        = var_grad_v * (input_v - mean_v) * static_cast<FLOAT_ACCUM>(2);
+        input_grad_v += unbiased ? res / static_cast<FLOAT_ACCUM>(divisor - 1)
+                                 : res / static_cast<FLOAT_ACCUM>(divisor);
     }
 
     if(mean_grad)
     {
-        uint64_t mean_grad_index = GET_STRIDED_INDEX(o, mean_grad_tv.strides);
-        T mean_grad_v            = mean_grad[mean_grad_index];
-        input_grad_v += mean_grad_v / divisor;
+        FLOAT_ACCUM mean_grad_v =
+            CVT_FLOAT2ACCUM(mean_grad[mean_grad_tv.get_tensor_view_idx(layout)]);
+        input_grad_v += mean_grad_v / static_cast<FLOAT_ACCUM>(divisor);
     }
 
-    uint64_t input_grad_index    = GET_STRIDED_INDEX(n, input_grad_tv.strides);
-    input_grad[input_grad_index] = input_grad_v;
+    input_grad[input_grad_tv.get_tensor_view_idx(input_grad_layout)] =
+        CVT_ACCUM2FLOAT(input_grad_v);
 }
 
-template <typename T>
-__device__ void VarBackwardContiguousImpl(const T* __restrict__ input,
-                                          T* __restrict__ input_grad,
-                                          const T* __restrict__ mean,
-                                          const T* __restrict__ mean_grad,
-                                          const T* __restrict__ var_grad,
+template <typename TIO>
+__device__ void VarBackwardContiguousImpl(const TIO* __restrict__ input,
+                                          TIO* __restrict__ input_grad,
+                                          const TIO* __restrict__ mean,
+                                          const TIO* __restrict__ mean_grad,
+                                          const TIO* __restrict__ var_grad,
                                           uint64_t N,
                                           dim_5d_t dims,
                                           bool unbiased,
                                           uint32_t divisor,
-                                          tensor_view input_grad_tv,
-                                          tensor_view mean_tv,
-                                          tensor_view mean_grad_tv,
-                                          tensor_view var_grad_tv)
+                                          tensor_view_t<5> input_grad_tv,
+                                          tensor_view_t<5> mean_tv,
+                                          tensor_view_t<5> mean_grad_tv,
+                                          tensor_view_t<5> var_grad_tv)
 {
-    const uint64_t gid = blockIdx.x * blockDim.x + threadIdx.x;
-    const uint64_t lid = threadIdx.x;
+    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
     if(gid >= N)
         return;
 
-    uint64_t n[5];
-    GET_NCDHW(n, gid, input_grad_tv.dimensions);
+    tensor_layout_t<5> input_grad_layout(input_grad_tv, gid);
 
-    uint64_t o[5];
+    tensor_layout_t<5> layout;
     for(int i = 0; i < 5; i++)
     {
-        o[i] = dims.x[i] ? 0 : n[i];
+        layout.layout[i] = dims.x[i] ? 0 : input_grad_layout.layout[i];
     }
 
-    T input_v = input[gid];
-    T mean_v  = 0;
+    FLOAT_ACCUM input_v = CVT_FLOAT2ACCUM(input[gid]);
+    FLOAT_ACCUM mean_v  = static_cast<FLOAT_ACCUM>(0);
     if(mean)
     {
-        uint64_t mean_index = GET_STRIDED_INDEX(o, mean_tv.strides);
-        mean_v              = mean[mean_index];
+        mean_v = CVT_FLOAT2ACCUM(mean[mean_tv.get_tensor_view_idx(layout)]);
     }
 
-    T input_grad_v = 0;
+    FLOAT_ACCUM input_grad_v = static_cast<FLOAT_ACCUM>(0);
     if(var_grad)
     {
-        uint64_t var_grad_index = GET_STRIDED_INDEX(o, var_grad_tv.strides);
-        T var_grad_v            = var_grad[var_grad_index];
-        T res                   = var_grad_v * (input_v - mean_v) * 2;
-        input_grad_v += unbiased ? res / (divisor - 1) : res / divisor;
+        FLOAT_ACCUM var_grad_v = CVT_FLOAT2ACCUM(var_grad[var_grad_tv.get_tensor_view_idx(layout)]);
+        FLOAT_ACCUM res        = var_grad_v * (input_v - mean_v) * static_cast<FLOAT_ACCUM>(2);
+        input_grad_v += unbiased ? res / static_cast<FLOAT_ACCUM>(divisor - 1)
+                                 : res / static_cast<FLOAT_ACCUM>(divisor);
     }
 
     if(mean_grad)
     {
-        uint64_t mean_grad_index = GET_STRIDED_INDEX(o, mean_grad_tv.strides);
-        T mean_grad_v            = mean_grad[mean_grad_index];
-        input_grad_v += mean_grad_v / divisor;
+        FLOAT_ACCUM mean_grad_v =
+            CVT_FLOAT2ACCUM(mean_grad[mean_grad_tv.get_tensor_view_idx(layout)]);
+        input_grad_v += mean_grad_v / static_cast<FLOAT_ACCUM>(divisor);
     }
 
-    input_grad[gid] = input_grad_v;
+    input_grad[gid] = CVT_ACCUM2FLOAT(input_grad_v);
 }
 
-extern "C" __global__ void VarBackward(const FLOAT* __restrict__ input,
-                                       FLOAT* __restrict__ input_grad,
-                                       const FLOAT* __restrict__ mean,
-                                       const FLOAT* __restrict__ mean_grad,
-                                       const FLOAT* __restrict__ var_grad,
+extern "C" __global__ void VarBackward(const IO_TYPE* input,
+                                       IO_TYPE* input_grad,
+                                       const IO_TYPE* mean,
+                                       const IO_TYPE* mean_grad,
+                                       const IO_TYPE* var_grad,
                                        uint64_t N,
                                        dim_5d_t dims,
                                        bool unbiased,
                                        uint32_t divisor,
-                                       tensor_view input_tv,
-                                       tensor_view input_grad_tv,
-                                       tensor_view mean_tv,
-                                       tensor_view mean_grad_tv,
-                                       tensor_view var_grad_tv)
+                                       tensor_view_t<5> input_tv,
+                                       tensor_view_t<5> input_grad_tv,
+                                       tensor_view_t<5> mean_tv,
+                                       tensor_view_t<5> mean_grad_tv,
+                                       tensor_view_t<5> var_grad_tv)
 {
-    VarBackwardImpl<FLOAT>(input,
-                           input_grad,
-                           mean,
-                           mean_grad,
-                           var_grad,
-                           N,
-                           dims,
-                           unbiased,
-                           divisor,
-                           input_tv,
-                           input_grad_tv,
-                           mean_tv,
-                           mean_grad_tv,
-                           var_grad_tv);
+    VarBackwardImpl<IO_TYPE>(input,
+                             input_grad,
+                             mean,
+                             mean_grad,
+                             var_grad,
+                             N,
+                             dims,
+                             unbiased,
+                             divisor,
+                             input_tv,
+                             input_grad_tv,
+                             mean_tv,
+                             mean_grad_tv,
+                             var_grad_tv);
 }
 
-extern "C" __global__ void VarBackwardContiguous(const FLOAT* __restrict__ input,
-                                                 FLOAT* __restrict__ input_grad,
-                                                 const FLOAT* __restrict__ mean,
-                                                 const FLOAT* __restrict__ mean_grad,
-                                                 const FLOAT* __restrict__ var_grad,
+extern "C" __global__ void VarBackwardContiguous(const IO_TYPE* __restrict__ input,
+                                                 IO_TYPE* __restrict__ input_grad,
+                                                 const IO_TYPE* __restrict__ mean,
+                                                 const IO_TYPE* __restrict__ mean_grad,
+                                                 const IO_TYPE* __restrict__ var_grad,
                                                  uint64_t N,
                                                  dim_5d_t dims,
                                                  bool unbiased,
                                                  uint32_t divisor,
-                                                 tensor_view input_grad_tv,
-                                                 tensor_view mean_tv,
-                                                 tensor_view mean_grad_tv,
-                                                 tensor_view var_grad_tv)
+                                                 tensor_view_t<5> input_grad_tv,
+                                                 tensor_view_t<5> mean_tv,
+                                                 tensor_view_t<5> mean_grad_tv,
+                                                 tensor_view_t<5> var_grad_tv)
 {
-    VarBackwardContiguousImpl<FLOAT>(input,
-                                     input_grad,
-                                     mean,
-                                     mean_grad,
-                                     var_grad,
-                                     N,
-                                     dims,
-                                     unbiased,
-                                     divisor,
-                                     input_grad_tv,
-                                     mean_tv,
-                                     mean_grad_tv,
-                                     var_grad_tv);
+    VarBackwardContiguousImpl<IO_TYPE>(input,
+                                       input_grad,
+                                       mean,
+                                       mean_grad,
+                                       var_grad,
+                                       N,
+                                       dims,
+                                       unbiased,
+                                       divisor,
+                                       input_grad_tv,
+                                       mean_tv,
+                                       mean_grad_tv,
+                                       var_grad_tv);
 }

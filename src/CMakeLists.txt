@@ -345,8 +345,8 @@ set( MIOpen_Source
     tensor_api.cpp
     transformers_adam_w_api.cpp
     seq_tensor.cpp
-    var_api.cpp
     var/problem_description.cpp
+    var_api.cpp
 )
 
 if(MIOPEN_ENABLE_AI_KERNEL_TUNING OR MIOPEN_ENABLE_AI_IMMED_MODE_FALLBACK)
@@ -494,7 +494,6 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/radix.hpp
         kernels/rocm_version.inc
         kernels/stride_array.hpp
-        kernels/tensor_utils.hpp
         kernels/tensor_view.hpp
         kernels/utilities.inc
         kernels/warp_reduce.hpp
@@ -559,11 +558,10 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/MIOpenSoftMarginLoss.cpp
         kernels/MIOpenSoftmax.cl
         kernels/MIOpenSoftmaxAttn.cpp
-        kernels/MIOpenSum.cpp
-        kernels/MIOpenVar.cpp
         kernels/MIOpenUtilKernels3.cl
         kernels/MIOpenUtilKernels4.cl
         kernels/MIOpenUtilKernels5.cl
+        kernels/MIOpenVar.cpp
         kernels/MIOpenVecAdd.cpp
         kernels/MIOpenVecAddOCL.cl
         kernels/MIOpenIm2d2Col.cl

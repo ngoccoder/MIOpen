@@ -26,104 +26,68 @@
 
 #pragma once
 
-#include <miopen/tensor.hpp>
+#include <miopen/errors.hpp>
+#include <miopen/miopen.h>
+#include <miopen/tensor_view_utils.hpp>
 
 template <typename Tgpu, typename Tcheck>
-int32_t mloVarBackwardRunHost(miopenTensorDescriptor_t inputDesc,
-                              miopenTensorDescriptor_t inputGradDesc,
-                              miopenTensorDescriptor_t meanDesc,
-                              miopenTensorDescriptor_t meanGradDesc,
-                              miopenTensorDescriptor_t varGradDesc,
-                              Tgpu* input,
+int32_t mloVarBackwardRunHost(const miopenTensorDescriptor_t inputDesc,
+                              const miopenTensorDescriptor_t inputGradDesc,
+                              const miopenTensorDescriptor_t meanDesc,
+                              const miopenTensorDescriptor_t meanGradDesc,
+                              const miopenTensorDescriptor_t varGradDesc,
+                              const Tgpu* input,
                               Tcheck* input_grad,
-                              Tgpu* mean,
-                              Tgpu* mean_grad,
-                              Tgpu* var_grad,
-                              int32_t* dims,
-                              int32_t num_dims,
+                              const Tgpu* mean,
+                              const Tgpu* mean_grad,
+                              const Tgpu* var_grad,
+                              dim_5d_t dims,
                               bool unbiased,
-                              int32_t divisor)
+                              uint32_t divisor)
 {
-    auto input_dims         = miopen::deref(inputDesc).GetLengths();
-    auto input_strides      = miopen::deref(inputDesc).GetStrides();
-    auto input_grad_dims    = miopen::deref(inputGradDesc).GetLengths();
-    auto input_grad_strides = miopen::deref(inputGradDesc).GetStrides();
-    auto mean_dims          = miopen::deref(meanDesc).GetLengths();
-    auto mean_strides       = miopen::deref(meanDesc).GetStrides();
-    auto mean_grad_dims     = miopen::deref(meanGradDesc).GetLengths();
-    auto mean_grad_strides  = miopen::deref(meanGradDesc).GetStrides();
-    auto var_grad_dims      = miopen::deref(varGradDesc).GetLengths();
-    auto var_grad_strides   = miopen::deref(varGradDesc).GetStrides();
+    tensor_view_t<5> input_tv      = miopen::get_inner_expanded_tv<5>(miopen::deref(inputDesc));
+    tensor_view_t<5> input_grad_tv = miopen::get_inner_expanded_tv<5>(miopen::deref(inputGradDesc));
+    tensor_view_t<5> mean_tv       = miopen::get_inner_expanded_tv<5>(miopen::deref(meanDesc));
+    tensor_view_t<5> mean_grad_tv  = miopen::get_inner_expanded_tv<5>(miopen::deref(meanGradDesc));
+    tensor_view_t<5> var_grad_tv   = miopen::get_inner_expanded_tv<5>(miopen::deref(varGradDesc));
 
-    auto input_grad_numel = std::accumulate(
-        input_grad_dims.begin(), input_grad_dims.end(), 1LL, std::multiplies<int64_t>());
-
+    auto input_grad_numel = miopen::deref(inputGradDesc).GetElementSize();
     std::fill(input_grad, input_grad + input_grad_numel, 0);
 
     for(size_t gid = 0; gid < input_grad_numel; ++gid)
     {
-        std::vector<int64_t> input_idx(input_dims.size(), 0);
-        int64_t tmp_gid = gid;
+        tensor_layout_t<5> input_grad_layout(input_grad_tv, gid);
 
-        for(int i = input_dims.size() - 1; i >= 0; --i)
+        tensor_layout_t<5> layout;
+        for(int i = 0; i < 5; i++)
         {
-            input_idx[i] = tmp_gid % input_dims[i];
-            tmp_gid /= input_dims[i];
+            layout.layout[i] = dims.x[i] ? 0 : input_grad_layout.layout[i];
         }
 
-        std::vector<int64_t> reduced_idx(input_dims.size(), 0);
-        for(int i = 0; i < input_dims.size(); ++i)
+        Tgpu input_v = input[input_tv.get_tensor_view_idx(input_grad_layout)];
+        Tgpu mean_v  = static_cast<Tgpu>(0);
+
+        if(mean)
         {
-            if(std::find(dims, dims + num_dims, i) == dims + num_dims)
-            {
-                reduced_idx[i] = input_idx[i];
-            }
+            mean_v = mean[mean_tv.get_tensor_view_idx(layout)];
         }
 
-        Tgpu input_v = input[std::inner_product(
-            input_idx.begin(), input_idx.end(), input_strides.begin(), static_cast<int64_t>(0))];
-
-        int64_t mean_idx = std::inner_product(
-            reduced_idx.begin(), reduced_idx.end(), mean_strides.begin(), static_cast<int64_t>(0));
-
-        Tgpu mean_v = static_cast<Tgpu>(0.0);
-
-        if(mean != nullptr)
+        double input_grad_v = static_cast<double>(0);
+        if(var_grad)
         {
-            mean_v = mean[mean_idx];
-        }
-
-        Tgpu input_grad_v = static_cast<Tgpu>(0.0);
-
-        int64_t var_grad_idx = std::inner_product(reduced_idx.begin(),
-                                                  reduced_idx.end(),
-                                                  var_grad_strides.begin(),
-                                                  static_cast<int64_t>(0));
-
-        if(var_grad != nullptr)
-        {
-            Tgpu var_grad_v = var_grad[var_grad_idx];
-            Tgpu res        = static_cast<Tgpu>(
-                var_grad_v * (static_cast<float>(input_v) - static_cast<float>(mean_v)) * 2.0f);
+            Tgpu var_grad_v = var_grad[var_grad_tv.get_tensor_view_idx(layout)];
+            Tgpu res = static_cast<Tgpu>(var_grad_v * (input_v - mean_v) * static_cast<Tgpu>(2));
             input_grad_v +=
                 unbiased ? res / static_cast<Tgpu>(divisor - 1) : res / static_cast<Tgpu>(divisor);
         }
 
-        int64_t mean_grad_idx = std::inner_product(reduced_idx.begin(),
-                                                   reduced_idx.end(),
-                                                   mean_grad_strides.begin(),
-                                                   static_cast<int64_t>(0));
-
-        if(mean_grad != nullptr)
+        if(mean_grad)
         {
-            Tgpu mean_grad_v = mean_grad[mean_grad_idx];
+            Tgpu mean_grad_v = mean_grad[mean_grad_tv.get_tensor_view_idx(layout)];
             input_grad_v += mean_grad_v / static_cast<Tgpu>(divisor);
         }
 
-        input_grad[std::inner_product(input_idx.begin(),
-                                      input_idx.end(),
-                                      input_grad_strides.begin(),
-                                      static_cast<int64_t>(0))] = input_grad_v;
+        input_grad[input_grad_tv.get_tensor_view_idx(input_grad_layout)] = input_grad_v;
     }
 
     return 0;

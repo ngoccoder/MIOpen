@@ -42,10 +42,10 @@ extern "C" miopenStatus_t miopenVarBackward(miopenHandle_t handle,
                                             const miopenTensorDescriptor_t varGradDesc,
                                             const void* var_grad,
                                             const int* dims,
-                                            int num_dims,
+                                            uint32_t num_dims,
                                             bool keepdim,
                                             bool unbiased,
-                                            int divisor)
+                                            uint32_t divisor)
 {
     MIOPEN_LOG_FUNCTION(handle,
                         inputDesc,

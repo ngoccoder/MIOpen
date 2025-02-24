@@ -24,8 +24,8 @@
  *
  *******************************************************************************/
 
-#include <miopen/var/problem_description.hpp>
 #include <miopen/names.hpp>
+#include <miopen/var/problem_description.hpp>
 
 #include <sstream>
 
@@ -63,8 +63,6 @@ NetworkConfig ProblemDescription::MakeNetworkConfig() const
 
     ss << "dtype-" << dtype << "-";
 
-    ss << "keepdim-" << keepdim << "-";
-    ss << "unbiased-" << unbiased << "-";
     ss << "divisor-" << divisor << "-";
     ss << "all_contiguous-" << is_all_contiguous;
 

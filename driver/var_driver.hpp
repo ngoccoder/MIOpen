@@ -23,25 +23,27 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#ifndef GUARD_MIOPEN_VAR_DRIVER_HPP
-#define GUARD_MIOPEN_VAR_DRIVER_HPP
+
+#pragma once
 
 #include "InputFlags.hpp"
 #include "driver.hpp"
-#include "tensor_driver.hpp"
-#include "timer.hpp"
-#include "random.hpp"
-#include "../test/verify.hpp"
 #include "mloVarHost.hpp"
+#include "random.hpp"
+#include "tensor_driver.hpp"
+#include "tensor_view.hpp"
+#include "timer.hpp"
 
 #include <algorithm>
-#include <cstdlib>
 #include <cfloat>
+#include <cstdlib>
 #include <memory>
-#include <miopen/tensor.hpp>
-#include <numeric>
 #include <vector>
+
+#include <miopen/miopen.h>
+#include <miopen/tensor.hpp>
 #include <../test/tensor_holder.hpp>
+#include "../test/verify.hpp"
 
 template <typename Tgpu, typename Tref>
 class VarDriver : public Driver
@@ -62,13 +64,9 @@ public:
     int ParseCmdLineArgs(int argc, char* argv[]) override;
     InputFlags& GetInputFlags() override { return inflags; }
 
+    std::vector<int> ComputeStrides(std::vector<int> inputDim);
     int GetandSetData() override;
-    std::vector<int> GetInputTensorLengthsFromCmdLine();
     std::vector<int> GetDimsFromCmdLine();
-    bool GetKeepDimFromCmdLine();
-    bool GetUnbiasedFromCmdLine();
-    int GetDivisorFromCmdLine();
-    int GetIsContiguousFromCmdLine();
 
     int AllocateBuffersAndCopy() override;
 
@@ -93,6 +91,8 @@ public:
 
 private:
     InputFlags inflags;
+    int forw;
+    bool isContiguous;
 
     miopenTensorDescriptor_t inputDesc;
     miopenTensorDescriptor_t inputGradDesc;
@@ -123,164 +123,9 @@ private:
 };
 
 template <typename Tgpu, typename Tref>
-int VarDriver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
-{
-    inflags.Parse(argc, argv);
-
-    if(inflags.GetValueInt("time") == 1)
-    {
-        miopenEnableProfiling(GetHandle(), true);
-    }
-
-    return miopenStatusSuccess;
-}
-
-template <typename Tgpu, typename Tref>
-int VarDriver<Tgpu, Tref>::GetandSetData()
-{
-    std::vector<int> input_len = GetInputTensorLengthsFromCmdLine();
-    std::vector<int> input_grad_len(input_len.size());
-    std::vector<int> mean_len(input_len.size());
-    std::vector<int> mean_grad_len(input_len.size());
-    std::vector<int> var_grad_len(input_len.size());
-
-    std::copy(input_len.begin(), input_len.end(), input_grad_len.begin());
-    std::copy(input_len.begin(), input_len.end(), mean_len.begin());
-    std::copy(input_len.begin(), input_len.end(), mean_grad_len.begin());
-    std::copy(input_len.begin(), input_len.end(), var_grad_len.begin());
-
-    dims     = GetDimsFromCmdLine();
-    keepdim  = GetKeepDimFromCmdLine();
-    unbiased = GetUnbiasedFromCmdLine();
-    divisor  = GetDivisorFromCmdLine();
-
-    for(const auto& dim : dims)
-    {
-        mean_len[dim]      = 1;
-        mean_grad_len[dim] = 1;
-        var_grad_len[dim]  = 1;
-    }
-
-    if(GetIsContiguousFromCmdLine() == 0)
-    {
-        for(auto& dim : dims)
-        {
-            if(dim == 0)
-                dim = input_len.size() - 1;
-            else if(dim == input_len.size() - 1)
-                dim = 0;
-        }
-
-        std::vector<int> input_strides(input_len.size());
-        input_strides.back() = 1;
-        for(int i = input_len.size() - 2; i >= 0; i--)
-            input_strides[i] = input_strides[i + 1] * input_len[i + 1];
-        std::swap(input_strides.front(), input_strides.back());
-        std::swap(input_len.front(), input_len.back());
-
-        std::vector<int> input_grad_strides(input_grad_len.size());
-        input_grad_strides.back() = 1;
-        for(int i = input_grad_len.size() - 2; i >= 0; i--)
-            input_grad_strides[i] = input_grad_strides[i + 1] * input_grad_len[i + 1];
-        std::swap(input_grad_strides.front(), input_grad_strides.back());
-        std::swap(input_grad_len.front(), input_grad_len.back());
-
-        std::vector<int> mean_strides(mean_len.size());
-        mean_strides.back() = 1;
-        for(int i = mean_len.size() - 2; i >= 0; i--)
-            mean_strides[i] = mean_strides[i + 1] * mean_len[i + 1];
-        std::swap(mean_strides.front(), mean_strides.back());
-        std::swap(mean_len.front(), mean_len.back());
-
-        std::vector<int> mean_grad_strides(mean_grad_len.size());
-        mean_grad_strides.back() = 1;
-        for(int i = mean_grad_len.size() - 2; i >= 0; i--)
-            mean_grad_strides[i] = mean_grad_strides[i + 1] * mean_grad_len[i + 1];
-        std::swap(mean_grad_strides.front(), mean_grad_strides.back());
-        std::swap(mean_grad_len.front(), mean_grad_len.back());
-
-        std::vector<int> var_grad_strides(var_grad_len.size());
-        var_grad_strides.back() = 1;
-        for(int i = var_grad_len.size() - 2; i >= 0; i--)
-            var_grad_strides[i] = var_grad_strides[i + 1] * var_grad_len[i + 1];
-        std::swap(var_grad_strides.front(), var_grad_strides.back());
-        std::swap(var_grad_len.front(), var_grad_len.back());
-
-        SetTensorNd(inputDesc, input_len, input_strides, data_type);
-        SetTensorNd(inputGradDesc, input_grad_len, input_grad_strides, data_type);
-        SetTensorNd(meanDesc, mean_len, mean_strides, data_type);
-        SetTensorNd(meanGradDesc, mean_grad_len, mean_grad_strides, data_type);
-        SetTensorNd(varGradDesc, var_grad_len, var_grad_strides, data_type);
-    }
-    else
-    {
-        SetTensorNd(inputDesc, input_len, data_type);
-        SetTensorNd(inputGradDesc, input_grad_len, data_type);
-        SetTensorNd(meanDesc, mean_len, data_type);
-        SetTensorNd(meanGradDesc, mean_grad_len, data_type);
-        SetTensorNd(varGradDesc, var_grad_len, data_type);
-    }
-
-    return miopenStatusSuccess;
-}
-
-template <typename Tgpu, typename Tref>
-int VarDriver<Tgpu, Tref>::AddCmdLineArgs()
-{
-    inflags.AddInputFlag("forw", 'F', "0", "Run only forward pass (Default=0)", "int");
-    inflags.AddInputFlag("InputDims",
-                         'I',
-                         "32,32,32",
-                         "The dimensional lengths of the input tensor (Default=32x32x32)",
-                         "string");
-    inflags.AddInputFlag("Dims", 'D', "0", "The dimensions to reduce (Default=0)", "string");
-    inflags.AddInputFlag("KeepDim", 'K', "1", "Keep the reduced dimensions (Default=1)", "int");
-    inflags.AddInputFlag("Unbiased", 'U', "1", "Use unbiased variance (Default=1)", "int");
-    inflags.AddInputFlag("Divisor", 'V', "32", "The divisor to use (Default=32)", "int");
-    inflags.AddInputFlag("iter", 'i', "10", "Number of iterations (Default=10)", "int");
-    inflags.AddInputFlag("verify", 'v', "1", "Verify the results (Default=1)", "int");
-    inflags.AddInputFlag("time", 't', "0", "Time Each Layer (Default=0)", "int");
-    inflags.AddInputFlag(
-        "wall", 'w', "0", "Wall-clock Time Each Layer, Requires time flag (Default=0)", "int");
-    inflags.AddInputFlag("contiguous", 'c', "1", "Use contiguous memory (Default=1)", "int");
-
-    return miopenStatusSuccess;
-}
-
-template <typename Tgpu, typename Tref>
-std::vector<int> VarDriver<Tgpu, Tref>::GetInputTensorLengthsFromCmdLine()
-{
-    std::string input_dims_str = inflags.GetValueStr("InputDims");
-
-    std::vector<int> input_dims;
-    size_t pos = 0;
-    size_t new_pos;
-
-    new_pos = input_dims_str.find(',', pos);
-    while(new_pos != std::string::npos)
-    {
-        std::string sliceStr = input_dims_str.substr(pos, new_pos - pos);
-
-        int len = std::stoi(sliceStr);
-
-        input_dims.push_back(len);
-
-        pos     = new_pos + 1;
-        new_pos = input_dims_str.find(',', pos);
-    };
-
-    std::string sliceStr = input_dims_str.substr(pos);
-    int len              = std::stoi(sliceStr);
-
-    input_dims.push_back(len);
-
-    return (input_dims);
-}
-
-template <typename Tgpu, typename Tref>
 std::vector<int> VarDriver<Tgpu, Tref>::GetDimsFromCmdLine()
 {
-    std::string dims_str = inflags.GetValueStr("Dims");
+    std::string dims_str = inflags.GetValueStr("dims");
 
     std::vector<int> dims_;
     size_t pos = 0;
@@ -308,31 +153,100 @@ std::vector<int> VarDriver<Tgpu, Tref>::GetDimsFromCmdLine()
 }
 
 template <typename Tgpu, typename Tref>
-bool VarDriver<Tgpu, Tref>::GetKeepDimFromCmdLine()
+int VarDriver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
 {
-    int keepdim_ = inflags.GetValueInt("KeepDim");
+    inflags.Parse(argc, argv);
 
-    return (keepdim_ == 1 ? true : false);
+    if(inflags.GetValueInt("time") == 1)
+    {
+        miopenEnableProfiling(GetHandle(), true);
+    }
+
+    forw = inflags.GetValueInt("forw");
+    if(forw != 2)
+    {
+        MIOPEN_THROW("Invalid Forward|Backward Mode");
+    }
+
+    keepdim      = inflags.GetValueInt("keep_dim") == 0 ? false : true;
+    unbiased     = inflags.GetValueInt("unbiased") == 0 ? false : true;
+    divisor      = inflags.GetValueInt("divisor");
+    isContiguous = inflags.GetValueInt("contiguous") == 0 ? false : true;
+
+    return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
-bool VarDriver<Tgpu, Tref>::GetUnbiasedFromCmdLine()
+int VarDriver<Tgpu, Tref>::GetandSetData()
 {
-    int unbiased_ = inflags.GetValueInt("Unbiased");
+    std::vector<int> input_len      = inflags.GetValueTensor("input_dims").lengths;
+    std::vector<int> input_grad_len = input_len;
+    std::vector<int> mean_len       = input_len;
+    std::vector<int> mean_grad_len  = input_len;
+    std::vector<int> var_grad_len   = input_len;
 
-    return (unbiased_ == 1 ? true : false);
+    dims = GetDimsFromCmdLine();
+
+    for(const auto& dim : dims)
+    {
+        mean_len[dim]      = 1;
+        mean_grad_len[dim] = 1;
+        var_grad_len[dim]  = 1;
+    }
+
+    auto input_stride = ComputeStrides(input_len);
+    SetTensorNd(inputDesc, input_len, input_stride, data_type);
+
+    auto input_grad_stride = ComputeStrides(input_grad_len);
+    SetTensorNd(inputGradDesc, input_grad_len, input_grad_stride, data_type);
+
+    auto mean_stride = ComputeStrides(mean_len);
+    SetTensorNd(meanDesc, mean_len, mean_stride, data_type);
+
+    auto mean_grad_stride = ComputeStrides(mean_grad_len);
+    SetTensorNd(meanGradDesc, mean_grad_len, mean_grad_stride, data_type);
+
+    auto var_grad_stride = ComputeStrides(var_grad_len);
+    SetTensorNd(varGradDesc, var_grad_len, var_grad_stride, data_type);
+
+    return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
-int VarDriver<Tgpu, Tref>::GetDivisorFromCmdLine()
+int VarDriver<Tgpu, Tref>::AddCmdLineArgs()
 {
-    return (inflags.GetValueInt("Divisor"));
+    inflags.AddInputFlag("forw", 'F', "2", "Run only backward pass (Default=2)", "int");
+    inflags.AddTensorFlag("input_dims",
+                          'I',
+                          "32x32x32",
+                          "The dimensional lengths of the input tensor (Default=32x32x32)");
+    inflags.AddInputFlag("dims", 'D', "0", "The dimensions to reduce (Default=0)", "string");
+    inflags.AddInputFlag("keep_dim", 'K', "1", "Keep the reduced dimensions (Default=1)", "int");
+    inflags.AddInputFlag("unbiased", 'U', "1", "Use unbiased variance (Default=1)", "int");
+    inflags.AddInputFlag("divisor", 'V', "32", "The divisor to use (Default=32)", "int");
+    inflags.AddInputFlag("iter", 'i', "10", "Number of iterations (Default=10)", "int");
+    inflags.AddInputFlag("verify", 'v', "1", "Verify the results (Default=1)", "int");
+    inflags.AddInputFlag("time", 't', "0", "Time Each Layer (Default=0)", "int");
+    inflags.AddInputFlag(
+        "wall", 'w', "0", "Wall-clock Time Each Layer, Requires time flag (Default=0)", "int");
+    inflags.AddInputFlag("contiguous", 'c', "1", "Use contiguous memory (Default=1)", "int");
+
+    return miopenStatusSuccess;
 }
 
+// Equivalent to: tensor.tranpose(0, -1).contiguous().tranpose(0, -1) incase contiguous = False
 template <typename Tgpu, typename Tref>
-int VarDriver<Tgpu, Tref>::GetIsContiguousFromCmdLine()
+std::vector<int> VarDriver<Tgpu, Tref>::ComputeStrides(std::vector<int> inputDim)
 {
-    return (inflags.GetValueInt("contiguous"));
+    if(!isContiguous)
+        std::swap(inputDim.front(), inputDim.back());
+    std::vector<int> strides(inputDim.size());
+    strides.back() = 1;
+    for(int i = inputDim.size() - 2; i >= 0; --i)
+        strides[i] = strides[i + 1] * inputDim[i + 1];
+    if(!isContiguous)
+        std::swap(strides.front(), strides.back());
+    return strides;
 }
 
 template <typename Tgpu, typename Tref>
@@ -354,44 +268,46 @@ int VarDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 
     input           = std::vector<Tgpu>(input_sz, static_cast<Tgpu>(0));
     input_grad      = std::vector<Tgpu>(input_grad_sz, static_cast<Tgpu>(0));
-    input_grad_host = std::vector<Tref>(input_grad_sz, static_cast<Tref>(0));
     mean            = std::vector<Tgpu>(mean_sz, static_cast<Tgpu>(0));
     mean_grad       = std::vector<Tgpu>(mean_grad_sz, static_cast<Tgpu>(0));
     var_grad        = std::vector<Tgpu>(var_grad_sz, static_cast<Tgpu>(0));
-
-    int status;
+    input_grad_host = std::vector<Tref>(input_grad_sz, static_cast<Tref>(0));
 
     for(int i = 0; i < input_sz; i++)
     {
         input[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
     }
-    status = input_dev->ToGPU(q, input.data());
-
-    for(int i = 0; i < input_grad_sz; i++)
+    for(int i = 0; i < mean_sz; i++)
     {
-        input_grad[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+        mean[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
     }
-    status |= input_grad_dev->ToGPU(q, input_grad.data());
-
-    mloMeanForwardRunHost(inputDesc, meanDesc, input.data(), mean.data(), dims, divisor);
-    status |= mean_dev->ToGPU(q, mean.data());
-
     for(int i = 0; i < mean_grad_sz; i++)
     {
         mean_grad[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
     }
-    status |= mean_grad_dev->ToGPU(q, mean_grad.data());
-
     for(int i = 0; i < var_grad_sz; i++)
     {
         var_grad[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
     }
-    status |= var_grad_dev->ToGPU(q, var_grad.data());
 
-    if(status != 0)
+    if(input_dev->ToGPU(GetStream(), input.data()) != 0)
     {
-        std::cout << "Error copying data to GPU\n" << std::endl;
-
+        std::cerr << "Error copying data (input) to GPU\n" << std::endl;
+        return miopenStatusInternalError;
+    }
+    if(mean_dev->ToGPU(GetStream(), mean.data()) != 0)
+    {
+        std::cerr << "Error copying data (mean) to GPU\n" << std::endl;
+        return miopenStatusInternalError;
+    }
+    if(mean_grad_dev->ToGPU(GetStream(), mean_grad.data()) != 0)
+    {
+        std::cerr << "Error copying data (mean_grad) to GPU\n" << std::endl;
+        return miopenStatusInternalError;
+    }
+    if(var_grad_dev->ToGPU(GetStream(), var_grad.data()) != 0)
+    {
+        std::cerr << "Error copying data (var_grad) to GPU\n" << std::endl;
         return miopenStatusInternalError;
     }
 
@@ -401,13 +317,13 @@ int VarDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 template <typename Tgpu, typename Tref>
 int VarDriver<Tgpu, Tref>::RunForwardGPU()
 {
-    return miopenStatusSuccess;
+    return miopenStatusNotImplemented;
 }
 
 template <typename Tgpu, typename Tref>
 int VarDriver<Tgpu, Tref>::RunForwardCPU()
 {
-    return miopenStatusSuccess;
+    return miopenStatusNotImplemented;
 }
 
 template <typename Tgpu, typename Tref>
@@ -464,6 +380,12 @@ int VarDriver<Tgpu, Tref>::RunBackwardGPU()
 template <typename Tgpu, typename Tref>
 int VarDriver<Tgpu, Tref>::RunBackwardCPU()
 {
+    dim_5d_t dims_onehot;
+    for(auto dim : dims)
+    {
+        dims_onehot.x[dim] = 1;
+    }
+
     mloVarBackwardRunHost<Tgpu, Tref>(inputDesc,
                                       inputGradDesc,
                                       meanDesc,
@@ -474,8 +396,7 @@ int VarDriver<Tgpu, Tref>::RunBackwardCPU()
                                       mean.data(),
                                       mean_grad.data(),
                                       var_grad.data(),
-                                      dims.data(),
-                                      dims.size(),
+                                      dims_onehot,
                                       unbiased,
                                       divisor);
 
@@ -485,18 +406,14 @@ int VarDriver<Tgpu, Tref>::RunBackwardCPU()
 template <typename Tgpu, typename Tref>
 Tref VarDriver<Tgpu, Tref>::GetTolerance()
 {
-    auto tolerance = std::is_same<Tgpu, float>::value ? 1.5e-6 : 8.2e-3;
-
-    if(std::is_same<Tgpu, bfloat16>::value)
-        tolerance *= 8.0;
-
+    Tref tolerance = std::numeric_limits<Tgpu>::epsilon() * 10;
     return tolerance;
 }
 
 template <typename Tgpu, typename Tref>
 int VarDriver<Tgpu, Tref>::VerifyForward()
 {
-    return miopenStatusSuccess;
+    return miopenStatusNotImplemented;
 }
 
 template <typename Tgpu, typename Tref>
@@ -505,6 +422,12 @@ int VarDriver<Tgpu, Tref>::VerifyBackward()
     RunBackwardCPU();
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(input_grad_host, input_grad);
+
+    // for (auto i = 0; i < input_grad.size(); i++)
+    //{
+    //    std::cout << "Input_grad_host[" << i << "]: " << input_grad_host[i] << " vs input_grad["
+    //    << i << "]: " << input_grad[i] << std::endl;
+    //}
 
     if(!std::isfinite(error) || error > tolerance)
     {
@@ -518,5 +441,3 @@ int VarDriver<Tgpu, Tref>::VerifyBackward()
 
     return miopenStatusSuccess;
 }
-
-#endif // GUARD_MIOPEN_VAR_DRIVER_HPP

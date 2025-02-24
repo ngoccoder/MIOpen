@@ -23,10 +23,11 @@
  * SOFTWARE.
  *
  *******************************************************************************/
+
 #pragma once
 
-#include <miopen/var/problem_description.hpp>
 #include <miopen/solver.hpp>
+#include <miopen/var/problem_description.hpp>
 
 namespace miopen {
 
@@ -34,9 +35,9 @@ namespace solver {
 
 namespace var {
 
-using VarSolver = NonTunableSolverBase<ExecutionContext, miopen::var::ProblemDescription>;
+using VarSolverBase = NonTunableSolverBase<ExecutionContext, miopen::var::ProblemDescription>;
 
-struct VarBackward final : VarSolver
+struct VarBackward final : VarSolverBase
 {
     const std::string& SolverDbId() const override { return GetSolverDbId<VarBackward>(); }
 
@@ -44,7 +45,6 @@ struct VarBackward final : VarSolver
                       const miopen::var::ProblemDescription& problem) const override;
     ConvSolution GetSolution(const ExecutionContext& context,
                              const miopen::var::ProblemDescription& problem) const override;
-    bool MayNeedWorkspace() const override { return false; }
 };
 
 } // namespace var

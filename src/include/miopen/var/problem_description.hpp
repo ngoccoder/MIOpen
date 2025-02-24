@@ -25,7 +25,7 @@
  *******************************************************************************/
 #pragma once
 
-#include "miopen/miopen.h"
+#include <miopen/miopen.h>
 #include <miopen/problem_description_base.hpp>
 #include <miopen/tensor.hpp>
 
@@ -82,7 +82,7 @@ struct ProblemDescription : ProblemDescriptionBase
     const std::vector<int>& GetDims() const { return dims; }
     bool GetKeepDim() const { return keepdim; }
     bool GetUnbiased() const { return unbiased; }
-    int GetDivisor() const { return divisor; }
+    uint32_t GetDivisor() const { return divisor; }
 
     bool IsSameType() const
     {
@@ -131,7 +131,7 @@ private:
     std::vector<int> dims;
     bool keepdim;
     bool unbiased;
-    int divisor;
+    uint32_t divisor;
 };
 
 } // namespace var

@@ -26,12 +26,13 @@
 
 #include <miopen/datatype.hpp>
 #include <miopen/kernel_build_params.hpp>
+#include <miopen/mlo_internal.hpp>
 #include <miopen/target_properties.hpp>
 #include <miopen/tensor_view_utils.hpp>
 #include <miopen/var/invoke_params.hpp>
 #include <miopen/var/solvers.hpp>
 
-#define LOCAL_SIZE 1024
+#define LOCAL_SIZE 256
 
 namespace miopen {
 
@@ -56,6 +57,7 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& /*context*/,
     auto result = ConvSolution{miopenStatusSuccess};
 
     auto dtype             = problem.GetInputDesc().GetType();
+    auto io_dtype          = miopen::GetDataType(dtype);
     auto input_grad_dims   = problem.GetInputGradDesc().GetLengths();
     auto input_grad_numel  = problem.GetInputGradDesc().GetElementSize();
     auto is_all_contiguous = problem.IsAllContiguous();
@@ -84,7 +86,8 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& /*context*/,
         const auto build_params =
             KernelBuildParameters{{"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
                                   {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
-                                  {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)}};
+                                  {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
+                                  {"IO_TYPE", io_dtype == "bfloat16" ? "ushort" : io_dtype}};
 
         kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
@@ -99,80 +102,29 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& /*context*/,
         result.construction_params.push_back(kernel);
     }
 
-    result.invoker_factory = [input_grad_numel](const std::vector<Kernel>& kernels) {
+    result.invoker_factory = [input_grad_numel,
+                              is_all_contiguous](const std::vector<Kernel>& kernels) {
         return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
             decltype(auto) kernel = handle_.Run(kernels.front());
             decltype(auto) params = raw_params.CastTo<miopen::var::InvokeParams>();
 
-            auto input_dims      = params.inputDesc->GetLengths();
-            auto input_grad_dims = params.inputGradDesc->GetLengths();
-            auto mean_dims       = params.meanDesc->GetLengths();
-            auto mean_grad_dims  = params.meanGradDesc->GetLengths();
-            auto var_grad_dims   = params.varGradDesc->GetLengths();
-
-            auto input_strides      = params.inputDesc->GetStrides();
-            auto input_grad_strides = params.inputGradDesc->GetStrides();
-            auto mean_strides       = params.meanDesc->GetStrides();
-            auto mean_grad_strides  = params.meanGradDesc->GetStrides();
-            auto var_grad_strides   = params.varGradDesc->GetStrides();
-
-            auto dims = *(params.dims);
-
+            auto dims = params.dims;
             dim_5d_t dims_onehot;
             for(auto dim : dims)
             {
                 dims_onehot.x[dim] = 1;
             }
 
-            tensor_view input_tv;
-            tensor_view input_grad_tv;
-            tensor_view mean_tv;
-            tensor_view mean_grad_tv;
-            tensor_view var_grad_tv;
+            tensor_view_t<5> input_tv = get_inner_expanded_tv<5>(miopen::deref(params.inputDesc));
+            tensor_view_t<5> input_grad_tv =
+                get_inner_expanded_tv<5>(miopen::deref(params.inputGradDesc));
+            tensor_view_t<5> mean_tv = get_inner_expanded_tv<5>(miopen::deref(params.meanDesc));
+            tensor_view_t<5> mean_grad_tv =
+                get_inner_expanded_tv<5>(miopen::deref(params.meanGradDesc));
+            tensor_view_t<5> var_grad_tv =
+                get_inner_expanded_tv<5>(miopen::deref(params.varGradDesc));
 
-            for(int i = 0; i < input_dims.size(); i++)
-            {
-                input_tv.dimensions[i] = input_dims[i];
-                input_tv.strides[i]    = input_strides[i];
-            }
-
-            for(int i = 0; i < input_grad_dims.size(); i++)
-            {
-                input_grad_tv.dimensions[i] = input_grad_dims[i];
-                input_grad_tv.strides[i]    = input_grad_strides[i];
-            }
-
-            for(int i = 0; i < mean_dims.size(); i++)
-            {
-                mean_tv.dimensions[i] = mean_dims[i];
-                mean_tv.strides[i]    = mean_strides[i];
-            }
-
-            for(int i = 0; i < mean_grad_dims.size(); i++)
-            {
-                mean_grad_tv.dimensions[i] = mean_grad_dims[i];
-                mean_grad_tv.strides[i]    = mean_grad_strides[i];
-            }
-
-            for(int i = 0; i < var_grad_dims.size(); i++)
-            {
-                var_grad_tv.dimensions[i] = var_grad_dims[i];
-                var_grad_tv.strides[i]    = var_grad_strides[i];
-            }
-
-            // Check if input and input_grad tensors are contiguous
-            bool is_contiguous = true;
-            for(int i = input_dims.size() - 2; i >= 0; --i)
-            {
-                if(input_strides[i] != input_strides[i + 1] * input_dims[i + 1] ||
-                   input_grad_strides[i] != input_grad_strides[i + 1] * input_grad_dims[i + 1])
-                {
-                    is_contiguous = false;
-                    break;
-                }
-            }
-
-            if(is_contiguous)
+            if(is_all_contiguous)
             {
                 kernel(params.input,
                        params.input_grad,

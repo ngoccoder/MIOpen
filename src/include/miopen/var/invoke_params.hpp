@@ -48,10 +48,10 @@ struct InvokeParams : public miopen::InvokeParams
     ConstData_t mean_grad = nullptr;
     ConstData_t var_grad  = nullptr;
 
-    const std::vector<int>* dims = nullptr;
+    std::vector<int> dims;
     bool keepdim;
     bool unbiased;
-    int divisor;
+    uint32_t divisor;
 
     std::size_t GetWorkspaceSize() const { return 0; }
     Data_t GetWorkspace() const { return nullptr; }

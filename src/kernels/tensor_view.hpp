@@ -29,6 +29,11 @@
 
 #include <initializer_list>
 
+struct dim_5d_t
+{
+    uint64_t x[5] = {0, 0, 0, 0, 0};
+};
+
 template <int N>
 struct tensor_layout_t;
 
@@ -80,6 +85,15 @@ struct tensor_layout_t
         for(auto i = 0; i < N; ++i)
         {
             layout[i] = layout_.begin()[i];
+        }
+    }
+
+    constexpr tensor_layout_t()
+    {
+        static_assert(N > 0);
+        for(auto i = 0; i < N; ++i)
+        {
+            layout[i] = 0;
         }
     }
 
