@@ -24,74 +24,11 @@
  *
  *******************************************************************************/
 
-#include <miopen/var.hpp>
 #include <miopen/errors.hpp>
 #include <miopen/handle.hpp>
 #include <miopen/logger.hpp>
 #include <miopen/tensor_ops.hpp>
-
-static void LogCmdVarBackward(const miopenTensorDescriptor_t inputGradDesc,
-                              const int* dims,
-                              const int num_dims,
-                              const bool keepdim,
-                              const bool unbiased,
-                              const int divisor)
-{
-    if(miopen::IsLoggingCmd())
-    {
-        std::stringstream ss;
-        auto dtype = miopen::deref(inputGradDesc).GetType();
-        if(dtype == miopenFloat)
-        {
-            ss << "varfp32";
-        }
-        else if(dtype == miopenHalf)
-        {
-            ss << "varfp16";
-        }
-        else if(dtype == miopenBFloat16)
-        {
-            ss << "varbf16";
-        }
-
-        int32_t size = {0};
-        miopenGetTensorDescriptorSize(inputGradDesc, &size);
-        ss << " -n " << miopen::deref(inputGradDesc).GetLengths()[0];
-        if(size == 5)
-        {
-            ss << " -c " << miopen::deref(inputGradDesc).GetLengths()[1] << " -D "
-               << miopen::deref(inputGradDesc).GetLengths()[2] << " -H "
-               << miopen::deref(inputGradDesc).GetLengths()[3] << " -W "
-               << miopen::deref(inputGradDesc).GetLengths()[4];
-        }
-        else if(size == 4)
-        {
-            ss << " -c " << miopen::deref(inputGradDesc).GetLengths()[1] << " -D "
-               << miopen::deref(inputGradDesc).GetLengths()[2] << " -H "
-               << miopen::deref(inputGradDesc).GetLengths()[3];
-        }
-        else if(size == 3)
-        {
-            ss << " -c " << miopen::deref(inputGradDesc).GetLengths()[1] << " -D "
-               << miopen::deref(inputGradDesc).GetLengths()[2];
-        }
-        else if(size == 2)
-        {
-            ss << " -c " << miopen::deref(inputGradDesc).GetLengths()[1];
-        }
-
-        ss << " -dims ";
-        for(int i = 0; i < num_dims; i++)
-        {
-            ss << dims[i] << " ";
-        }
-
-        ss << " -keepdim " << ((keepdim) ? "true" : "false") << " -unbiased "
-           << ((unbiased) ? "true" : "false") << " -divisor " << divisor;
-
-        MIOPEN_LOG_DRIVER_CMD(ss.str());
-    }
-};
+#include <miopen/var.hpp>
 
 extern "C" miopenStatus_t miopenVarBackward(miopenHandle_t handle,
                                             const miopenTensorDescriptor_t inputDesc,
@@ -105,10 +42,10 @@ extern "C" miopenStatus_t miopenVarBackward(miopenHandle_t handle,
                                             const miopenTensorDescriptor_t varGradDesc,
                                             const void* var_grad,
                                             const int* dims,
-                                            const int num_dims,
-                                            const bool keepdim,
-                                            const bool unbiased,
-                                            const int divisor)
+                                            int num_dims,
+                                            bool keepdim,
+                                            bool unbiased,
+                                            int divisor)
 {
     MIOPEN_LOG_FUNCTION(handle,
                         inputDesc,
@@ -127,24 +64,22 @@ extern "C" miopenStatus_t miopenVarBackward(miopenHandle_t handle,
                         unbiased,
                         divisor);
 
-    LogCmdVarBackward(inputGradDesc, dims, num_dims, keepdim, unbiased, divisor);
-
     return miopen::try_([&] {
-        miopen::VarBackward(miopen::deref(handle),
-                            miopen::deref(inputDesc),
-                            DataCast(input),
-                            miopen::deref(inputGradDesc),
-                            DataCast(input_grad),
-                            miopen::deref(meanDesc),
-                            DataCast(mean),
-                            miopen::deref(meanGradDesc),
-                            DataCast(mean_grad),
-                            miopen::deref(varGradDesc),
-                            DataCast(var_grad),
-                            dims,
-                            num_dims,
-                            keepdim,
-                            unbiased,
-                            divisor);
+        miopen::var::VarBackward(miopen::deref(handle),
+                                 miopen::deref(inputDesc),
+                                 DataCast(input),
+                                 miopen::deref(inputGradDesc),
+                                 DataCast(input_grad),
+                                 miopen::deref(meanDesc),
+                                 DataCast(mean),
+                                 miopen::deref(meanGradDesc),
+                                 DataCast(mean_grad),
+                                 miopen::deref(varGradDesc),
+                                 DataCast(var_grad),
+                                 dims,
+                                 num_dims,
+                                 keepdim,
+                                 unbiased,
+                                 divisor);
     });
 }

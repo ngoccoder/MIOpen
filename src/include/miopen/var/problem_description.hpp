@@ -25,11 +25,9 @@
  *******************************************************************************/
 #pragma once
 
-#include <miopen/activ.hpp>
+#include "miopen/miopen.h"
 #include <miopen/problem_description_base.hpp>
 #include <miopen/tensor.hpp>
-#include <cassert>
-#include <string>
 
 namespace miopen {
 
@@ -58,6 +56,21 @@ struct ProblemDescription : ProblemDescriptionBase
           unbiased(unbiased_),
           divisor(divisor_)
     {
+        if(!IsSameType())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "All tensors must have the same data type.");
+        }
+
+        if(!IsApplicableSize())
+        {
+            MIOPEN_THROW(miopenStatusBadParm,
+                         "Input gradient size must be in range [1024, 1024 * 1024 * 2].");
+        }
+
+        if(!IsAllPacked())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "All tensors must be packed.");
+        }
     }
 
     const TensorDescriptor& GetInputDesc() const { return inputDesc; }
@@ -73,17 +86,10 @@ struct ProblemDescription : ProblemDescriptionBase
 
     bool IsSameType() const
     {
-        if(inputDesc.GetType() == inputGradDesc.GetType() &&
-           inputDesc.GetType() == meanDesc.GetType() &&
-           inputDesc.GetType() == meanGradDesc.GetType() &&
-           inputDesc.GetType() == varGradDesc.GetType())
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+        return inputDesc.GetType() == inputGradDesc.GetType() &&
+               inputDesc.GetType() == meanDesc.GetType() &&
+               inputDesc.GetType() == meanGradDesc.GetType() &&
+               inputDesc.GetType() == varGradDesc.GetType();
     }
 
     bool IsAllPacked() const
@@ -101,31 +107,17 @@ struct ProblemDescription : ProblemDescriptionBase
 
     bool IsApplicableSize() const
     {
-        int input_grad_numel = std::accumulate(inputGradDesc.GetLengths().begin(),
-                                               inputGradDesc.GetLengths().end(),
-                                               1,
-                                               std::multiplies<int>());
+        auto input_grad_numel = inputGradDesc.GetElementSize();
 
         if(input_grad_numel >= 1024 && input_grad_numel <= 1024 * 1024 * 2)
             return true;
         return false;
     }
 
-    bool IsContiguous(const TensorDescriptor& desc) const
+    bool IsAllContiguous() const
     {
-        auto lengths           = desc.GetLengths();
-        auto strides           = desc.GetStrides();
-        size_t expected_stride = 1;
-        for(size_t i = lengths.size(); i-- > 0;)
-        {
-            if(strides[i] != expected_stride)
-                return false;
-            expected_stride *= lengths[i];
-        }
-        return true;
+        return inputDesc.IsContiguous() && inputGradDesc.IsContiguous();
     }
-
-    bool IsAllContiguous() const { return IsContiguous(inputDesc) && IsContiguous(inputGradDesc); }
 
     NetworkConfig MakeNetworkConfig() const override;
 

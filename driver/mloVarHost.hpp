@@ -23,14 +23,10 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#ifndef MLO_VARHOST_H_
-#define MLO_VARHOST_H_
+
+#pragma once
 
 #include <miopen/tensor.hpp>
-
-////////////////////////////////////////////////////////////
-//
-///////////////////////////////////////////////////////////
 
 template <typename Tgpu, typename Tcheck>
 int32_t mloVarBackwardRunHost(miopenTensorDescriptor_t inputDesc,
@@ -132,58 +128,3 @@ int32_t mloVarBackwardRunHost(miopenTensorDescriptor_t inputDesc,
 
     return 0;
 }
-
-template <typename Tgpu>
-int32_t mloMeanForwardRunHost(miopenTensorDescriptor_t inputDesc,
-                              miopenTensorDescriptor_t meanDesc,
-                              Tgpu* input,
-                              Tgpu* mean,
-                              std::vector<int32_t>& dims_vector,
-                              int32_t divisor)
-{
-    auto input_dims    = miopen::deref(inputDesc).GetLengths();
-    auto input_strides = miopen::deref(inputDesc).GetStrides();
-    auto mean_dims     = miopen::deref(meanDesc).GetLengths();
-    auto mean_strides  = miopen::deref(meanDesc).GetStrides();
-
-    auto input_numel =
-        std::accumulate(input_dims.begin(), input_dims.end(), 1LL, std::multiplies<int64_t>());
-
-    for(size_t gid = 0; gid < input_numel; ++gid)
-    {
-        std::vector<int64_t> input_idx(input_dims.size(), 0);
-        int64_t tmp_gid = gid;
-
-        for(int i = input_dims.size() - 1; i >= 0; --i)
-        {
-            input_idx[i] = tmp_gid % input_dims[i];
-            tmp_gid /= input_dims[i];
-        }
-
-        std::vector<int64_t> reduced_idx(input_dims.size(), 0);
-        for(int i = 0; i < input_dims.size(); ++i)
-        {
-            if(std::find(dims_vector.begin(), dims_vector.end(), i) == dims_vector.end())
-            {
-                reduced_idx[i] = input_idx[i];
-            }
-        }
-
-        int64_t mean_idx = std::inner_product(
-            reduced_idx.begin(), reduced_idx.end(), mean_strides.begin(), static_cast<int64_t>(0));
-
-        mean[mean_idx] += input[std::inner_product(
-            input_idx.begin(), input_idx.end(), input_strides.begin(), static_cast<int64_t>(0))];
-    }
-
-    auto mean_numel =
-        std::accumulate(mean_dims.begin(), mean_dims.end(), 1LL, std::multiplies<int64_t>());
-    for(size_t i = 0; i < mean_numel; ++i)
-    {
-        mean[i] /= static_cast<Tgpu>(divisor);
-    }
-
-    return 0;
-}
-
-#endif // MLO_VARHOST_H_

@@ -28,12 +28,14 @@
 #include <miopen/find_solution.hpp>
 #include <miopen/float_equal.hpp>
 #include <miopen/kernel_cache.hpp>
+#include <miopen/tensor.hpp>
 #include <miopen/var/invoke_params.hpp>
 #include <miopen/var/solvers.hpp>
 #include <miopen/var.hpp>
-#include <miopen/tensor.hpp>
 
 namespace miopen {
+
+namespace var {
 
 miopenStatus_t VarBackward(Handle& handle,
                            const TensorDescriptor& inputDesc,
@@ -91,5 +93,7 @@ miopenStatus_t VarBackward(Handle& handle,
 
     return miopenStatusSuccess;
 }
+
+} // namespace var
 
 } // namespace miopen

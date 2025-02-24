@@ -26,14 +26,13 @@
 
 #ifndef MIOPEN_DONT_USE_HIP_RUNTIME_HEADERS
 #include <hip/hip_fp16.h>
-#include <hip/hip_bfloat16.h>
 #include <hip/hip_runtime.h>
 #endif
 
 #include "float_types.h"
-#include "tensor_utils.hpp"
+#include "tensor_view.hpp"
 
-template <typename T>
+template <typename TIO>
 __device__ void VarBackwardImpl(const T* __restrict__ input,
                                 T* __restrict__ input_grad,
                                 const T* __restrict__ mean,

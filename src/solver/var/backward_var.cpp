@@ -26,12 +26,10 @@
 
 #include <miopen/datatype.hpp>
 #include <miopen/kernel_build_params.hpp>
+#include <miopen/target_properties.hpp>
+#include <miopen/tensor_view_utils.hpp>
 #include <miopen/var/invoke_params.hpp>
 #include <miopen/var/solvers.hpp>
-#include <miopen/var.hpp>
-#include <miopen/target_properties.hpp>
-#include <hip/hip_runtime.h>
-#include "../../kernels/tensor_utils.hpp"
 
 #define LOCAL_SIZE 1024
 
@@ -41,25 +39,25 @@ namespace solver {
 
 namespace var {
 
-bool VarBackward::IsApplicable([[maybe_unused]] const ExecutionContext& context,
+bool VarBackward::IsApplicable(const ExecutionContext& /*context*/,
                                const miopen::var::ProblemDescription& problem) const
 {
-    if(!problem.IsSameType())
+    if(!(problem.GetInputDesc().GetType() == miopenFloat ||
+         problem.GetInputDesc().GetType() == miopenHalf ||
+         problem.GetInputDesc().GetType() == miopenBFloat16))
         return false;
-    if(!problem.IsApplicableSize())
-        return false;
+
     return true;
 }
 
-ConvSolution VarBackward::GetSolution([[maybe_unused]] const ExecutionContext& context,
+ConvSolution VarBackward::GetSolution(const ExecutionContext& /*context*/,
                                       const miopen::var::ProblemDescription& problem) const
 {
     auto result = ConvSolution{miopenStatusSuccess};
 
-    auto dtype            = problem.GetInputDesc().GetType();
-    auto input_grad_dims  = problem.GetInputGradDesc().GetLengths();
-    auto input_grad_numel = std::accumulate(
-        input_grad_dims.begin(), input_grad_dims.end(), 1ULL, std::multiplies<size_t>{});
+    auto dtype             = problem.GetInputDesc().GetType();
+    auto input_grad_dims   = problem.GetInputGradDesc().GetLengths();
+    auto input_grad_numel  = problem.GetInputGradDesc().GetElementSize();
     auto is_all_contiguous = problem.IsAllContiguous();
 
     {
@@ -83,12 +81,10 @@ ConvSolution VarBackward::GetSolution([[maybe_unused]] const ExecutionContext& c
             kernel.kernel_name = "VarBackward";
         }
 
-        const auto build_params = KernelBuildParameters{
-            {"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
-            {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
-            {"MIOPEN_USE_FP64", static_cast<int>(dtype == miopenDouble)},
-            {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
-        };
+        const auto build_params =
+            KernelBuildParameters{{"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
+                                  {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
+                                  {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)}};
 
         kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
@@ -103,7 +99,7 @@ ConvSolution VarBackward::GetSolution([[maybe_unused]] const ExecutionContext& c
         result.construction_params.push_back(kernel);
     }
 
-    result.invoker_factory = [](const std::vector<Kernel>& kernels) {
+    result.invoker_factory = [input_grad_numel](const std::vector<Kernel>& kernels) {
         return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
             decltype(auto) kernel = handle_.Run(kernels.front());
             decltype(auto) params = raw_params.CastTo<miopen::var::InvokeParams>();
@@ -121,9 +117,6 @@ ConvSolution VarBackward::GetSolution([[maybe_unused]] const ExecutionContext& c
             auto var_grad_strides   = params.varGradDesc->GetStrides();
 
             auto dims = *(params.dims);
-
-            auto N = std::accumulate(
-                input_grad_dims.begin(), input_grad_dims.end(), 1, std::multiplies<int>{});
 
             dim_5d_t dims_onehot;
             for(auto dim : dims)
@@ -186,7 +179,7 @@ ConvSolution VarBackward::GetSolution([[maybe_unused]] const ExecutionContext& c
                        params.mean,
                        params.mean_grad,
                        params.var_grad,
-                       N,
+                       input_grad_numel,
                        dims_onehot,
                        params.unbiased,
                        params.divisor,
@@ -202,7 +195,7 @@ ConvSolution VarBackward::GetSolution([[maybe_unused]] const ExecutionContext& c
                        params.mean,
                        params.mean_grad,
                        params.var_grad,
-                       N,
+                       input_grad_numel,
                        dims_onehot,
                        params.unbiased,
                        params.divisor,

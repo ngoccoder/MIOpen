@@ -24,8 +24,8 @@
  *
  *******************************************************************************/
 
-#include "var_driver.hpp"
 #include "registry_driver_maker.hpp"
+#include "var_driver.hpp"
 
 static Driver* makeDriver(const std::string& base_arg)
 {

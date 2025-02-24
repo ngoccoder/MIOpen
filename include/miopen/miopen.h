@@ -7610,7 +7610,7 @@ MIOPEN_EXPORT miopenStatus_t miopenGetitemBackward(miopenHandle_t handle,
 
 #ifdef MIOPEN_BETA_API
 // VAR API
-/** @addtogroup VAR
+/** @addtogroup var
  *
  *  @{
  */
@@ -7648,10 +7648,10 @@ MIOPEN_EXPORT miopenStatus_t miopenVarBackward(miopenHandle_t handle,
                                                const miopenTensorDescriptor_t varGradDesc,
                                                const void* var_grad,
                                                const int* dims,
-                                               const int num_dims,
-                                               const bool keepdim,
-                                               const bool unbiased,
-                                               const int divisor);
+                                               int num_dims,
+                                               bool keepdim,
+                                               bool unbiased,
+                                               int divisor);
 
 /** @} */
 // CLOSEOUT VAR DOXYGEN GROUP

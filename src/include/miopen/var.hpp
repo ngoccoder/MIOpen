@@ -24,8 +24,7 @@
  *
  *******************************************************************************/
 
-#ifndef MIOPEN_VAR_HPP
-#define MIOPEN_VAR_HPP
+#pragma once
 
 #include <miopen/common.hpp>
 
@@ -33,6 +32,8 @@ namespace miopen {
 
 struct Handle;
 struct TensorDescriptor;
+
+namespace var {
 
 MIOPEN_INTERNALS_EXPORT miopenStatus_t VarBackward(Handle& handle,
                                                    const TensorDescriptor& inputDesc,
@@ -43,13 +44,14 @@ MIOPEN_INTERNALS_EXPORT miopenStatus_t VarBackward(Handle& handle,
                                                    ConstData_t mean,
                                                    const TensorDescriptor& meanGradDesc,
                                                    ConstData_t mean_grad,
-                                                   const TensorDescriptor& varianceGradDesc,
-                                                   ConstData_t variance_grad,
+                                                   const TensorDescriptor& varGradDesc,
+                                                   ConstData_t var_grad,
                                                    const int* dims,
                                                    int num_dims,
                                                    bool keepdim,
                                                    bool unbiased,
                                                    int divisor);
 
+} // namespace var
+
 } // namespace miopen
-#endif
