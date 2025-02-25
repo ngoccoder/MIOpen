@@ -24,134 +24,111 @@
  *
  *******************************************************************************/
 
-#ifndef GUARD_CPU_VAR_HPP
-#define GUARD_CPU_VAR_HPP
+#pragma once
 
 #include "tensor_holder.hpp"
-#include <atomic>
+#include "tensor_view.hpp"
+#include <miopen/tensor_view_utils.hpp>
 #include <vector>
 
 template <class T>
-void cpu_var_backward(tensor<T> input,
+void cpu_var_backward(const tensor<T>& input,
                       tensor<T>& input_grad,
-                      tensor<T> mean,
-                      tensor<T> mean_grad,
-                      tensor<T> var_grad,
-                      int32_t* dims,
-                      int32_t num_dims,
-                      bool unbiased,
-                      int32_t divisor)
+                      const tensor<T>& mean,
+                      const tensor<T>& mean_grad,
+                      const tensor<T>& var_grad,
+                      dim_5d_t dims,
+                      bool unbiased)
 {
-    auto input_dims         = input.desc.GetLengths();
-    auto input_strides      = input.desc.GetStrides();
-    auto input_grad_dims    = input_grad.desc.GetLengths();
-    auto input_grad_strides = input_grad.desc.GetStrides();
-    auto mean_dims          = mean.desc.GetLengths();
-    auto mean_strides       = mean.desc.GetStrides();
-    auto mean_grad_dims     = mean_grad.desc.GetLengths();
-    auto mean_grad_strides  = mean_grad.desc.GetStrides();
-    auto var_grad_dims      = var_grad.desc.GetLengths();
-    auto var_grad_strides   = var_grad.desc.GetStrides();
+    tensor_view_t<5> input_tv      = miopen::get_inner_expanded_tv<5>(input.desc);
+    tensor_view_t<5> mean_tv       = miopen::get_inner_expanded_tv<5>(mean.desc);
+    tensor_view_t<5> mean_grad_tv  = miopen::get_inner_expanded_tv<5>(mean_grad.desc);
+    tensor_view_t<5> var_grad_tv   = miopen::get_inner_expanded_tv<5>(var_grad.desc);
+    tensor_view_t<5> input_grad_tv = miopen::get_inner_expanded_tv<5>(input_grad.desc);
 
-    auto input_grad_numel = std::accumulate(
-        input_grad_dims.begin(), input_grad_dims.end(), 1LL, std::multiplies<int64_t>());
+    uint32_t divisor = 1;
+    auto input_len   = input.desc.GetLengths();
+    for(auto i = 0; i < 5; i++)
+    {
+        divisor *= (dims.x[i] ? input_len[i] : 1);
+    }
 
+    auto input_grad_numel = input_grad.desc.GetElementSize();
     std::fill(input_grad.data.begin(), input_grad.data.end(), 0);
 
     par_ford(input_grad_numel)([&](size_t gid) {
-        std::vector<int64_t> input_idx(input_dims.size(), 0);
-        int64_t tmp_gid = gid;
+        tensor_layout_t<5> input_grad_layout(input_grad_tv, gid);
 
-        for(int i = input_dims.size() - 1; i >= 0; --i)
+        tensor_layout_t<5> layout;
+        for(int i = 0; i < 5; i++)
         {
-            input_idx[i] = tmp_gid % input_dims[i];
-            tmp_gid /= input_dims[i];
+            layout.layout[i] = dims.x[i] ? 0 : input_grad_layout.layout[i];
         }
 
-        std::vector<int64_t> reduced_idx(input_dims.size(), 0);
-        for(int i = 0; i < input_dims.size(); ++i)
+        double input_v =
+            static_cast<double>(input[input_tv.get_tensor_view_idx(input_grad_layout)]);
+        double mean_v = static_cast<double>(0);
+
+        if(mean.data.data())
         {
-            if(std::find(dims, dims + num_dims, i) == dims + num_dims)
-            {
-                reduced_idx[i] = input_idx[i];
-            }
+            mean_v = static_cast<double>(mean[mean_tv.get_tensor_view_idx(layout)]);
         }
 
-        T input_v = input[std::inner_product(
-            input_idx.begin(), input_idx.end(), input_strides.begin(), static_cast<size_t>(0))];
+        double input_grad_v = static_cast<double>(0.0);
+        if(var_grad.data.data())
+        {
+            double var_grad_v =
+                static_cast<double>(var_grad[var_grad_tv.get_tensor_view_idx(layout)]);
+            double res = var_grad_v * (input_v - mean_v) * static_cast<double>(2);
+            input_grad_v += unbiased ? res / static_cast<double>(divisor - 1)
+                                     : res / static_cast<double>(divisor);
+        }
 
-        int64_t mean_idx = std::inner_product(
-            reduced_idx.begin(), reduced_idx.end(), mean_strides.begin(), static_cast<size_t>(0));
-        T mean_v = mean[mean_idx];
+        if(mean_grad.data.data())
+        {
+            double mean_grad_v =
+                static_cast<double>(mean_grad[mean_grad_tv.get_tensor_view_idx(layout)]);
+            input_grad_v += mean_grad_v / static_cast<double>(divisor);
+        }
 
-        T input_grad_v = static_cast<T>(0.0);
-
-        int64_t var_grad_idx = std::inner_product(reduced_idx.begin(),
-                                                  reduced_idx.end(),
-                                                  var_grad_strides.begin(),
-                                                  static_cast<size_t>(0));
-        T var_grad_v         = var_grad[var_grad_idx];
-        T res                = static_cast<T>(var_grad_v *
-                               (static_cast<float>(input_v) - static_cast<float>(mean_v)) * 2.0f);
-        input_grad_v +=
-            unbiased ? res / static_cast<T>(divisor - 1) : res / static_cast<T>(divisor);
-
-        int64_t mean_grad_idx = std::inner_product(reduced_idx.begin(),
-                                                   reduced_idx.end(),
-                                                   mean_grad_strides.begin(),
-                                                   static_cast<size_t>(0));
-        T mean_grad_v         = mean_grad[mean_grad_idx];
-        input_grad_v += mean_grad_v / static_cast<T>(divisor);
-
-        input_grad[std::inner_product(input_idx.begin(),
-                                      input_idx.end(),
-                                      input_grad_strides.begin(),
-                                      static_cast<size_t>(0))] = input_grad_v;
+        input_grad[input_grad_tv.get_tensor_view_idx(input_grad_layout)] =
+            static_cast<T>(input_grad_v);
     });
 }
 
 template <class T>
-void cpu_mean(tensor<T> input, tensor<T>& mean, std::vector<int32_t>& dims_vector, int32_t divisor)
+void cpu_mean(const tensor<T>& input, tensor<T>& mean, const std::vector<int>& dims_vector)
 {
-    auto input_dims    = input.desc.GetLengths();
-    auto input_strides = input.desc.GetStrides();
-    auto mean_dims     = mean.desc.GetLengths();
-    auto mean_strides  = mean.desc.GetStrides();
+    uint32_t divisor = 1;
+    auto input_len   = input.desc.GetLengths();
+    for(auto dim : dims_vector)
+    {
+        divisor *= input_len[dim];
+    }
 
-    auto input_numel =
-        std::accumulate(input_dims.begin(), input_dims.end(), 1LL, std::multiplies<int64_t>());
+    auto input_tv = miopen::get_inner_expanded_tv<5>(input.desc);
+    auto mean_tv  = miopen::get_inner_expanded_tv<5>(mean.desc);
+
+    auto input_numel = input.desc.GetElementSize();
+
+    std::fill(mean.data.begin(), mean.data.end(), 0);
 
     par_ford(input_numel)([&](size_t gid) {
-        std::vector<int64_t> input_idx(input_dims.size(), 0);
-        int64_t tmp_gid = gid;
+        tensor_layout_t<5> input_layout(input_tv, gid);
+        tensor_layout_t<5> mean_layout = input_layout;
 
-        for(int i = input_dims.size() - 1; i >= 0; --i)
+        for(auto dim : dims_vector)
         {
-            input_idx[i] = tmp_gid % input_dims[i];
-            tmp_gid /= input_dims[i];
+            mean_layout.layout[dim] = 0;
         }
 
-        std::vector<int64_t> reduced_idx(input_dims.size(), 0);
-        for(int i = 0; i < input_dims.size(); ++i)
-        {
-            if(std::find(dims_vector.begin(), dims_vector.end(), i) == dims_vector.end())
-            {
-                reduced_idx[i] = input_idx[i];
-            }
-        }
-
-        int64_t mean_idx = std::inner_product(
-            reduced_idx.begin(), reduced_idx.end(), mean_strides.begin(), static_cast<size_t>(0));
-        mean[mean_idx] += input[std::inner_product(
-            input_idx.begin(), input_idx.end(), input_strides.begin(), static_cast<size_t>(0))];
+        mean[mean_tv.get_tensor_view_idx(mean_layout)] +=
+            input[input_tv.get_tensor_view_idx(input_layout)];
     });
 
-    auto mean_numel =
-        std::accumulate(mean_dims.begin(), mean_dims.end(), 1LL, std::multiplies<int64_t>());
+    auto mean_numel = mean.desc.GetElementSize();
     for(size_t i = 0; i < mean_numel; ++i)
     {
         mean[i] /= static_cast<T>(divisor);
     }
 }
-
-#endif

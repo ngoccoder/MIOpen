@@ -50,21 +50,12 @@ miopenStatus_t VarBackward(Handle& handle,
                            ConstData_t var_grad,
                            const int* dims,
                            uint32_t num_dims,
-                           bool keepdim,
-                           bool unbiased,
-                           uint32_t divisor)
+                           bool unbiased)
 {
     std::vector<int> dims_vector(dims, dims + num_dims);
 
-    const auto problem = var::ProblemDescription{inputDesc,
-                                                 inputGradDesc,
-                                                 meanDesc,
-                                                 meanGradDesc,
-                                                 varGradDesc,
-                                                 dims_vector,
-                                                 keepdim,
-                                                 unbiased,
-                                                 divisor};
+    const auto problem = var::ProblemDescription{
+        inputDesc, inputGradDesc, meanDesc, meanGradDesc, varGradDesc, dims_vector, unbiased};
 
     const auto invoke_params = [&]() {
         auto tmp          = var::InvokeParams{};
@@ -80,9 +71,7 @@ miopenStatus_t VarBackward(Handle& handle,
         tmp.mean_grad     = mean_grad;
         tmp.var_grad      = var_grad;
         tmp.dims          = dims_vector;
-        tmp.keepdim       = keepdim;
         tmp.unbiased      = unbiased;
-        tmp.divisor       = divisor;
         return tmp;
     }();
 

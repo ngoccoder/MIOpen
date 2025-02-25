@@ -43,18 +43,14 @@ struct ProblemDescription : ProblemDescriptionBase
                        const TensorDescriptor& meanGradDesc_,
                        const TensorDescriptor& varGradDesc_,
                        const std::vector<int>& dims_,
-                       const bool keepdim_,
-                       const bool unbiased_,
-                       const int divisor_)
+                       const bool unbiased_)
         : inputDesc(inputDesc_),
           inputGradDesc(inputGradDesc_),
           meanDesc(meanDesc_),
           meanGradDesc(meanGradDesc_),
           varGradDesc(varGradDesc_),
           dims(dims_),
-          keepdim(keepdim_),
-          unbiased(unbiased_),
-          divisor(divisor_)
+          unbiased(unbiased_)
     {
         if(!IsSameType())
         {
@@ -80,9 +76,7 @@ struct ProblemDescription : ProblemDescriptionBase
     const TensorDescriptor& GetVarGradDesc() const { return varGradDesc; }
 
     const std::vector<int>& GetDims() const { return dims; }
-    bool GetKeepDim() const { return keepdim; }
     bool GetUnbiased() const { return unbiased; }
-    uint32_t GetDivisor() const { return divisor; }
 
     bool IsSameType() const
     {
@@ -129,9 +123,7 @@ private:
     TensorDescriptor varGradDesc;
 
     std::vector<int> dims;
-    bool keepdim;
     bool unbiased;
-    uint32_t divisor;
 };
 
 } // namespace var

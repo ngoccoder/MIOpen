@@ -48,9 +48,7 @@ MIOPEN_INTERNALS_EXPORT miopenStatus_t VarBackward(Handle& handle,
                                                    ConstData_t var_grad,
                                                    const int* dims,
                                                    uint32_t num_dims,
-                                                   bool keepdim,
-                                                   bool unbiased,
-                                                   uint32_t divisor);
+                                                   bool unbiased);
 
 } // namespace var
 

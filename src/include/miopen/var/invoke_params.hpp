@@ -49,9 +49,7 @@ struct InvokeParams : public miopen::InvokeParams
     ConstData_t var_grad  = nullptr;
 
     std::vector<int> dims;
-    bool keepdim;
     bool unbiased;
-    uint32_t divisor;
 
     std::size_t GetWorkspaceSize() const { return 0; }
     Data_t GetWorkspace() const { return nullptr; }

@@ -8200,10 +8200,7 @@ MIOPEN_EXPORT miopenStatus_t miopenMultiMarginLossForward(miopenHandle_t handle,
  * @param dims            Array of integers containing the dimensions along which the variance is
  * (input)
  * @param num_dims        The length of the dims array (input)
- * @param keepdim         Flag indicating whether to keep the reduced dimensions in the output
- * (input)
  * @param unbiased        Flag indicating whether to use the unbiased variance calculation (input)
- * @param divisor         The divisor used in the variance calculation (input)
  */
 MIOPEN_EXPORT miopenStatus_t miopenVarBackward(miopenHandle_t handle,
                                                const miopenTensorDescriptor_t inputDesc,
@@ -8218,9 +8215,7 @@ MIOPEN_EXPORT miopenStatus_t miopenVarBackward(miopenHandle_t handle,
                                                const void* var_grad,
                                                const int* dims,
                                                uint32_t num_dims,
-                                               bool keepdim,
-                                               bool unbiased,
-                                               uint32_t divisor);
+                                               bool unbiased);
 
 /** @} */
 // CLOSEOUT VAR DOXYGEN GROUP

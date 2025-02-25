@@ -43,9 +43,7 @@ extern "C" miopenStatus_t miopenVarBackward(miopenHandle_t handle,
                                             const void* var_grad,
                                             const int* dims,
                                             uint32_t num_dims,
-                                            bool keepdim,
-                                            bool unbiased,
-                                            uint32_t divisor)
+                                            bool unbiased)
 {
     MIOPEN_LOG_FUNCTION(handle,
                         inputDesc,
@@ -60,9 +58,7 @@ extern "C" miopenStatus_t miopenVarBackward(miopenHandle_t handle,
                         var_grad,
                         dims,
                         num_dims,
-                        keepdim,
-                        unbiased,
-                        divisor);
+                        unbiased);
 
     return miopen::try_([&] {
         miopen::var::VarBackward(miopen::deref(handle),
@@ -78,8 +74,6 @@ extern "C" miopenStatus_t miopenVarBackward(miopenHandle_t handle,
                                  DataCast(var_grad),
                                  dims,
                                  num_dims,
-                                 keepdim,
-                                 unbiased,
-                                 divisor);
+                                 unbiased);
     });
 }

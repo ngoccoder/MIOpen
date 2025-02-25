@@ -62,8 +62,6 @@ NetworkConfig ProblemDescription::MakeNetworkConfig() const
     }
 
     ss << "dtype-" << dtype << "-";
-
-    ss << "divisor-" << divisor << "-";
     ss << "all_contiguous-" << is_all_contiguous;
 
     return NetworkConfig{ss.str()};

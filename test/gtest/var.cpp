@@ -25,143 +25,36 @@
  *******************************************************************************/
 
 #include "var.hpp"
-#include <miopen/env.hpp>
-
-MIOPEN_DECLARE_ENV_VAR_STR(MIOPEN_TEST_FLOAT_ARG)
-MIOPEN_DECLARE_ENV_VAR_BOOL(MIOPEN_TEST_ALL)
-
-namespace env = miopen::env;
+using float16 = half_float::half;
 
 namespace var {
 
-std::string GetFloatArg()
-{
-    const auto tmp = env::value(MIOPEN_TEST_FLOAT_ARG);
-    if(tmp.empty())
-        return "";
-    return tmp;
-}
-
-struct VarBackwardTestContiguousFloat : VarBackwardTestContiguous<float>
-{
-};
-
-struct VarBackwardTestContiguousHalf : VarBackwardTestContiguous<half_float::half>
-{
-};
-
-struct VarBackwardTestContiguousBFloat16 : VarBackwardTestContiguous<bfloat16>
-{
-};
-
-struct VarBackwardTestNonContiguousFloat : VarBackwardTestNonContiguous<float>
-{
-};
-
-struct VarBackwardTestNonContiguousHalf : VarBackwardTestNonContiguous<half_float::half>
-{
-};
-
-struct VarBackwardTestNonContiguousBFloat16 : VarBackwardTestNonContiguous<bfloat16>
-{
-};
+using GPU_Var_bwd_FP32  = VarBwdTest<float>;
+using GPU_Var_bwd_FP16  = VarBwdTest<float16>;
+using GPU_Var_bwd_BFP16 = VarBwdTest<bfloat16>;
 
 } // namespace var
 using namespace var;
 
-TEST_P(VarBackwardTestContiguousFloat, VarTestBw)
+TEST_P(GPU_Var_bwd_FP32, Test)
 {
-    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--float")))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-}
 
-TEST_P(VarBackwardTestContiguousHalf, VarTestBw)
+    RunTest();
+    Verify();
+};
+
+TEST_P(GPU_Var_bwd_FP16, Test)
 {
-    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--half")))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-}
+    RunTest();
+    Verify();
+};
 
-TEST_P(VarBackwardTestContiguousBFloat16, VarTestBw)
+TEST_P(GPU_Var_bwd_BFP16, Test)
 {
-    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--bfloat16")))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-}
+    RunTest();
+    Verify();
+};
 
-TEST_P(VarBackwardTestNonContiguousFloat, VarTestBw)
-{
-    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--float")))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-}
-
-TEST_P(VarBackwardTestNonContiguousHalf, VarTestBw)
-{
-    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--half")))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-}
-
-TEST_P(VarBackwardTestNonContiguousBFloat16, VarTestBw)
-{
-    if(!MIOPEN_TEST_ALL || (env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--bfloat16")))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-}
-
-INSTANTIATE_TEST_SUITE_P(VarTestSet,
-                         VarBackwardTestContiguousFloat,
-                         testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet,
-                         VarBackwardTestContiguousHalf,
-                         testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet,
-                         VarBackwardTestContiguousBFloat16,
-                         testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet,
-                         VarBackwardTestNonContiguousFloat,
-                         testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet,
-                         VarBackwardTestNonContiguousHalf,
-                         testing::ValuesIn(VarTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(VarTestSet,
-                         VarBackwardTestNonContiguousBFloat16,
-                         testing::ValuesIn(VarTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Var_bwd_FP32, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Var_bwd_FP16, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Var_bwd_BFP16, testing::ValuesIn(GenFullTestCases()));

@@ -116,10 +116,8 @@ private:
 
     std::vector<int> dims;
 
-    bool keepdim;
     bool unbiased;
-
-    int32_t divisor;
+    uint32_t divisor;
 };
 
 template <typename Tgpu, typename Tref>
@@ -168,9 +166,7 @@ int VarDriver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
         MIOPEN_THROW("Invalid Forward|Backward Mode");
     }
 
-    keepdim      = inflags.GetValueInt("keep_dim") == 0 ? false : true;
     unbiased     = inflags.GetValueInt("unbiased") == 0 ? false : true;
-    divisor      = inflags.GetValueInt("divisor");
     isContiguous = inflags.GetValueInt("contiguous") == 0 ? false : true;
 
     return miopenStatusSuccess;
@@ -187,6 +183,7 @@ int VarDriver<Tgpu, Tref>::GetandSetData()
 
     dims = GetDimsFromCmdLine();
 
+    // Equivalent keep_dim=true in forward pass
     for(const auto& dim : dims)
     {
         mean_len[dim]      = 1;
@@ -221,9 +218,7 @@ int VarDriver<Tgpu, Tref>::AddCmdLineArgs()
                           "32x32x32",
                           "The dimensional lengths of the input tensor (Default=32x32x32)");
     inflags.AddInputFlag("dims", 'D', "0", "The dimensions to reduce (Default=0)", "string");
-    inflags.AddInputFlag("keep_dim", 'K', "1", "Keep the reduced dimensions (Default=1)", "int");
     inflags.AddInputFlag("unbiased", 'U', "1", "Use unbiased variance (Default=1)", "int");
-    inflags.AddInputFlag("divisor", 'V', "32", "The divisor to use (Default=32)", "int");
     inflags.AddInputFlag("iter", 'i', "10", "Number of iterations (Default=10)", "int");
     inflags.AddInputFlag("verify", 'v', "1", "Verify the results (Default=1)", "int");
     inflags.AddInputFlag("time", 't', "0", "Time Each Layer (Default=0)", "int");
@@ -277,10 +272,10 @@ int VarDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
     {
         input[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
     }
-    for(int i = 0; i < mean_sz; i++)
-    {
-        mean[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
-    }
+
+    // Calculate mean
+    mloMeanForwardRunHost(inputDesc, meanDesc, input.data(), mean.data(), dims);
+
     for(int i = 0; i < mean_grad_sz; i++)
     {
         mean_grad[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
@@ -350,9 +345,7 @@ int VarDriver<Tgpu, Tref>::RunBackwardGPU()
                           var_grad_dev->GetMem(),
                           dims.data(),
                           dims.size(),
-                          keepdim,
-                          unbiased,
-                          divisor);
+                          unbiased);
         float time = 0.0;
         miopenGetKernelTime(GetHandle(), &time);
         kernel_total_time += time;
@@ -397,8 +390,7 @@ int VarDriver<Tgpu, Tref>::RunBackwardCPU()
                                       mean_grad.data(),
                                       var_grad.data(),
                                       dims_onehot,
-                                      unbiased,
-                                      divisor);
+                                      unbiased);
 
     return miopenStatusSuccess;
 }
@@ -422,12 +414,6 @@ int VarDriver<Tgpu, Tref>::VerifyBackward()
     RunBackwardCPU();
     const Tref tolerance = GetTolerance();
     auto error           = miopen::rms_range(input_grad_host, input_grad);
-
-    // for (auto i = 0; i < input_grad.size(); i++)
-    //{
-    //    std::cout << "Input_grad_host[" << i << "]: " << input_grad_host[i] << " vs input_grad["
-    //    << i << "]: " << input_grad[i] << std::endl;
-    //}
 
     if(!std::isfinite(error) || error > tolerance)
     {

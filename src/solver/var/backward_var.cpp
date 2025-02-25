@@ -108,11 +108,15 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& /*context*/,
             decltype(auto) kernel = handle_.Run(kernels.front());
             decltype(auto) params = raw_params.CastTo<miopen::var::InvokeParams>();
 
+            uint32_t divisor = 1;
+            auto input_len   = params.inputDesc->GetLengths();
+
             auto dims = params.dims;
             dim_5d_t dims_onehot;
             for(auto dim : dims)
             {
                 dims_onehot.x[dim] = 1;
+                divisor *= input_len[dim];
             }
 
             tensor_view_t<5> input_tv = get_inner_expanded_tv<5>(miopen::deref(params.inputDesc));
@@ -134,7 +138,7 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& /*context*/,
                        input_grad_numel,
                        dims_onehot,
                        params.unbiased,
-                       params.divisor,
+                       divisor,
                        input_grad_tv,
                        mean_tv,
                        mean_grad_tv,
@@ -150,7 +154,7 @@ ConvSolution VarBackward::GetSolution(const ExecutionContext& /*context*/,
                        input_grad_numel,
                        dims_onehot,
                        params.unbiased,
-                       params.divisor,
+                       divisor,
                        input_tv,
                        input_grad_tv,
                        mean_tv,
