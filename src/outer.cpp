@@ -35,6 +35,8 @@
 
 namespace miopen {
 
+namespace outer {
+
 miopenStatus_t OuterForward(Handle& handle,
                             const TensorDescriptor& x1Desc,
                             ConstData_t x1,
@@ -52,11 +54,15 @@ miopenStatus_t OuterForward(Handle& handle,
     return miopenStatusSuccess;
 }
 
-miopenStatus_t OuterBackwardGrad1(Handle& handle,
+miopenStatus_t OuterBackward(Handle& handle,
+                                  const TensorDescriptor& x1Desc,
+                                  ConstData_t x1,
                                   const TensorDescriptor& x2Desc,
                                   ConstData_t x2,
                                   const TensorDescriptor& x1GradDesc,
-                                  ConstData_t x1Grad,
+                                  Data_t x1Grad,
+                                  const TensorDescriptor& x2GradDesc,
+                                  Data_t x2Grad,
                                   const TensorDescriptor& yGradDesc,
                                   ConstData_t yGrad)
 {
@@ -64,30 +70,13 @@ miopenStatus_t OuterBackwardGrad1(Handle& handle,
         outer::ProblemDescription(false, outer::ONE, x1GradDesc, x2Desc, yGradDesc);
     const auto invoke_params =
         outer::InvokeParamsBackwardGrad1{x2Desc, x2, x1GradDesc, x1Grad, yGradDesc, yGrad};
-    const auto algo    = AlgorithmName{"OuterBackwardGrad1"};
+    const auto algo    = AlgorithmName{"OuterBackward"};
     const auto solvers = solver::SolverContainer<solver::outer::OuterBackwardGrad1>{};
     solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
 
     return miopenStatusSuccess;
 }
 
-miopenStatus_t OuterBackwardGrad2(Handle& handle,
-                                  const TensorDescriptor& x1Desc,
-                                  ConstData_t x1,
-                                  const TensorDescriptor& x2GradDesc,
-                                  ConstData_t x2Grad,
-                                  const TensorDescriptor& yGradDesc,
-                                  ConstData_t yGrad)
-{
-    const auto problem =
-        outer::ProblemDescription(false, outer::TWO, x1Desc, x2GradDesc, yGradDesc);
-    const auto invoke_params =
-        outer::InvokeParamsBackwardGrad2{x1Desc, x1, x2GradDesc, x2Grad, yGradDesc, yGrad};
-    const auto algo    = AlgorithmName{"OuterBackwardGrad2"};
-    const auto solvers = solver::SolverContainer<solver::outer::OuterBackwardGrad2>{};
-    solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
-
-    return miopenStatusSuccess;
-}
+} // namespace outer
 
 } // namespace miopen

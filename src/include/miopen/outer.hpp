@@ -23,8 +23,8 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#ifndef MIOPEN_OUTER_HPP_
-#define MIOPEN_OUTER_HPP_
+
+#pragma once
 
 #include <miopen/common.hpp>
 
@@ -32,6 +32,8 @@ namespace miopen {
 
 struct Handle;
 struct TensorDescriptor;
+
+namespace outer {
 
 MIOPEN_INTERNALS_EXPORT miopenStatus_t OuterForward(Handle& handle,
                                                     const TensorDescriptor& x1Desc,
@@ -41,21 +43,18 @@ MIOPEN_INTERNALS_EXPORT miopenStatus_t OuterForward(Handle& handle,
                                                     const TensorDescriptor& yDesc,
                                                     Data_t y);
 
-MIOPEN_INTERNALS_EXPORT miopenStatus_t OuterBackwardGrad1(Handle& handle,
+MIOPEN_INTERNALS_EXPORT miopenStatus_t OuterBackward(Handle& handle,
+                                                          const TensorDescriptor& x1Desc,
+                                                          ConstData_t x1,
                                                           const TensorDescriptor& x2Desc,
                                                           ConstData_t x2,
                                                           const TensorDescriptor& x1GradDesc,
-                                                          ConstData_t x1Grad,
+                                                          Data_t x1Grad,
+                                                          const TensorDescriptor& x2GradDesc,
+                                                          Data_t x2Grad,
                                                           const TensorDescriptor& yGradDesc,
                                                           ConstData_t yGrad);
 
-MIOPEN_INTERNALS_EXPORT miopenStatus_t OuterBackwardGrad2(Handle& handle,
-                                                          const TensorDescriptor& x1Desc,
-                                                          ConstData_t x1,
-                                                          const TensorDescriptor& x2GradDesc,
-                                                          ConstData_t x2Grad,
-                                                          const TensorDescriptor& yGradDesc,
-                                                          ConstData_t yGrad);
+} // namespace outer
 
 } // namespace miopen
-#endif // _MIOPEN_OUTER_HPP_

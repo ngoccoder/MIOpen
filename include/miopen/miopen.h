@@ -72,6 +72,7 @@
  * @defgroup ReduceCalculation
  * @defgroup RotaryPositionalEmbeddings
  * @defgroup ReLU
+ * @defgroup outer
  *
  */
 
@@ -6407,71 +6408,6 @@ MIOPEN_EXPORT miopenStatus_t miopenT5LayerNormBackward(miopenHandle_t handle,
 #endif // MIOPEN_BETA_API
 
 #ifdef MIOPEN_BETA_API
-// Outer APIs
-/** @addtogroup outer
- *
- *  @{
- */
-/*! @brief Execute a outer forward layer
- *
- * @param handle         MIOpen handle (input)
- * @param x1Desc         Tensor descriptor of input tensor x1 (input)
- * @param x1             Source data tensor x1 (input)
- * @param x2Desc         Tensor descriptor of input tensor x2 (input)
- * @param x2             Source data tensor x2 (input)
- * @param yDesc          Tensor descriptor of output tensor y (output)
- * @param y              Data tensor y (output)
- * @return               miopenStatus_t
- */
-MIOPEN_EXPORT miopenStatus_t miopenOuterForward(miopenHandle_t handle,
-                                                const miopenTensorDescriptor_t x1Desc,
-                                                const void* x1,
-                                                const miopenTensorDescriptor_t x2Desc,
-                                                const void* x2,
-                                                const miopenTensorDescriptor_t yDesc,
-                                                void* y);
-/*! @brief Execute a outer backwardGrad1 layer
- *
- * @param handle         MIOpen handle (input)
- * @param x2Desc         Tensor descriptor of input tensor x2 (input)
- * @param x2             Source data tensor x2 (input)
- * @param x1GradDesc     Tensor descriptor of input tensor x1Grad (output)
- * @param x1Grad         Source data tensor x1Grad (output)
- * @param yGradDesc      Tensor descriptor of output tensor yGrad (input)
- * @param yGrad          Data tensor yGrad (input)
- * @return               miopenStatus_t
- */
-MIOPEN_EXPORT miopenStatus_t miopenOuterBackwardGrad1(miopenHandle_t handle,
-                                                      const miopenTensorDescriptor_t x2Desc,
-                                                      const void* x2,
-                                                      const miopenTensorDescriptor_t x1GradDesc,
-                                                      void* x1Grad,
-                                                      const miopenTensorDescriptor_t yGradDesc,
-                                                      const void* yGrad);
-/*! @brief Execute a outer backwardGrad2 layer
- *
- * @param handle         MIOpen handle (input)
- * @param x1Desc         Tensor descriptor of input tensor x2 (input)
- * @param x1             Source data tensor x2 (input)
- * @param x2GradDesc     Tensor descriptor of input tensor x1Grad (output)
- * @param x2Grad         Source data tensor x1Grad (output)
- * @param yGradDesc      Tensor descriptor of output tensor yGrad (input)
- * @param yGrad          Data tensor yGrad (input)
- * @return               miopenStatus_t
- */
-MIOPEN_EXPORT miopenStatus_t miopenOuterBackwardGrad2(miopenHandle_t handle,
-                                                      const miopenTensorDescriptor_t x1Desc,
-                                                      const void* x1,
-                                                      const miopenTensorDescriptor_t x2GradDesc,
-                                                      void* x2Grad,
-                                                      const miopenTensorDescriptor_t yGradDesc,
-                                                      const void* yGrad);
-
-/** @} */
-// CLOSEOUT OUTER DOXYGEN GROUP
-#endif
-
-#ifdef MIOPEN_BETA_API
 // Graph API
 /** @addtogroup GraphAPI
  *
@@ -8240,6 +8176,61 @@ MIOPEN_EXPORT miopenStatus_t miopenMultiMarginLossForward(miopenHandle_t handle,
 /** @} */
 // CLOSEOUT LossFunction DOXYGEN GROUP
 #endif // MIOPEN_BETA_API
+
+#ifdef MIOPEN_BETA_API
+// Outer APIs
+/** @addtogroup outer
+ *
+ *  @{
+ */
+/*! @brief Execute a outer forward layer
+ *
+ * @param handle         MIOpen handle (input)
+ * @param x1Desc         Tensor descriptor of input tensor x1 (input)
+ * @param x1             Source data tensor x1 (input)
+ * @param x2Desc         Tensor descriptor of input tensor x2 (input)
+ * @param x2             Source data tensor x2 (input)
+ * @param yDesc          Tensor descriptor of output tensor y (input)
+ * @param y              Data tensor y (output)
+ * @return               miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenOuterForward(miopenHandle_t handle,
+                                                const miopenTensorDescriptor_t x1Desc,
+                                                const void* x1,
+                                                const miopenTensorDescriptor_t x2Desc,
+                                                const void* x2,
+                                                const miopenTensorDescriptor_t yDesc,
+                                                void* y);
+/*! @brief Execute a outer backward layer
+ *
+ * @param handle         MIOpen handle (input)
+ * @param x1Desc         Tensor descriptor of input tensor x1 (input)
+ * @param x1             Source data tensor x1 (input)
+ * @param x2Desc         Tensor descriptor of input tensor x2 (input)
+ * @param x2             Source data tensor x2 (input)
+ * @param x1GradDesc     Tensor descriptor of input tensor x1Grad (input)
+ * @param x1Grad         Source data tensor x1Grad (output)
+ * @param x2GradDesc     Tensor descriptor of input tensor x2Grad (input)
+ * @param x2Grad         Source data tensor x2Grad (output)
+ * @param yGradDesc      Tensor descriptor of output tensor yGrad (input)
+ * @param yGrad          Data tensor yGrad (input)
+ * @return               miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenOuterBackward(miopenHandle_t handle,
+                                                const miopenTensorDescriptor_t x1Desc,
+                                                const void* x1,
+                                                const miopenTensorDescriptor_t x2Desc,
+                                                const void* x2,
+                                                const miopenTensorDescriptor_t x1GradDesc,
+                                                void* x1Grad,
+                                                const miopenTensorDescriptor_t x2GradDesc,
+                                                void* x2Grad,
+                                                const miopenTensorDescriptor_t yGradDesc,
+                                                const void* yGrad);
+
+/** @} */
+// CLOSEOUT OUTER DOXYGEN GROUP
+#endif
 
 #ifdef __cplusplus
 }

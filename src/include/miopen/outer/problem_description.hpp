@@ -26,12 +26,12 @@
 
 #pragma once
 
+#include "miopen/problem.hpp"
 #include <miopen/problem_description_base.hpp>
 #include <miopen/activ.hpp>
 #include <miopen/tensor.hpp>
 
 #include <cassert>
-#include <string>
 
 namespace miopen {
 
@@ -39,14 +39,29 @@ struct NetworkConfig;
 
 namespace outer {
 
-enum gradType
+struct FwdProblemDescription : ProblemDescriptionBase
 {
-    NONE,
-    ONE,
-    TWO
+    FwdProblemDescription(const TensorDescriptor& x1Desc_,
+                        const TensorDescriptor& x2Desc_,
+                        const TensorDescriptor& yDesc_)
+        : x1Desc(x1Desc_), x2Desc(x2Desc_), yDesc(yDesc_)
+    {}
+
+    const TensorDescriptor& GetX1Desc() const { return x1Desc; }
+    const TensorDescriptor& GetX2Desc() const { return x2Desc; }
+    const TensorDescriptor& GetYDesc() const { return yDesc; }
+
+    bool IsSameType() const { return x1Desc.GetType() == x2Desc.GetType() && x1Desc.GetType() == yDesc.GetType(); }
+
+    NetworkConfig MakeNetworkConfig() const override;
+
+private:
+    TensorDescriptor x1Desc;
+    TensorDescriptor x2Desc;
+    TensorDescriptor yDesc;
 };
 
-struct ProblemDescription : ProblemDescriptionBase
+struct BwdProblemDescription : ProblemDescriptionBase
 {
     ProblemDescription(const bool is_fwd_,
                        gradType grad_,
