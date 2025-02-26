@@ -52,7 +52,18 @@ miopenStatus_t VarBackward(Handle& handle,
                            uint32_t num_dims,
                            bool unbiased)
 {
-    std::vector<int> dims_vector(dims, dims + num_dims);
+    std::vector<int> dims_vector;
+    if(num_dims == 0)
+    {
+        for(auto i = 0; i < inputDesc.GetNumDims(); i++)
+        {
+            dims_vector.push_back(i);
+        }
+    }
+    else
+    {
+        dims_vector.assign(dims, dims + num_dims);
+    }
 
     const auto problem = var::ProblemDescription{
         inputDesc, inputGradDesc, meanDesc, meanGradDesc, varGradDesc, dims_vector, unbiased};
