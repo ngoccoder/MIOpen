@@ -29,60 +29,69 @@
 #endif
 
 #include "float_types.h"
+#include "tensor_view.hpp"
 
-extern "C" __global__ void OuterForward(const FLOAT* input1,
-                                        const FLOAT* input2,
-                                        FLOAT* output,
-                                        const size_t n,
-                                        const size_t m,
-                                        const size_t nm)
+template <typename TIO>
+__device__ void
+OuterForwardImpl(const TIO* x1, const TIO* x2, TIO* y, size_t y_numel, tensor_view_t<2> y_tv)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
-    if(gid >= nm)
+    if(gid >= y_numel)
         return;
 
-    size_t ix[2];
-
-    ix[0] = gid / m;
-    ix[1] = gid % m;
-
-    output[gid] = CVT_ACCUM2FLOAT(CVT_FLOAT2ACCUM(input1[ix[0]]) * CVT_FLOAT2ACCUM(input2[ix[1]]));
+    tensor_layout_t<2> y_layout(y_tv, gid);
+    y[y_tv.get_tensor_view_idx(y_layout)] = x1[y_layout.layout[0]] * x2[y_layout.layout[1]];
 }
 
-extern "C" __global__ void OuterBackwardGrad1(const FLOAT* input2,
-                                              FLOAT* input1_grad,
-                                              const FLOAT* output_grad,
-                                              const size_t n,
-                                              const size_t m)
+extern "C" __global__ void OuterForward(
+    const IO_TYPE* x1, const IO_TYPE* x2, IO_TYPE* y, size_t y_numel, tensor_view_t<2> y_tv)
 {
-    size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
-    if(gid >= n)
-        return;
-
-    FLOAT_ACCUM sum = 0;
-    for(size_t j = 0; j < m; ++j)
-    {
-        sum += CVT_FLOAT2ACCUM(input2[j]) * CVT_FLOAT2ACCUM(output_grad[gid * m + j]);
-    }
-
-    input1_grad[gid] = CVT_ACCUM2FLOAT(sum);
+    OuterForwardImpl<IO_TYPE>(x1, x2, y, y_numel, y_tv);
 }
 
-extern "C" __global__ void OuterBackwardGrad2(const FLOAT* input1,
-                                              FLOAT* input2_grad,
-                                              const FLOAT* output_grad,
-                                              const size_t n,
-                                              const size_t m)
+template <typename TIO>
+__device__ void OuterBackwardImpl(const TIO* x1,
+                                  const TIO* x2,
+                                  const TIO* y_grad,
+                                  TIO* x1_grad,
+                                  TIO* x2_grad,
+                                  tensor_view_t<2> y_grad_tv)
 {
     size_t gid = blockIdx.x * blockDim.x + threadIdx.x;
-    if(gid >= m)
+
+    auto x1_numel = y_grad_tv.size[0];
+    auto x2_numel = y_grad_tv.size[1];
+
+    if(gid >= max(x1_numel, x2_numel))
         return;
 
-    FLOAT_ACCUM sum = 0;
-    for(size_t i = 0; i < n; ++i)
+    if(x1_grad && gid < x1_numel)
     {
-        sum += CVT_FLOAT2ACCUM(input1[i]) * CVT_FLOAT2ACCUM(output_grad[i * m + gid]);
+        TIO sum = 0;
+        for(auto i = 0; i < x2_numel; ++i)
+        {
+            sum += x2[i] * y_grad[y_grad_tv.get_tensor_view_idx({gid, i})];
+        }
+        x1_grad[gid] = sum;
     }
 
-    input2_grad[gid] = CVT_ACCUM2FLOAT(sum);
+    if(x2_grad && gid < x2_numel)
+    {
+        TIO sum = 0;
+        for(auto i = 0; i < x1_numel; ++i)
+        {
+            sum += x1[i] * y_grad[y_grad_tv.get_tensor_view_idx({i, gid})];
+        }
+        x2_grad[gid] = sum;
+    }
+}
+
+extern "C" __global__ void OuterBackward(const IO_TYPE* x1,
+                                         const IO_TYPE* x2,
+                                         const IO_TYPE* y_grad,
+                                         IO_TYPE* x1_grad,
+                                         IO_TYPE* x2_grad,
+                                         tensor_view_t<2> y_grad_tv)
+{
+    OuterBackwardImpl<IO_TYPE>(x1, x2, y_grad, x1_grad, x2_grad, y_grad_tv);
 }

@@ -8217,16 +8217,16 @@ MIOPEN_EXPORT miopenStatus_t miopenOuterForward(miopenHandle_t handle,
  * @return               miopenStatus_t
  */
 MIOPEN_EXPORT miopenStatus_t miopenOuterBackward(miopenHandle_t handle,
-                                                const miopenTensorDescriptor_t x1Desc,
-                                                const void* x1,
-                                                const miopenTensorDescriptor_t x2Desc,
-                                                const void* x2,
-                                                const miopenTensorDescriptor_t x1GradDesc,
-                                                void* x1Grad,
-                                                const miopenTensorDescriptor_t x2GradDesc,
-                                                void* x2Grad,
-                                                const miopenTensorDescriptor_t yGradDesc,
-                                                const void* yGrad);
+                                                 const miopenTensorDescriptor_t x1Desc,
+                                                 const void* x1,
+                                                 const miopenTensorDescriptor_t x2Desc,
+                                                 const void* x2,
+                                                 const miopenTensorDescriptor_t x1GradDesc,
+                                                 void* x1Grad,
+                                                 const miopenTensorDescriptor_t x2GradDesc,
+                                                 void* x2Grad,
+                                                 const miopenTensorDescriptor_t yGradDesc,
+                                                 const void* yGrad);
 
 /** @} */
 // CLOSEOUT OUTER DOXYGEN GROUP

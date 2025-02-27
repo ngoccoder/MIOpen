@@ -26,10 +26,8 @@
 
 #pragma once
 
-#include <miopen/solver.hpp>
 #include <miopen/outer/problem_description.hpp>
-
-#include <utility>
+#include <miopen/solver.hpp>
 
 namespace miopen {
 
@@ -37,45 +35,30 @@ namespace solver {
 
 namespace outer {
 
-using OuterSolver = NonTunableSolverBase<ExecutionContext, miopen::outer::ProblemDescription>;
+using OuterForwardSolverBase =
+    NonTunableSolverBase<ExecutionContext, miopen::outer::FwdProblemDescription>;
 
-struct OuterForward final : OuterSolver
+struct OuterForward final : OuterForwardSolverBase
 {
     const std::string& SolverDbId() const override { return GetSolverDbId<OuterForward>(); }
 
     bool IsApplicable(const ExecutionContext& context,
-                      const miopen::outer::ProblemDescription& problem) const override;
+                      const miopen::outer::FwdProblemDescription& problem) const override;
     ConvSolution GetSolution(const ExecutionContext& context,
-                             const miopen::outer::ProblemDescription& problem) const override;
-    std::size_t GetWorkspaceSize(const ExecutionContext& context,
-                                 const miopen::outer::ProblemDescription& problem) const override;
-    bool MayNeedWorkspace() const override { return true; }
+                             const miopen::outer::FwdProblemDescription& problem) const override;
 };
 
-struct OuterBackwardGrad1 final : OuterSolver
+using OuterBackwardSolverBase =
+    NonTunableSolverBase<ExecutionContext, miopen::outer::BwdProblemDescription>;
+
+struct OuterBackward final : OuterBackwardSolverBase
 {
-    const std::string& SolverDbId() const override { return GetSolverDbId<OuterBackwardGrad1>(); }
+    const std::string& SolverDbId() const override { return GetSolverDbId<OuterBackward>(); }
 
     bool IsApplicable(const ExecutionContext& context,
-                      const miopen::outer::ProblemDescription& problem) const override;
+                      const miopen::outer::BwdProblemDescription& problem) const override;
     ConvSolution GetSolution(const ExecutionContext& context,
-                             const miopen::outer::ProblemDescription& problem) const override;
-    std::size_t GetWorkspaceSize(const ExecutionContext& context,
-                                 const miopen::outer::ProblemDescription& problem) const override;
-    bool MayNeedWorkspace() const override { return true; }
-};
-
-struct OuterBackwardGrad2 final : OuterSolver
-{
-    const std::string& SolverDbId() const override { return GetSolverDbId<OuterBackwardGrad2>(); }
-
-    bool IsApplicable(const ExecutionContext& context,
-                      const miopen::outer::ProblemDescription& problem) const override;
-    ConvSolution GetSolution(const ExecutionContext& context,
-                             const miopen::outer::ProblemDescription& problem) const override;
-    std::size_t GetWorkspaceSize(const ExecutionContext& context,
-                                 const miopen::outer::ProblemDescription& problem) const override;
-    bool MayNeedWorkspace() const override { return true; }
+                             const miopen::outer::BwdProblemDescription& problem) const override;
 };
 
 } // namespace outer

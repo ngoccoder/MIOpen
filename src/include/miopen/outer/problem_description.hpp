@@ -26,12 +26,9 @@
 
 #pragma once
 
-#include "miopen/problem.hpp"
+#include <miopen/miopen.h>
 #include <miopen/problem_description_base.hpp>
-#include <miopen/activ.hpp>
 #include <miopen/tensor.hpp>
-
-#include <cassert>
 
 namespace miopen {
 
@@ -42,16 +39,29 @@ namespace outer {
 struct FwdProblemDescription : ProblemDescriptionBase
 {
     FwdProblemDescription(const TensorDescriptor& x1Desc_,
-                        const TensorDescriptor& x2Desc_,
-                        const TensorDescriptor& yDesc_)
+                          const TensorDescriptor& x2Desc_,
+                          const TensorDescriptor& yDesc_)
         : x1Desc(x1Desc_), x2Desc(x2Desc_), yDesc(yDesc_)
-    {}
+    {
+        if(x1Desc.GetNumDims() != 1 || x2Desc.GetNumDims() != 1 || yDesc.GetNumDims() != 2)
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Outer: Tensor dimensions are not valid.");
+        }
+
+        if(!IsSameType())
+        {
+            MIOPEN_THROW(miopenStatusBadParm, "Outer: Tensor types do not match.");
+        }
+    }
 
     const TensorDescriptor& GetX1Desc() const { return x1Desc; }
     const TensorDescriptor& GetX2Desc() const { return x2Desc; }
     const TensorDescriptor& GetYDesc() const { return yDesc; }
 
-    bool IsSameType() const { return x1Desc.GetType() == x2Desc.GetType() && x1Desc.GetType() == yDesc.GetType(); }
+    bool IsSameType() const
+    {
+        return x1Desc.GetType() == x2Desc.GetType() && x1Desc.GetType() == yDesc.GetType();
+    }
 
     NetworkConfig MakeNetworkConfig() const override;
 
@@ -63,59 +73,51 @@ private:
 
 struct BwdProblemDescription : ProblemDescriptionBase
 {
-    ProblemDescription(const bool is_fwd_,
-                       gradType grad_,
-                       const TensorDescriptor& x1Desc_,
-                       const TensorDescriptor& x2Desc_,
-                       const TensorDescriptor& yDesc_)
-        : is_fwd(is_fwd_), grad(grad_), x1Desc(x1Desc_), x2Desc(x2Desc_), yDesc(yDesc_)
+    BwdProblemDescription(const TensorDescriptor& x1Desc_,
+                          const TensorDescriptor& x2Desc_,
+                          const TensorDescriptor& x1GradDesc_,
+                          const TensorDescriptor& x2GradDesc_,
+                          const TensorDescriptor& yGradDesc_)
+        : x1Desc(x1Desc_),
+          x2Desc(x2Desc_),
+          x1GradDesc(x1GradDesc_),
+          x2GradDesc(x2GradDesc_),
+          yGradDesc(yGradDesc_)
     {
-        const auto dtype = yDesc.GetType();
-        if(x1Desc.GetType() != dtype)
+        if(!IsSameType())
         {
             MIOPEN_THROW(miopenStatusBadParm, "Outer: Tensor types do not match.");
         }
-        if(x2Desc.GetType() != dtype)
+
+        if(x1Desc.GetNumDims() != 1 || x2Desc.GetNumDims() != 1 || x1GradDesc.GetNumDims() != 1 ||
+           x2GradDesc.GetNumDims() != 1 || yGradDesc.GetNumDims() != 2)
         {
-            MIOPEN_THROW(miopenStatusBadParm, "Outer: Tensor types do not match.");
-        }
-        if(is_fwd == true && (grad_ == ONE || grad_ == TWO))
-        {
-            MIOPEN_THROW(miopenStatusBadParm,
-                         "Outer: the direciton and the gradient type do not match");
-        }
-        if(is_fwd == false && grad_ == NONE)
-        {
-            MIOPEN_THROW(miopenStatusBadParm,
-                         "Outer: the direciton and the gradient type do not match");
+            MIOPEN_THROW(miopenStatusBadParm, "Outer: Tensor dimensions are not valid.");
         }
     }
 
-    bool isForward() const { return is_fwd; }
     const TensorDescriptor& GetX1Desc() const { return x1Desc; }
     const TensorDescriptor& GetX2Desc() const { return x2Desc; }
-    const TensorDescriptor& GetYDesc() const { return yDesc; }
+    const TensorDescriptor& GetX1GradDesc() const { return x1GradDesc; }
+    const TensorDescriptor& GetX2GradDesc() const { return x2GradDesc; }
+    const TensorDescriptor& GetYGradDesc() const { return yGradDesc; }
 
-    bool IsAllPacked() const
+    bool IsSameType() const
     {
-        if(!x1Desc.IsPacked())
-            return false;
-        if(!x2Desc.IsPacked())
-            return false;
-        if(!yDesc.IsPacked())
-            return false;
-        return true;
+        return x1Desc.GetType() == x2Desc.GetType() && x1Desc.GetType() == x1GradDesc.GetType() &&
+               x1Desc.GetType() == x2GradDesc.GetType() && x1Desc.GetType() == yGradDesc.GetType();
     }
 
     NetworkConfig MakeNetworkConfig() const override;
 
 private:
-    bool is_fwd;
-    gradType grad;
     TensorDescriptor x1Desc;
     TensorDescriptor x2Desc;
-    TensorDescriptor yDesc;
+    TensorDescriptor x1GradDesc;
+    TensorDescriptor x2GradDesc;
+    TensorDescriptor yGradDesc;
 };
 
 } // namespace outer
+
 } // namespace miopen

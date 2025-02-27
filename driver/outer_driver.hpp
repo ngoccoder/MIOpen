@@ -23,95 +23,85 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#ifndef GUARD_MIOPEN_OUTER_DRIVER_HPP
-#define GUARD_MIOPEN_OUTER_DRIVER_HPP
+
+#pragma once
 
 #include "InputFlags.hpp"
 #include "driver.hpp"
+#include "miopen/tensor_view_utils.hpp"
 #include "tensor_driver.hpp"
+#include "tensor_view.hpp"
 #include "timer.hpp"
 #include "random.hpp"
-#include <algorithm>
 #include <cfloat>
 #include <cstdlib>
 #include <memory>
 #include <miopen/miopen.h>
 #include <miopen/tensor.hpp>
-#include <numeric>
 #include <vector>
 #include <../test/tensor_holder.hpp>
 #include <../test/verify.hpp>
 
 template <typename Tgpu, typename Tcheck>
-int32_t mloOuterForwardRunHost(miopenTensorDescriptor_t input1Desc,
-                             miopenTensorDescriptor_t input2Desc,
-                             miopenTensorDescriptor_t outputDesc,
-                             Tgpu* input1,
-                             Tgpu* input2,
-                             Tcheck* outputhost)
+int32_t mloOuterForwardRunHost(const miopenTensorDescriptor_t x1Desc,
+                               const miopenTensorDescriptor_t x2Desc,
+                               const miopenTensorDescriptor_t yDesc,
+                               const Tgpu* x1,
+                               const Tgpu* x2,
+                               Tcheck* y)
 {
-    auto input1_dims = miopen::deref(input1Desc).GetLengths();
-    auto input2_dims = miopen::deref(input2Desc).GetLengths();
-    auto output_dims = miopen::deref(outputDesc).GetLengths();
+    auto y_tv    = miopen::get_inner_expanded_tv<2>(miopen::deref(yDesc));
+    auto y_numel = miopen::deref(yDesc).GetElementSize();
 
-    size_t in_n = input1_dims[0];
-    size_t in_m = input2_dims[0];
-
-    int32_t ret = 0;
-
-    size_t cnt = 0;
-    for(size_t i = 0; i < in_n; i++)
+    for(auto i = 0; i < y_numel; i++)
     {
-        for(size_t j = 0; j < in_m; j++)
-        {
-            outputhost[cnt]   = 0;
-            outputhost[cnt++] = input1[i] * input2[j];
-        }
+        tensor_layout_t<2> y_layout(y_tv, i);
+        y[y_tv.get_tensor_view_idx(y_layout)] = static_cast<Tcheck>(x1[y_layout.layout[0]]) *
+                                                static_cast<Tcheck>(x2[y_layout.layout[1]]);
     }
-    return ret;
+
+    return 0;
 }
 
 template <typename Tgpu, typename Tcheck>
-int32_t mloOuterBackwardRunHost(miopenTensorDescriptor_t input1Desc,
-                              miopenTensorDescriptor_t input2Desc,
-                              miopenTensorDescriptor_t input1GradDesc,
-                              miopenTensorDescriptor_t input2GradDesc,
-                              miopenTensorDescriptor_t outputGradDesc,
-                              Tgpu* input1,
-                              Tgpu* input2,
-                              Tgpu* outGrad,
-                              Tcheck* in1Gradhost,
-                              Tcheck* in2Gradhost)
+int32_t mloOuterBackwardRunHost(const miopenTensorDescriptor_t x1Desc,
+                                const miopenTensorDescriptor_t x2Desc,
+                                const miopenTensorDescriptor_t x1GradDesc,
+                                const miopenTensorDescriptor_t x2GradDesc,
+                                const miopenTensorDescriptor_t yGradDesc,
+                                const Tgpu* x1,
+                                const Tgpu* x2,
+                                const Tgpu* yGrad,
+                                Tcheck* x1Gradhost,
+                                Tcheck* x2Gradhost)
 {
-    auto input1_dims = miopen::deref(input1Desc).GetLengths();
-    auto input2_dims = miopen::deref(input2Desc).GetLengths();
-    auto output_dims = miopen::deref(outputGradDesc).GetLengths();
+    auto y_grad_tv = miopen::get_inner_expanded_tv<2>(miopen::deref(yGradDesc));
+    auto x1_numel  = miopen::deref(x1Desc).GetElementSize();
+    auto x2_numel  = miopen::deref(x2Desc).GetElementSize();
 
-    size_t in_n = input1_dims[0];
-    size_t in_m = input2_dims[0];
-
-    int32_t ret = 0;
-
-    for(size_t i = 0; i < in_n; i++)
+    for(size_t i = 0; i < x1_numel; i++)
     {
         Tcheck sum = static_cast<Tcheck>(0.0f);
-        for(size_t j = 0; j < in_m; j++)
+        for(size_t j = 0; j < x2_numel; j++)
         {
-            sum += static_cast<Tcheck>(input2[j]) * static_cast<Tcheck>(outGrad[i * in_m + j]);
+            sum += static_cast<Tcheck>(x2[j]) *
+                   static_cast<Tcheck>(yGrad[y_grad_tv.get_tensor_view_idx({i, j})]);
         }
-        in1Gradhost[i] = sum;
+        x1Gradhost[i] = sum;
     }
 
-    for(size_t j = 0; j < in_m; j++)
+    for(size_t j = 0; j < x2_numel; j++)
     {
         Tcheck sum = static_cast<Tcheck>(0.0f);
-        for(size_t i = 0; i < in_n; i++)
+        for(size_t i = 0; i < x1_numel; i++)
         {
-            sum += static_cast<Tcheck>(input1[i]) * static_cast<Tcheck>(outGrad[i * in_m + j]);
+            sum += static_cast<Tcheck>(x1[i]) *
+                   static_cast<Tcheck>(yGrad[y_grad_tv.get_tensor_view_idx({i, j})]);
         }
-        in2Gradhost[j] = sum;
+        x2Gradhost[j] = sum;
     }
-    return ret;
+
+    return 0;
 }
 
 template <typename Tgpu, typename Tref>
@@ -120,23 +110,23 @@ class OuterDriver : public Driver
 public:
     OuterDriver() : Driver()
     {
-        miopenCreateTensorDescriptor(&input1Desc);
-        miopenCreateTensorDescriptor(&input2Desc);
-        miopenCreateTensorDescriptor(&outputDesc);
+        miopenCreateTensorDescriptor(&x1Desc);
+        miopenCreateTensorDescriptor(&x2Desc);
+        miopenCreateTensorDescriptor(&yDesc);
 
-        miopenCreateTensorDescriptor(&input1GradDesc);
-        miopenCreateTensorDescriptor(&input2GradDesc);
-        miopenCreateTensorDescriptor(&outputGradDesc);
+        miopenCreateTensorDescriptor(&x1GradDesc);
+        miopenCreateTensorDescriptor(&x2GradDesc);
+        miopenCreateTensorDescriptor(&yGradDesc);
 
         data_type = miopen_type<Tgpu>{};
     }
 
+    std::vector<int> ComputeStrides(std::vector<int> input);
     int AddCmdLineArgs() override;
     int ParseCmdLineArgs(int argc, char* argv[]) override;
     InputFlags& GetInputFlags() override { return inflags; }
 
     int GetandSetData() override;
-    std::vector<int> GetInputTensorLengthsFromCmdLine();
 
     int AllocateBuffersAndCopy() override;
 
@@ -151,44 +141,45 @@ public:
     int VerifyForward() override;
     ~OuterDriver() override
     {
-        miopenDestroyTensorDescriptor(input1Desc);
-        miopenDestroyTensorDescriptor(input1Desc);
-        miopenDestroyTensorDescriptor(outputDesc);
+        miopenDestroyTensorDescriptor(x1Desc);
+        miopenDestroyTensorDescriptor(x2Desc);
+        miopenDestroyTensorDescriptor(yDesc);
 
-        miopenDestroyTensorDescriptor(input1GradDesc);
-        miopenDestroyTensorDescriptor(input2GradDesc);
-        miopenDestroyTensorDescriptor(outputGradDesc);
+        miopenDestroyTensorDescriptor(x1GradDesc);
+        miopenDestroyTensorDescriptor(x2GradDesc);
+        miopenDestroyTensorDescriptor(yGradDesc);
     }
 
 private:
     InputFlags inflags;
 
     int forw;
+    bool isContiguous;
 
-    miopenTensorDescriptor_t input1Desc;
-    miopenTensorDescriptor_t input2Desc;
-    miopenTensorDescriptor_t input1GradDesc;
-    miopenTensorDescriptor_t input2GradDesc;
-    miopenTensorDescriptor_t outputDesc;
-    miopenTensorDescriptor_t outputGradDesc;
+    miopenTensorDescriptor_t x1Desc;
+    miopenTensorDescriptor_t x2Desc;
+    miopenTensorDescriptor_t x1GradDesc;
+    miopenTensorDescriptor_t x2GradDesc;
+    miopenTensorDescriptor_t yDesc;
+    miopenTensorDescriptor_t yGradDesc;
 
-    std::unique_ptr<GPUMem> in1_dev;
-    std::unique_ptr<GPUMem> in2_dev;
-    std::unique_ptr<GPUMem> in1Grad_dev;
-    std::unique_ptr<GPUMem> in2Grad_dev;
-    std::unique_ptr<GPUMem> out_dev;
-    std::unique_ptr<GPUMem> outGrad_dev;
+    std::unique_ptr<GPUMem> x1_dev;
+    std::unique_ptr<GPUMem> x2_dev;
+    std::unique_ptr<GPUMem> x1Grad_dev;
+    std::unique_ptr<GPUMem> x2Grad_dev;
+    std::unique_ptr<GPUMem> y_dev;
+    std::unique_ptr<GPUMem> yGrad_dev;
 
-    std::vector<Tgpu> in1;
-    std::vector<Tgpu> in2;
-    std::vector<Tgpu> in1Grad;
-    std::vector<Tgpu> in2Grad;
-    std::vector<Tgpu> out;
-    std::vector<Tgpu> outGrad;
+    std::vector<Tgpu> x1;
+    std::vector<Tgpu> x2;
+    std::vector<Tgpu> x1Grad;
+    std::vector<Tgpu> x2Grad;
+    std::vector<Tgpu> y;
+    std::vector<Tgpu> yGrad;
 
-    std::vector<Tref> in1Gradhost;
-    std::vector<Tref> in2Gradhost;
-    std::vector<Tref> outhost;
+    std::vector<Tref> x1Gradhost;
+    std::vector<Tref> x2Gradhost;
+    std::vector<Tref> yhost;
 };
 
 template <typename Tgpu, typename Tref>
@@ -200,30 +191,44 @@ int OuterDriver<Tgpu, Tref>::ParseCmdLineArgs(int argc, char* argv[])
     {
         miopenEnableProfiling(GetHandle(), true);
     }
+
+    forw = inflags.GetValueInt("forw");
+
+    if(forw != 0 && forw != 1 && forw != 2)
+    {
+        MIOPEN_THROW("Invalid Forward|Backward Mode");
+    }
+
+    isContiguous = inflags.GetValueInt("is_contiguous") == 0 ? false : true;
+
     return miopenStatusSuccess;
 }
 
 template <typename Tgpu, typename Tref>
 int OuterDriver<Tgpu, Tref>::GetandSetData()
 {
-    std::vector<int> in_lens = GetInputTensorLengthsFromCmdLine();
+    std::vector<int> x1_lens = inflags.GetValueTensor("x1_dim").lengths;
+    SetTensorNd(x1Desc, x1_lens, data_type);
 
-    int in_n = inflags.GetValueInt("in_n");
-    int in_m = inflags.GetValueInt("in_m");
+    std::vector<int> x2_lens = inflags.GetValueTensor("x2_dim").lengths;
+    SetTensorNd(x2Desc, x2_lens, data_type);
 
-    auto lens1 = std::vector<int>({in_lens[0]});
-    auto lens2 = std::vector<int>({in_lens[1]});
+    if(forw == 0 || forw == 1)
+    {
+        std::vector<int> y_lens({x1_lens[0], x2_lens[0]});
+        auto y_stride = ComputeStrides(y_lens);
+        SetTensorNd(yDesc, y_lens, y_stride, data_type);
+    }
 
-    SetTensorNd(input1Desc, lens1, data_type);
-    SetTensorNd(input2Desc, lens2, data_type);
+    if(forw == 0 || forw == 2)
+    {
+        SetTensorNd(x1GradDesc, x1_lens, data_type);
+        SetTensorNd(x2GradDesc, x2_lens, data_type);
 
-    SetTensorNd(input1GradDesc, lens1, data_type);
-    SetTensorNd(input2GradDesc, lens2, data_type);
-
-    std::vector<int> out_len({in_n, in_m});
-
-    SetTensorNd(outputDesc, out_len, data_type);
-    SetTensorNd(outputGradDesc, out_len, data_type);
+        std::vector<int> y_grad_lens({x1_lens[0], x2_lens[0]});
+        auto y_grad_stride = ComputeStrides(y_grad_lens);
+        SetTensorNd(yGradDesc, y_grad_lens, y_grad_stride, data_type);
+    }
 
     return 0;
 }
@@ -231,10 +236,18 @@ int OuterDriver<Tgpu, Tref>::GetandSetData()
 template <typename Tgpu, typename Tref>
 int OuterDriver<Tgpu, Tref>::AddCmdLineArgs()
 {
-    inflags.AddInputFlag("forw", 'F', "1", "Run only Forward Outer (Default=1)", "int");
-    inflags.AddInputFlag("in_n", 'N', "32", "n size (Default=32)", "int");
-    inflags.AddInputFlag("in_m", 'M', "32", "m size (Default=32)", "int");
-
+    inflags.AddInputFlag("forw",
+                         'F',
+                         "0",
+                         "Run both Forward and Backward (0), Run only Forward (1), Run only "
+                         "Backward (2) (Default=0)",
+                         "int");
+    inflags.AddTensorFlag(
+        "x1_dim", 'N', "32", "The dimensional lengths of first input tensor (Default=32)");
+    inflags.AddInputFlag(
+        "x2_dim", 'M', "32", "The dimensional lengths of second input tensor (Default=32)", "int");
+    inflags.AddInputFlag(
+        "is_contiguous", 'C', "1", "Is Tensor Contiguous (1) or not (0) (Default=1)", "int");
     inflags.AddInputFlag("iter", 'i', "10", "Number of Iterations (Default=10)", "int");
     inflags.AddInputFlag("verify", 'V', "1", "Verify Each Layer (Default=1)", "int");
     inflags.AddInputFlag("time", 't', "0", "Time Each Layer (Default=0)", "int");
@@ -244,73 +257,82 @@ int OuterDriver<Tgpu, Tref>::AddCmdLineArgs()
     return miopenStatusSuccess;
 }
 
+// Equivalent to: tensor.tranpose(0, -1).contiguous().tranpose(0, -1) incase contiguous = False
 template <typename Tgpu, typename Tref>
-std::vector<int> OuterDriver<Tgpu, Tref>::GetInputTensorLengthsFromCmdLine()
+std::vector<int> OuterDriver<Tgpu, Tref>::ComputeStrides(std::vector<int> inputDim)
 {
-    int in_n = inflags.GetValueInt("in_n");
-    int in_m = inflags.GetValueInt("in_m");
-
-    if((in_n != 0) && (in_m != 0))
-    {
-        return std::vector<int>({in_n, in_m});
-    }
-    else
-    {
-        std::cerr << "Error Input Tensor Lengths\n" << std::endl;
-        return std::vector<int>({0});
-    }
+    if(!isContiguous)
+        std::swap(inputDim.front(), inputDim.back());
+    std::vector<int> strides(inputDim.size());
+    strides.back() = 1;
+    for(int i = inputDim.size() - 2; i >= 0; --i)
+        strides[i] = strides[i + 1] * inputDim[i + 1];
+    if(!isContiguous)
+        std::swap(strides.front(), strides.back());
+    return strides;
 }
 
 template <typename Tgpu, typename Tref>
 int OuterDriver<Tgpu, Tref>::AllocateBuffersAndCopy()
 {
-    size_t in1_sz = GetTensorSize(input1Desc);
-    size_t in2_sz = GetTensorSize(input2Desc);
-    size_t out_sz = GetTensorSize(outputDesc);
-
     uint32_t ctx = 0;
 
-    in1_dev     = std::unique_ptr<GPUMem>(new GPUMem(ctx, in1_sz, sizeof(Tgpu)));
-    in2_dev     = std::unique_ptr<GPUMem>(new GPUMem(ctx, in2_sz, sizeof(Tgpu)));
-    in1Grad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, in1_sz, sizeof(Tgpu)));
-    in2Grad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, in2_sz, sizeof(Tgpu)));
-    out_dev     = std::unique_ptr<GPUMem>(new GPUMem(ctx, out_sz, sizeof(Tgpu)));
-    outGrad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, out_sz, sizeof(Tgpu)));
+    size_t x1_sz = GetTensorSize(x1Desc);
+    size_t x2_sz = GetTensorSize(x2Desc);
+    size_t y_sz  = GetTensorSize(yDesc);
 
-    in1     = std::vector<Tgpu>(in1_sz, static_cast<Tgpu>(0));
-    in2     = std::vector<Tgpu>(in2_sz, static_cast<Tgpu>(0));
-    in1Grad = std::vector<Tgpu>(in1_sz, static_cast<Tgpu>(0));
-    in2Grad = std::vector<Tgpu>(in2_sz, static_cast<Tgpu>(0));
-    out     = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
-    outGrad = std::vector<Tgpu>(out_sz, static_cast<Tgpu>(0));
+    x1_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, x1_sz, sizeof(Tgpu)));
+    x2_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, x2_sz, sizeof(Tgpu)));
 
-    in1Gradhost = std::vector<Tref>(in1_sz, static_cast<Tgpu>(0));
-    in2Gradhost = std::vector<Tref>(in2_sz, static_cast<Tgpu>(0));
-    outhost     = std::vector<Tref>(out_sz, static_cast<Tref>(0));
+    x1 = std::vector<Tgpu>(x1_sz, static_cast<Tgpu>(0));
+    x2 = std::vector<Tgpu>(x2_sz, static_cast<Tgpu>(0));
 
-    for(int i = 0; i < in1_sz; i++)
+    for(int i = 0; i < x1_sz; i++)
     {
-        in1[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+        x1[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
     }
 
-    for(int i = 0; i < in2_sz; i++)
+    for(int i = 0; i < x2_sz; i++)
     {
-        in2[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+        x2[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
     }
 
-    for(int i = 0; i < out_sz; i++)
+    if(x1_dev->ToGPU(GetStream(), x1.data()) != 0)
+        std::cerr << "Error copying (x1) to GPU, size: " << x1_dev->GetSize() << std::endl;
+
+    if(x2_dev->ToGPU(GetStream(), x2.data()) != 0)
+        std::cerr << "Error copying (in1) to GPU, size: " << x2_dev->GetSize() << std::endl;
+
+    if(forw == 0 || forw == 1)
     {
-        outGrad[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+        y_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, y_sz, sizeof(Tgpu)));
+
+        y     = std::vector<Tgpu>(y_sz, static_cast<Tgpu>(0));
+        yhost = std::vector<Tref>(y_sz, static_cast<Tref>(0));
     }
 
-    if(in1_dev->ToGPU(GetStream(), in1.data()) != 0)
-        std::cerr << "Error copying (in1) to GPU, size: " << in1_dev->GetSize() << std::endl;
+    if(forw == 0 || forw == 2)
+    {
+        x1Grad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, x1_sz, sizeof(Tgpu)));
+        x2Grad_dev = std::unique_ptr<GPUMem>(new GPUMem(ctx, x2_sz, sizeof(Tgpu)));
+        yGrad_dev  = std::unique_ptr<GPUMem>(new GPUMem(ctx, y_sz, sizeof(Tgpu)));
 
-    if(in2_dev->ToGPU(GetStream(), in2.data()) != 0)
-        std::cerr << "Error copying (in1) to GPU, size: " << in2_dev->GetSize() << std::endl;
+        x1Grad = std::vector<Tgpu>(x1_sz, static_cast<Tgpu>(0));
+        x2Grad = std::vector<Tgpu>(x2_sz, static_cast<Tgpu>(0));
+        yGrad  = std::vector<Tgpu>(y_sz, static_cast<Tgpu>(0));
 
-    if(outGrad_dev->ToGPU(GetStream(), outGrad.data()) != 0)
-        std::cerr << "Error copying (out) to GPU, size: " << out_dev->GetSize() << std::endl;
+        x1Gradhost = std::vector<Tref>(x1_sz, static_cast<Tgpu>(0));
+        x2Gradhost = std::vector<Tref>(x2_sz, static_cast<Tgpu>(0));
+
+        for(int i = 0; i < y_sz; i++)
+        {
+            yGrad[i] = prng::gen_A_to_B<Tgpu>(static_cast<Tgpu>(0.0), static_cast<Tgpu>(1.0));
+        }
+
+        if(yGrad_dev->ToGPU(GetStream(), yGrad.data()) != 0)
+            std::cerr << "Error copying (yGrad) to GPU, size: " << yGrad_dev->GetSize()
+                      << std::endl;
+    }
 
     return miopenStatusSuccess;
 }
@@ -327,12 +349,12 @@ int OuterDriver<Tgpu, Tref>::RunForwardGPU()
     for(int i = 0; i < inflags.GetValueInt("iter"); i++)
     {
         miopenOuterForward(GetHandle(),
-                           input1Desc,
-                           in1_dev->GetMem(),
-                           input2Desc,
-                           in2_dev->GetMem(),
-                           outputDesc,
-                           out_dev->GetMem());
+                           x1Desc,
+                           x1_dev->GetMem(),
+                           x2Desc,
+                           x2_dev->GetMem(),
+                           yDesc,
+                           y_dev->GetMem());
 
         float time = 0.0;
         miopenGetKernelTime(GetHandle(), &time);
@@ -354,8 +376,8 @@ int OuterDriver<Tgpu, Tref>::RunForwardGPU()
         std::cout << "GPU Kernel Time Forward Outer Elapsed: " << kernel_average_time << " ms\n";
     }
 
-    if(out_dev->FromGPU(GetStream(), out.data()) != 0)
-        std::cerr << "Error copying (out_dev) from GPU, size: " << out_dev->GetSize() << std::endl;
+    if(y_dev->FromGPU(GetStream(), y.data()) != 0)
+        std::cerr << "Error copying (y_dev) from GPU, size: " << y_dev->GetSize() << std::endl;
 
     return miopenStatusSuccess;
 }
@@ -363,8 +385,7 @@ int OuterDriver<Tgpu, Tref>::RunForwardGPU()
 template <typename Tgpu, typename Tref>
 int OuterDriver<Tgpu, Tref>::RunForwardCPU()
 {
-    mloOuterForwardRunHost<Tgpu, Tref>(
-        input1Desc, input2Desc, outputDesc, in1.data(), in2.data(), outhost.data());
+    mloOuterForwardRunHost<Tgpu, Tref>(x1Desc, x2Desc, yDesc, x1.data(), x2.data(), yhost.data());
 
     return miopenStatusSuccess;
 }
@@ -380,34 +401,24 @@ int OuterDriver<Tgpu, Tref>::RunBackwardGPU()
 
     for(int i = 0; i < inflags.GetValueInt("iter"); i++)
     {
-        float time_sum = 0.0f;
-        float time_tmp = 0.0f;
+        miopenOuterBackward(GetHandle(),
+                            x1Desc,
+                            x1_dev->GetMem(),
+                            x2Desc,
+                            x2_dev->GetMem(),
+                            x1GradDesc,
+                            x1Grad_dev->GetMem(),
+                            x2GradDesc,
+                            x2Grad_dev->GetMem(),
+                            yGradDesc,
+                            yGrad_dev->GetMem());
 
-        miopenOuterBackwardGrad1(GetHandle(),
-                                 input2Desc,
-                                 in2_dev->GetMem(),
-                                 input1GradDesc,
-                                 in1Grad_dev->GetMem(),
-                                 outputGradDesc,
-                                 outGrad_dev->GetMem());
+        float time = 0.0;
+        miopenGetKernelTime(GetHandle(), &time);
 
-        miopenGetKernelTime(GetHandle(), &time_tmp);
-        time_sum += time_tmp;
-
-        miopenOuterBackwardGrad2(GetHandle(),
-                                 input1Desc,
-                                 in1_dev->GetMem(),
-                                 input2GradDesc,
-                                 in2Grad_dev->GetMem(),
-                                 outputGradDesc,
-                                 outGrad_dev->GetMem());
-
-        miopenGetKernelTime(GetHandle(), &time_tmp);
-        time_sum += time_tmp;
-
-        kernel_total_time += time_sum;
+        kernel_total_time += time;
         if(i == 0)
-            kernel_first_time = time_sum;
+            kernel_first_time = time;
     }
 
     if(inflags.GetValueInt("time") == 1)
@@ -423,12 +434,12 @@ int OuterDriver<Tgpu, Tref>::RunBackwardGPU()
         std::cout << "GPU Kernel Time Backward Outer Elapsed: " << kernel_average_time << " ms\n";
     }
 
-    if(in1Grad_dev->FromGPU(GetStream(), in1Grad.data()) != 0)
-        std::cerr << "Error copying (in1Grad_dev) from GPU, size: " << in1Grad_dev->GetSize()
+    if(x1Grad_dev->FromGPU(GetStream(), x1Grad.data()) != 0)
+        std::cerr << "Error copying (x1Grad_dev) from GPU, size: " << x1Grad_dev->GetSize()
                   << std::endl;
 
-    if(in2Grad_dev->FromGPU(GetStream(), in2Grad.data()) != 0)
-        std::cerr << "Error copying (in2Grad_dev) from GPU, size: " << in2Grad_dev->GetSize()
+    if(x2Grad_dev->FromGPU(GetStream(), x2Grad.data()) != 0)
+        std::cerr << "Error copying (x2Grad_dev) from GPU, size: " << x2Grad_dev->GetSize()
                   << std::endl;
 
     return miopenStatusSuccess;
@@ -437,16 +448,16 @@ int OuterDriver<Tgpu, Tref>::RunBackwardGPU()
 template <typename Tgpu, typename Tref>
 int OuterDriver<Tgpu, Tref>::RunBackwardCPU()
 {
-    mloOuterBackwardRunHost<Tgpu, Tref>(input1Desc,
-                                      input2Desc,
-                                      input1GradDesc,
-                                      input2GradDesc,
-                                      outputGradDesc,
-                                      in1.data(),
-                                      in2.data(),
-                                      outGrad.data(),
-                                      in1Gradhost.data(),
-                                      in2Gradhost.data());
+    mloOuterBackwardRunHost<Tgpu, Tref>(x1Desc,
+                                        x2Desc,
+                                        x1GradDesc,
+                                        x2GradDesc,
+                                        yGradDesc,
+                                        x1.data(),
+                                        x2.data(),
+                                        yGrad.data(),
+                                        x1Gradhost.data(),
+                                        x2Gradhost.data());
 
     return miopenStatusSuccess;
 }
@@ -454,11 +465,7 @@ int OuterDriver<Tgpu, Tref>::RunBackwardCPU()
 template <typename Tgpu, typename Tref>
 Tref OuterDriver<Tgpu, Tref>::GetTolerance()
 {
-    auto tolerance = std::is_same<Tgpu, float>::value ? 1.5e-6 : 8.2e-3;
-
-    // bf16 mantissa has 7 bits, by 3 bits shorter than fp16.
-    if(std::is_same<Tgpu, bfloat16>::value)
-        tolerance *= 8.0;
+    Tref tolerance = std::numeric_limits<Tgpu>::epsilon() * 10;
     return tolerance;
 }
 
@@ -467,7 +474,7 @@ int OuterDriver<Tgpu, Tref>::VerifyForward()
 {
     RunForwardCPU();
     const Tref tolerance = GetTolerance();
-    auto error           = miopen::rms_range(outhost, out);
+    auto error           = miopen::rms_range(yhost, y);
 
     if(!std::isfinite(error) || error > tolerance)
     {
@@ -488,20 +495,20 @@ int OuterDriver<Tgpu, Tref>::VerifyBackward()
 {
     RunBackwardCPU();
     const Tref tolerance = GetTolerance();
-    auto error1          = miopen::rms_range(in1Gradhost, in1Grad);
-    auto error2          = miopen::rms_range(in2Gradhost, in2Grad);
+    auto error1          = miopen::rms_range(x1Gradhost, x1Grad);
+    auto error2          = miopen::rms_range(x2Gradhost, x2Grad);
 
     if(!std::isfinite(error1) || error1 > tolerance)
     {
         std::cout << "Backward Outer FAILED with in1: " << error1 << " > " << tolerance
                   << std::endl;
-        return EC_VerifyFwd;
+        return EC_VerifyBwd;
     }
     else if(!std::isfinite(error2) || error2 > tolerance)
     {
         std::cout << "Backward Outer FAILED with in2: " << error2 << " > " << tolerance
                   << std::endl;
-        return EC_VerifyFwd;
+        return EC_VerifyBwd;
     }
     else
     {
@@ -511,5 +518,3 @@ int OuterDriver<Tgpu, Tref>::VerifyBackward()
     }
     return miopenStatusSuccess;
 }
-
-#endif // GUARD_MIOPEN_OUTER_DRIVER_HPP

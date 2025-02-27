@@ -24,9 +24,9 @@
  *
  *******************************************************************************/
 
-#include <miopen/outer/problem_description.hpp>
 #include <miopen/datatype.hpp>
 #include <miopen/names.hpp>
+#include <miopen/outer/problem_description.hpp>
 
 #include <sstream>
 
@@ -34,31 +34,28 @@ namespace miopen {
 
 namespace outer {
 
-NetworkConfig ProblemDescription::MakeNetworkConfig() const
+NetworkConfig FwdProblemDescription::MakeNetworkConfig() const
 {
     std::ostringstream ss;
-    if(is_fwd == true)
-    {
-        ss << "outerfwd";
-    }
-    else
-    {
-        if(grad == ONE)
-        {
-            ss << "outerbwdgrad1";
-        }
-        else if(grad == TWO)
-        {
-            ss << "outerbwdgrad2";
-        }
-    }
-    auto x1length = x1Desc.GetLengths();
-    auto x2length = x2Desc.GetLengths();
-    auto ylength  = yDesc.GetLengths();
-    auto dtype    = x1Desc.GetType();
+    ss << "outer_fwd";
+    auto ylength = yDesc.GetLengths();
+    auto dtype   = x1Desc.GetType();
     ss << "dtype" << dtype;
-    ss << "x1len" << x1length[0];
-    ss << "x2len" << x2length[0];
+    ss << "x1len" << ylength[0];
+    ss << "x2len" << ylength[1];
+
+    return NetworkConfig{ss.str()};
+}
+
+NetworkConfig BwdProblemDescription::MakeNetworkConfig() const
+{
+    std::ostringstream ss;
+    ss << "outer_bwd";
+    auto ylength = yGradDesc.GetLengths();
+    auto dtype   = x1Desc.GetType();
+    ss << "dtype" << dtype;
+    ss << "x1len" << ylength[0];
+    ss << "x2len" << ylength[1];
 
     return NetworkConfig{ss.str()};
 }

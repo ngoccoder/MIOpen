@@ -28,6 +28,7 @@
 #include <miopen/handle.hpp>
 #include <miopen/logger.hpp>
 #include <miopen/outer.hpp>
+#include <miopen/tensor.hpp>
 
 extern "C" miopenStatus_t miopenOuterForward(miopenHandle_t handle,
                                              const miopenTensorDescriptor_t x1Desc,
@@ -40,41 +41,42 @@ extern "C" miopenStatus_t miopenOuterForward(miopenHandle_t handle,
     MIOPEN_LOG_FUNCTION(handle, x1Desc, x1, x2Desc, x2, yDesc, y);
 
     return miopen::try_([&] {
-        miopen::OuterForward(miopen::deref(handle),
-                             miopen::deref(x1Desc),
-                             DataCast(x1),
-                             miopen::deref(x2Desc),
-                             DataCast(x2),
-                             miopen::deref(yDesc),
-                             DataCast(y));
+        miopen::outer::OuterForward(miopen::deref(handle),
+                                    miopen::deref(x1Desc),
+                                    DataCast(x1),
+                                    miopen::deref(x2Desc),
+                                    DataCast(x2),
+                                    miopen::deref(yDesc),
+                                    DataCast(y));
     });
 }
 
 extern "C" miopenStatus_t miopenOuterBackward(miopenHandle_t handle,
-                                                   const miopenTensorDescriptor_t x1Desc,
-                                                   const void* x1,
-                                                   const miopenTensorDescriptor_t x2Desc,
-                                                   const void* x2,
-                                                   const miopenTensorDescriptor_t x1GradDesc,
-                                                   void* x1Grad,
-                                                   const miopenTensorDescriptor_t x2GradDesc,
-                                                   void* x2Grad,
-                                                   const miopenTensorDescriptor_t yGradDesc,
-                                                   const void* yGrad)
+                                              const miopenTensorDescriptor_t x1Desc,
+                                              const void* x1,
+                                              const miopenTensorDescriptor_t x2Desc,
+                                              const void* x2,
+                                              const miopenTensorDescriptor_t x1GradDesc,
+                                              void* x1Grad,
+                                              const miopenTensorDescriptor_t x2GradDesc,
+                                              void* x2Grad,
+                                              const miopenTensorDescriptor_t yGradDesc,
+                                              const void* yGrad)
 {
-    MIOPEN_LOG_FUNCTION(handle, x1Desc, x1, x2Desc, x2, x1GradDesc, x1Grad, x2GradDesc, x2Grad, yGradDesc, yGrad);
+    MIOPEN_LOG_FUNCTION(
+        handle, x1Desc, x1, x2Desc, x2, x1GradDesc, x1Grad, x2GradDesc, x2Grad, yGradDesc, yGrad);
 
     return miopen::try_([&] {
-        miopen::OuterBackward(miopen::deref(handle),
-                                   miopen::deref(x1Desc),
-                                   DataCast(x1),
-                                   miopen::deref(x2Desc),
-                                   DataCast(x2),
-                                   miopen::deref(x1GradDesc),
-                                   DataCast(x1Grad),
-                                   miopen::deref(x2GradDesc),
-                                   DataCast(x2Grad),
-                                   miopen::deref(yGradDesc),
-                                   DataCast(yGrad));
+        miopen::outer::OuterBackward(miopen::deref(handle),
+                                     miopen::deref(x1Desc),
+                                     DataCast(x1),
+                                     miopen::deref(x2Desc),
+                                     DataCast(x2),
+                                     miopen::deref(x1GradDesc),
+                                     DataCast(x1Grad),
+                                     miopen::deref(x2GradDesc),
+                                     DataCast(x2Grad),
+                                     miopen::deref(yGradDesc),
+                                     DataCast(yGrad));
     });
 }

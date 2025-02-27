@@ -318,8 +318,7 @@ set( MIOpen_Source
     solver/mha/mha_solver_backward.cpp
     solver/mha/mha_solver_forward.cpp
     solver/multimarginloss/forward_multimarginloss.cpp
-    solver/outer/backwardgrad1_outer.cpp
-    solver/outer/backwardgrad2_outer.cpp
+    solver/outer/backward_outer.cpp
     solver/outer/forward_outer.cpp
     solver/pooling/forward2d.cpp
     solver/pooling/forwardNaive.cpp

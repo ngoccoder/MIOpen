@@ -24,13 +24,16 @@
  *
  *******************************************************************************/
 
-#include <miopen/outer/solvers.hpp>
-
-#include <miopen/outer/invoke_params.hpp>
 #include <miopen/datatype.hpp>
-#include <miopen/outer.hpp>
 #include <miopen/kernel_build_params.hpp>
+#include <miopen/mlo_internal.hpp>
+#include <miopen/outer.hpp>
+#include <miopen/outer/invoke_params.hpp>
+#include <miopen/outer/solvers.hpp>
 #include <miopen/target_properties.hpp>
+#include <miopen/tensor_view_utils.hpp>
+
+#define LOCAL_SIZE 256
 
 namespace miopen {
 
@@ -38,58 +41,58 @@ namespace solver {
 
 namespace outer {
 
-static bool IsImprovementOverROCm(const miopen::outer::ProblemDescription& problem)
+bool IsImprovementOverROCm(const miopen::outer::BwdProblemDescription& problem)
 {
-    auto ydims = problem.GetYDesc().GetLengths();
+    auto ydims = problem.GetYGradDesc().GetLengths();
     if(ydims[0] <= 32 && ydims[1] <= 128)
         return true;
     else
         return false;
 }
 
-bool OuterBackwardGrad2::IsApplicable([[maybe_unused]] const ExecutionContext& context,
-                                      const miopen::outer::ProblemDescription& problem) const
+bool OuterBackward::IsApplicable(const ExecutionContext& /*context*/,
+                                 const miopen::outer::BwdProblemDescription& problem) const
 {
-    if(!problem.IsAllPacked())
+    if(!(problem.GetX1Desc().GetType() == miopenFloat ||
+         problem.GetX1Desc().GetType() == miopenHalf ||
+         problem.GetX1Desc().GetType() == miopenBFloat16))
         return false;
+
     if(!IsImprovementOverROCm(problem))
         return false;
+
     return true;
 }
 
-ConvSolution OuterBackwardGrad2::GetSolution([[maybe_unused]] const ExecutionContext& context,
-                                             const miopen::outer::ProblemDescription& problem) const
+ConvSolution OuterBackward::GetSolution(const ExecutionContext& /*context*/,
+                                        const miopen::outer::BwdProblemDescription& problem) const
 {
-    static const size_t LOCAL_SIZE = 256;
-    auto result                    = ConvSolution{miopenStatusSuccess};
+    auto result = ConvSolution{miopenStatusSuccess};
 
-    auto dtype  = problem.GetX1Desc().GetType();
-    auto x2dims = problem.GetX2Desc().GetLengths();
+    auto dtype    = problem.GetX1Desc().GetType();
+    auto io_dtype = GetDataType(dtype);
+    auto x1_numel = problem.GetX1Desc().GetElementSize();
+    auto x2_numel = problem.GetX2Desc().GetElementSize();
 
     auto input_dtype  = miopen::GetDataType(problem.GetX1Desc().GetType());
-    auto output_dtype = miopen::GetDataType(problem.GetYDesc().GetType());
+    auto output_dtype = miopen::GetDataType(problem.GetYGradDesc().GetType());
 
     size_t xlocalsize = LOCAL_SIZE;
     size_t ylocalsize = 1;
     size_t zlocalsize = 1;
-
-    size_t xgridsize = x2dims[0];
-    if(xgridsize % LOCAL_SIZE != 0)
-    {
-        xgridsize = (xgridsize / LOCAL_SIZE + 1) * LOCAL_SIZE;
-    }
-    size_t ygridsize = 1;
-    size_t zgridsize = 1;
+    size_t xgridsize  = AlignUp(static_cast<size_t>(max(x1_numel, x2_numel)), xlocalsize);
+    size_t ygridsize  = 1;
+    size_t zgridsize  = 1;
 
     auto kernel        = KernelInfo{};
     kernel.kernel_file = "MIOpenOuter.cpp";
-    kernel.kernel_name = "OuterBackwardGrad2";
+    kernel.kernel_name = "OuterBackward";
 
     const auto build_params =
         KernelBuildParameters{{"MIOPEN_USE_FP16", static_cast<int>(dtype == miopenHalf)},
                               {"MIOPEN_USE_FP32", static_cast<int>(dtype == miopenFloat)},
-                              {"MIOPEN_USE_FP64", static_cast<int>(dtype == miopenDouble)},
-                              {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)}};
+                              {"MIOPEN_USE_BFP16", static_cast<int>(dtype == miopenBFloat16)},
+                              {"IO_TYPE", io_dtype == "bfloat16" ? "ushort" : io_dtype}};
 
     kernel.comp_options = build_params.GenerateFor(kbp::HIP{});
 
@@ -104,24 +107,17 @@ ConvSolution OuterBackwardGrad2::GetSolution([[maybe_unused]] const ExecutionCon
     result.invoker_factory = [](const std::vector<Kernel>& kernels) {
         return [=](const Handle& handle_, const AnyInvokeParams& raw_params) {
             decltype(auto) kernel = handle_.Run(kernels.front());
-            decltype(auto) params = raw_params.CastTo<miopen::outer::InvokeParamsBackwardGrad2>();
+            decltype(auto) params = raw_params.CastTo<miopen::outer::BwdInvokeParams>();
 
-            auto yGradDims = params.yGradDesc.GetLengths();
+            auto y_grad_tv = get_inner_expanded_tv<2>(miopen::deref(params.yGradDesc));
 
-            kernel(params.x1, params.x2Grad, params.yGrad, yGradDims[0], yGradDims[1]);
+            kernel(params.x1, params.x2, params.yGrad, params.x1Grad, params.x2Grad, y_grad_tv);
         };
     };
 
     result.construction_params.push_back(kernel);
 
     return result;
-}
-
-std::size_t OuterBackwardGrad2::GetWorkspaceSize(
-    [[maybe_unused]] const ExecutionContext& context,
-    [[maybe_unused]] const miopen::outer::ProblemDescription& problem) const
-{
-    return 0;
 }
 
 } // namespace outer
